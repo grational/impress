@@ -6,6 +6,7 @@ import groovy.transform.CompileStatic
 import groovy.transform.TypeChecked
 import groovy.transform.TypeCheckingMode
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder
 import software.amazon.awssdk.services.dynamodb.model.*
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 // local
@@ -22,6 +23,10 @@ class DynamoDb {
 
 	DynamoDb(DynamoDbClient client) { // {{{
 		this.client = client
+	} // }}}
+
+	DynamoDb() { // {{{
+		this.client = DynamoDbClient.builder().build()
 	} // }}}
 
 	void putItem (
