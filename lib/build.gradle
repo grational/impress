@@ -117,10 +117,10 @@ dockerCompose {
 	waitForTcpPorts = true
 	useDockerComposeV2 = false
 
-	// keep containers running
-	stopContainers = false
-	removeContainers = false
-	removeVolumes = false
+	// avoid containers running
+	stopContainers = true
+	removeContainers = true
+	removeVolumes = true
 }
 
 boolean containersNeeded() {

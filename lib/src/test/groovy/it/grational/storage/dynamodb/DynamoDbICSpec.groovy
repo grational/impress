@@ -23,7 +23,7 @@ class DynamoDbICSpec extends Specification {
 	@Shared
 	DynamoDb dynamoDb
 	@Shared
-	URI endpoint = 'http://localhost:8000'.toURI()
+	URI endpoint = 'http://localhost:8888'.toURI()
 	// }}}
 
 	def setupSpec() { // {{{
