@@ -24,10 +24,9 @@ project.ext {
 }
 
 project.with {
-	//project.name is set in the settings.gradle with rootProject.name
-	group       'it.grational'
-	// version     scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
-	description 'Provide all major HTTP method implementations and additional functionalities as caching and retrying.'
+	group 'it.grational'
+	version scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
+	description 'Impress - A Groovy library to store your objects into any storage, with an implementation for AWS DynamoDB'
 }
 
 allprojects {
@@ -95,7 +94,7 @@ publishing {
 		mavenJava(MavenPublication) {
 			groupId = 'com.github.grational'
 			artifactId = 'impress'
-			// version = scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
+			version = scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
 			from components.java
 		}
 	}
@@ -103,11 +102,6 @@ publishing {
 // }}}
 
 // docker-compose configuration {{{
-
-// tasks.named('dockerfileNative') {
-// 	jdkVersion = '21'
-// }
-
 tasks.composeUp {
 	onlyIf {
 		containersNeeded()
