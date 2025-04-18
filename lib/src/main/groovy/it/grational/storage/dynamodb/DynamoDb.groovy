@@ -179,16 +179,37 @@ class DynamoDb {
 		return targetClass.newInstance(builder)
 	} // }}}
 
-	<T extends Storable<AttributeValue,Object>> List<T> objectsByIndex (
+	
+	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
+		String table,
+		DynamoKey key,
+		Class<T> targetClass,
+		DynamoFilter filter = null
+	) { // {{{
+		objectsQuery (
+			table,
+			null, // no index is needed
+			key.partition(),
+			targetClass,
+			filter
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
 		String table,
 		String index,
 		DynamoKey key,
 		Class<T> targetClass,
 		DynamoFilter filter = null
 	) { // {{{
-		def queryBuilder = QueryRequest.builder()
+		def queryBuilder = QueryRequest
+			.builder()
 			.tableName(table)
-			.indexName(index)
+
+		if ( index )
+			queryBuilder.indexName(index)
+
+		queryBuilder
 			.keyConditionExpression(key.condition())
 			.expressionAttributeNames ( filter
 				? ( key.conditionNames() + filter.expressionNames )

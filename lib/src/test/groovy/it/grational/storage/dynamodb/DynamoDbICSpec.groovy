@@ -265,7 +265,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		then:
-			List<TestItem> results = dynamoDb.objectsByIndex (
+			List<TestItem> results = dynamoDb.objectsQuery (
 				table,
 				'data_index',
 				new DynamoKey('tagField', 'tag_a'),
@@ -325,7 +325,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		then:
-			List<ContractItem> objects = dynamoDb.objectsByIndex (
+			List<ContractItem> objects = dynamoDb.objectsQuery (
 				table,
 				'offer-index',
 				new DynamoKey('offer', sharedOffer),
@@ -490,7 +490,7 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version  == 1
 
 		when:
-			List<TestItem> results = dynamoDb.objectsByIndex (
+			List<TestItem> results = dynamoDb.objectsQuery (
 				table,
 				'tag_index',
 				new DynamoKey('tagField', 'tag1'),
@@ -508,6 +508,67 @@ class DynamoDbICSpec extends Specification {
 				it.id       == 'pk2' &&
 				it.sortKey  == 'sk1' &&
 				it.tagField == 'tag1' &&
+				it.version  == 1
+			}
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	@IgnoreRest
+	def "Should be capable of querying objects only by their partition key"() { // {{{{
+		given:
+			String table = 'test_partition_key'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				sortKey
+			)
+		and:
+			List<TestItem> items = [
+				new TestItem (
+					id: 'pk1',
+					sortKey: 'sk1',
+					data: 'c1'
+				),
+				new TestItem (
+					id: 'pk1',
+					sortKey: 'sk2',
+					data: 'c2'
+				),
+				new TestItem (
+					id: 'pk2',
+					sortKey: 'sk3',
+					data: 'c3'
+				)
+			]
+		and:
+			dynamoDb.putItems (
+				table,
+				items
+			)
+
+		when:
+			List<TestItem> results = dynamoDb.objectsQuery (
+				table,
+				new DynamoKey('id', 'pk1'),
+				TestItem
+			)
+		then:
+			results.size() == 2
+			results.any {
+				it.id       == 'pk1' &&
+				it.sortKey  == 'sk1' &&
+				it.data     == 'c1' &&
+				it.version  == 1
+			}
+			results.any {
+				it.id       == 'pk1' &&
+				it.sortKey  == 'sk2' &&
+				it.data     == 'c2' &&
 				it.version  == 1
 			}
 

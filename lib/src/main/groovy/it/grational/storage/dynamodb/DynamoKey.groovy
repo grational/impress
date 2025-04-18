@@ -2,6 +2,7 @@ package it.grational.storage.dynamodb
 
 import groovy.transform.ToString
 import groovy.transform.CompileStatic
+import groovy.transform.EqualsAndHashCode
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 
@@ -10,6 +11,7 @@ import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 	includeFields = true,
 	includePackage = false
 )
+@EqualsAndHashCode
 @CompileStatic
 class DynamoKey {
 	private final Map<String, AttributeValue> map = [:]
@@ -56,6 +58,20 @@ class DynamoKey {
 
 	boolean composite() {
 		map.size() > 1
+	}
+
+	DynamoKey partition() {
+		return ( composite() )
+			? new DynamoKey(map.take(1))
+			: this
+	}
+
+	Optional<DynamoKey> sort() {
+		return Optional.ofNullable (
+			composite()
+				? new DynamoKey(map.drop(1))
+				: null
+		)
 	}
 
 	String condition() {

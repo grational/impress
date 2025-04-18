@@ -104,17 +104,49 @@ class DynamoKeyUSpec extends Specification {
 		then:
 			noExceptionThrown()
 		and:
-			dk.composite() == composite
+			dk.composite() == expected
 		and:
 			dk.toMap() == input
 
 		where:
-			input                                || composite
+			input                                || expected
 			[ string: fromS('value') ]           || false
 			[ a: fromS('a'), b: fromS('b') ]     || true
 			[ a: fromS('a'), one: fromN('1') ]   || true
 			[ one: fromN('1'), b: fromS('b') ]   || true
 			[ one: fromN('1'), two: fromN('2') ] || true
+	}
+
+	def "Should be able to extract a partition key from a composite one"() {
+		when:
+			DynamoKey dk = new DynamoKey(input)
+
+		then:
+			dk.partition().toMap() == expected
+
+		where:
+			input                                || expected
+			[ string: fromS('value') ]           || input
+			[ a: fromS('a'), b: fromS('b') ]     || [ a: fromS('a') ]
+			[ a: fromS('a'), one: fromN('1') ]   || [ a: fromS('a') ]
+			[ one: fromN('1'), b: fromS('b') ]   || [ one: fromN('1') ]
+			[ one: fromN('1'), two: fromN('2') ] || [ one: fromN('1') ]
+	}
+
+	def "Should be able to extract a sort key from a composite one"() {
+		when:
+			DynamoKey dk = new DynamoKey(input)
+
+		then:
+			dk.sort() == Optional.ofNullable(expected)
+
+		where:
+			input                                || expected
+			[ string: fromS('value') ]           || null
+			[ a: fromS('a'), b: fromS('b') ]     || new DynamoKey(b: fromS('b'))
+			[ a: fromS('a'), one: fromN('1') ]   || new DynamoKey(one: fromN('1'))
+			[ one: fromN('1'), b: fromS('b') ]   || new DynamoKey(b: fromS('b'))
+			[ one: fromN('1'), two: fromN('2') ] || new DynamoKey(two: fromN('1'))
 	}
 
 }
