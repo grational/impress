@@ -115,6 +115,9 @@ class DynamoDb {
 
   // Query objects by index
   <T extends Storable<AttributeValue,Object>> List<T> objectsByIndex(String table, String index, DynamoKey key, Class<T> targetClass, DynamoFilter filter = null)
+  
+  // Scan all objects in a table
+  <T extends Storable<AttributeValue,Object>> List<T> scan(String table, Class<T> targetClass, DynamoFilter filter = null)
 
   // Delete an item
   DeleteItemResponse deleteItem(String table, DynamoKey key)
@@ -147,8 +150,8 @@ Provides a fluent API for building DynamoDB filter expressions:
 import static it.grational.storage.dynamodb.DynamoFilter.*
 
 // Create filters
-def activeFilter = equals("status", "active")
-def highPriorityFilter = greaterThan("priority", 7)
+def activeFilter = match("status", "active")
+def highPriorityFilter = greater("priority", 7)
 
 // Combine filters
 def combinedFilter = activeFilter.and(highPriorityFilter)
@@ -258,6 +261,19 @@ List<User> admins = dynamoDb.objectsByIndex (
 
 // Delete the user
 dynamoDb.deleteItem("users", new DynamoKey("id", "user-123"))
+
+// Scan all users in the table
+List<User> allUsers = dynamoDb.scan (
+  'users',
+  User.class
+)
+
+// Scan with a filter
+List<User> activeUsers = dynamoDb.scan (
+  'users',
+  User.class,
+  match("active", true)
+)
 ```
 
 ### Working with Filters
@@ -266,7 +282,7 @@ dynamoDb.deleteItem("users", new DynamoKey("id", "user-123"))
 import static it.grational.storage.dynamodb.DynamoFilter.*
 
 // Find active users
-def activeFilter = equals("active", true)
+def activeFilter = match("active", true)
 List<User> activeUsers = dynamoDb.objectsByIndex (
   'users',
   'username-index',
@@ -286,7 +302,7 @@ List<User> adminUsers = dynamoDb.objectsByIndex (
 )
 
 // Complex filter combining conditions
-def complexFilter = equals("active", true)
+def complexFilter = match("active", true)
   .and(beginsWith("username", "j"))
   .and(contains("roles", "admin"))
     
@@ -527,7 +543,7 @@ List<Order> orders = dynamoDb.objectsByIndex(
   'customer-index',
   new DynamoKey('customerId', 'cust-123'),
   Order.class,
-  greaterThan('orderTotal', 100)
+  greater('orderTotal', 100)
 )
 
 // Less efficient: Filtering without appropriate index
@@ -536,7 +552,7 @@ List<Order> orders = dynamoDb.objectsByIndex(
   "status-index",
   new DynamoKey("status", "pending"),
   Order.class,
-  equals("customerId", "cust-123").and(greaterThan("orderTotal", 100))
+  match("customerId", "cust-123").and(greater("orderTotal", 100))
 )
 ```
 
