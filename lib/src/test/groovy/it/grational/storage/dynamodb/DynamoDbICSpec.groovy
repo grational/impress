@@ -72,7 +72,7 @@ class DynamoDbICSpec extends Specification {
 			inserted.version == 1
 
 		when: 'with another put the version is updated even with the same data'
-			
+
 			dynamoDb.putItem (
 				table,
 				inserted
@@ -330,7 +330,7 @@ class DynamoDbICSpec extends Specification {
 				'offer-index',
 				new DynamoKey('offer', sharedOffer),
 				ContractItem,
-				DynamoFilter.equals('enabled', true)
+				match('enabled', true)
 			)
 		and:
 			objects.size() == 1
@@ -610,6 +610,155 @@ class DynamoDbICSpec extends Specification {
 			versioned.data     == 'these are ok!'
 			versioned.version  == 2
 
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan table and return filtered results"() { // {{{
+		setup:
+			String table = 'test_scan'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey
+			)
+		and:
+			List<TestItem> items = [
+				new TestItem(id: 'scan1', tagField: 'category_a', data: 'data1', enabled: true),
+				new TestItem(id: 'scan2', tagField: 'category_a', data: 'data2', enabled: false),
+				new TestItem(id: 'scan3', tagField: 'category_b', data: 'data3', enabled: true),
+				new TestItem(id: 'scan4', tagField: 'category_b', data: 'data4', enabled: false),
+				new TestItem(id: 'scan5', tagField: 'category_c', data: 'data5', enabled: true)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when:
+			List<TestItem> allResults = dynamoDb.scan (
+				table,
+				TestItem
+			)
+		then:
+			allResults.size() == 5
+			allResults.collect { it.id } ==~ ['scan1', 'scan2', 'scan3', 'scan4', 'scan5']
+
+		when:
+			List<TestItem> enabledResults = dynamoDb.scan (
+				table,
+				TestItem,
+				match('enabled', true)
+			)
+		then:
+			enabledResults.size() == 3
+			enabledResults.every { it.enabled }
+			enabledResults.collect { it.id } ==~ ['scan1', 'scan3', 'scan5']
+
+		when:
+			List<TestItem> complexResults = dynamoDb.scan (
+				table,
+				TestItem,
+				match('tagField', 'category_a')
+				.and(match('enabled', true))
+			)
+		then:
+			complexResults.size() == 1
+			complexResults.first().id == 'scan1'
+			complexResults.first().tagField == 'category_a'
+			complexResults.first().enabled == true
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	@Ignore
+	// Both these options are ignored in the local version of DynamoDB
+	// see: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.UsageNotes.html
+	def "Should perform parallel and limited scan operations"() { // {{{
+		given:
+			String table = 'test_less_common_scan'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey
+			)
+		and: 'Create a larger dataset for parallel scanning'
+			List<TestItem> items = (1..50).collect { int i ->
+				new TestItem (
+					id: "item${i}",
+					tagField: "category_${(i % 5) + 1}",
+					data: "data${i}",
+					enabled: (i % 2 == 0)
+				)
+			}
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Performing a parallel scan with 2 segments'
+			List<TestItem> segment0Results = dynamoDb.scan (
+				table,
+				TestItem,
+				null,   // No filter
+				null,   // No limit
+				0,      // Segment 0
+				2       // Total of 2 segments
+			)
+
+			List<TestItem> segment1Results = dynamoDb.scan (
+				table,
+				TestItem,
+				null,   // No filter
+				null,   // No limit
+				1,      // Segment 1
+				2       // Total of 2 segments
+			)
+
+		then: 'The combined results should contain all items'
+			def combinedResults = segment0Results + segment1Results
+			combinedResults.size() == items.size()
+
+			// Check that the segments don't overlap and contain all items
+			def segmentIds = segment0Results*.id + segment1Results*.id
+			segmentIds.sort() == items*.id.sort()
+
+		when: 'Performing a filtered parallel scan'
+			DynamoFilter enabledFilter = match('enabled', true)
+
+			List<TestItem> filteredSegment0 = dynamoDb.scan (
+				table,
+				TestItem,
+				enabledFilter,
+				null,   // No limit
+				0,      // Segment 0
+				2       // Total of 2 segments
+			)
+
+			List<TestItem> filteredSegment1 = dynamoDb.scan (
+				table,
+				TestItem,
+				enabledFilter,
+				null,   // No limit
+				1,      // Segment 1
+				2       // Total of 2 segments
+			)
+
+		then: 'The combined filtered results should contain only enabled items'
+			def combinedFiltered = filteredSegment0 + filteredSegment1
+			combinedFiltered.every { it.enabled }
+			combinedFiltered.size() == items.count { it.enabled }
+
+		when: 'scanning with a limit'
+			List<TestItem> limitedResults = dynamoDb.scan (
+				table,
+				TestItem,
+				null,
+				2
+			)
+		
+		then: 'only the specified number of items should be returned'
+			limitedResults.size() <= 2
 
 		cleanup:
 			dynamoDb.dropTable(table)

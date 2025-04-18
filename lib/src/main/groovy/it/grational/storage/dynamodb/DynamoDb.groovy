@@ -8,6 +8,7 @@ import groovy.transform.TypeCheckingMode
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder
 import software.amazon.awssdk.services.dynamodb.model.*
+import software.amazon.awssdk.services.dynamodb.paginators.ScanIterable
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 // local
 import it.grational.storage.Storable
@@ -340,6 +341,73 @@ class DynamoDb {
 				"Error deleting table ${table}: ${e.message}"
 			)
 		}
+	} // }}}
+
+	/**
+	 * Scans the entire table and returns items that match the optional filter expression
+	 * 
+	 * @param table The name of the table to scan
+	 * @param targetClass The class of objects to create from the scan results
+	 * @param filter Optional DynamoFilter to filter the scan results
+	 * @param limit Optional maximum number of items to evaluate
+	 * @param segment Optional segment number (for parallel scans)
+	 * @param totalSegments Optional total number of segments (for parallel scans)
+	 * @return A list of objects of type T created from the scan results
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> scan (
+		String table,
+		Class<T> targetClass,
+		DynamoFilter filter = null,
+		Integer limit = null,
+		Integer segment = null,
+		Integer totalSegments = null
+	) { // {{{
+		log.debug (
+			String.join(', ',
+				'Scanning table {}',
+				'with filter: {}',
+				'limit: {}',
+				'segment: {}/{}'
+			),
+			table,
+			filter,
+			limit,
+			segment,
+			totalSegments
+		)
+
+		def scanBuilder = ScanRequest.builder()
+			.tableName(table)
+
+		if ( filter )
+			scanBuilder
+			.filterExpression(filter.expression)
+			.expressionAttributeNames(filter.expressionNames)
+			.expressionAttributeValues(filter.expressionValues)
+
+		if ( limit )
+			scanBuilder.limit(limit)
+
+		if (segment != null && totalSegments != null)
+			scanBuilder
+			.segment(segment)
+			.totalSegments(totalSegments)
+
+		ScanRequest request = scanBuilder.build()
+
+		def result = []
+		ScanIterable scanResponses = client.scanPaginator(request)
+
+		scanResponses.forEach { response ->
+			log.debug("Found {} items in scan page", response.count())
+			response.items().each { item ->
+				Map<String, Object> builder = new DynamoMapper(item).builder()
+				result << targetClass.newInstance(builder)
+			}
+		}
+
+		log.debug("Total items found in scan: {}", result.size())
+		return result
 	} // }}}
 
 }

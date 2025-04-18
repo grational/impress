@@ -8,9 +8,9 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 
 class DynamoFilterUSpec extends Specification {
 
-	def "Should be able to create 'equals' filters for string values"() { // {{{
+	def "Should be able to create 'match' filters for string values"() { // {{{
 		when:
-			def filter = equals('status', 'ACTIVE')
+			def filter = match('status', 'ACTIVE')
 
 		then:
 			filter.expression == '#attr_status = :val_status'
@@ -18,9 +18,9 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionValues[':val_status'].s() == 'ACTIVE'
 	} // }}}
 
-	def "Should be able to create 'equals' filters for numeric value"() { // {{{
+	def "Should be able to create 'match' filters for numeric value"() { // {{{
 		when:
-			def filter = equals('amount', 100)
+			def filter = match('amount', 100)
 
 		then:
 			filter.expression == '#attr_amount = :val_amount'
@@ -79,7 +79,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to combine filters with the AND operator"() { // {{{
 		given:
-			def filter1 = equals('status', 'ACTIVE')
+			def filter1 = match('status', 'ACTIVE')
 			def filter2 = compare('price', '>', 100)
 
 		when:
@@ -93,7 +93,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to combine filters with the OR operator"() { // {{{
 		given:
-			def filter1 = equals('type', 'PREMIUM')
+			def filter1 = match('type', 'PREMIUM')
 			def filter2 = compare('credits', '>=', 1000)
 
 		when:
@@ -107,7 +107,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to negate a filter"() { // {{{
 		given:
-			def filter = equals('status', 'DELETED')
+			def filter = match('status', 'DELETED')
 
 		when:
 			def negated = filter.not()
@@ -120,8 +120,8 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to combine multiple filters"() { // {{{
 		given:
-			def statusFilter = equals('status', 'ACTIVE')
-			def typeFilter = equals('type', 'PREMIUM')
+			def statusFilter = match('status', 'ACTIVE')
+			def typeFilter = match('type', 'PREMIUM')
 			def priceFilter = compare('price', '>=', 50)
 			def keywordFilter = contains('description', 'special')
 
@@ -136,9 +136,9 @@ class DynamoFilterUSpec extends Specification {
 			complex.expressionValues.size() == 4
 	} // }}}
 
-	def "Should be able to create equals filters for boolean values"() { // {{{
+	def "Should be able to create match filters for boolean values"() { // {{{
 		when:
-			def filter = equals('active', true)
+			def filter = match('active', true)
 
 		then:
 			filter.expression == '#attr_active = :val_active'
@@ -146,7 +146,7 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionValues[':val_active'].bool() == true
 
 		when:
-			def falseFilter = equals('canceled', false)
+			def falseFilter = match('canceled', false)
 
 		then:
 			falseFilter.expressionValues[':val_canceled'].bool() == false
@@ -154,53 +154,53 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create a filter for checking if an attribute is blank"() { // {{{
 		when:
-			def filter = isBlank("status")
+			def filter = isBlank('status')
 
 		then:
-			filter.expression == "attribute_not_exists(#attr_status) OR #attr_status = :val_status"
-			filter.expressionNames == ["#attr_status": "status"]
-			filter.expressionValues.containsKey(":val_status")
-			filter.expressionValues[":val_status"].nul()
+			filter.expression == 'attribute_not_exists(#attr_status) OR #attr_status = :val_status'
+			filter.expressionNames == ['#attr_status': 'status']
+			filter.expressionValues.containsKey(':val_status')
+			filter.expressionValues[':val_status'].nul()
 	} // }}}
 
 	def "Should create a filter for checking if an attribute is not blank"() { // {{{
 		when:
-			def filter = isNotBlank("status")
+			def filter = isNotBlank('status')
 
 		then:
-			filter.expression == "attribute_exists(#attr_status) AND NOT #attr_status = :val_status"
-			filter.expressionNames == ["#attr_status": "status"]
-			filter.expressionValues.containsKey(":val_status")
-			filter.expressionValues[":val_status"].nul()
+			filter.expression == 'attribute_exists(#attr_status) AND NOT #attr_status = :val_status'
+			filter.expressionNames == ['#attr_status': 'status']
+			filter.expressionValues.containsKey(':val_status')
+			filter.expressionValues[':val_status'].nul()
 	} // }}}
 
 	def "Should be able to combine isBlank with other filters"() { // {{{
 		given:
-			def blankFilter = isBlank("status")
-			def equalsFilter = equals("category", "active")
+			def blankFilter = isBlank('status')
+			def matchFilter = match('category', 'active')
 
 		when:
-			def combined = blankFilter.and(equalsFilter)
+			def combined = blankFilter.and(matchFilter)
 
 		then:
-			combined.expression.contains("attribute_not_exists")
-			combined.expression.contains("#attr_category = :val_category")
+			combined.expression.contains('attribute_not_exists')
+			combined.expression.contains('#attr_category = :val_category')
 			combined.expressionNames.size() == 2
 			combined.expressionValues.size() == 2
 	} // }}}
 
 	def "Should be able to negate blank check filters"() { // {{{
 		when:
-			def filter = isBlank("status").not()
+			def filter = isBlank('status').not()
 
 		then:
-			filter.expression == "NOT (attribute_not_exists(#attr_status) OR #attr_status = :val_status)"
+			filter.expression == 'NOT (attribute_not_exists(#attr_status) OR #attr_status = :val_status)'
 	} // }}}
 
 	def "Should maintain distinct values when filtering on the same attribute with different values"() { // {{{
 		given:
-			def filter1 = equals('v', 1)
-			def filter2 = equals('v', 2)
+			def filter1 = match('v', 1)
+			def filter2 = match('v', 2)
 
 		when:
 			def combined = filter1.or(filter2)
@@ -241,8 +241,8 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should work with complex filter combinations using the same attributes"() { // {{{
 		given:
-			def statusActive = equals('status', 'ACTIVE')
-			def statusPending = equals('status', 'PENDING')
+			def statusActive = match('status', 'ACTIVE')
+			def statusPending = match('status', 'PENDING')
 			def priceHigh = compare('price', '>', 100)
 			def priceLow = compare('price', '<', 20)
 
@@ -266,86 +266,86 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create price range filters concisely"() { // {{{
 		when:
-			def filter = greaterThanEquals("price", 10)
-				.and(lessThanEquals("price", 100))
+			def filter = greaterOrEqual('price', 10)
+				.and(lessOrEqual('price', 100))
 				
 		then:
-			filter.expression.contains(">= :val_price")
-			filter.expression.contains("<= :val_price")
+			filter.expression.contains('>= :val_price')
+			filter.expression.contains('<= :val_price')
 			filter.expressionNames.size() == 1  
 			filter.expressionValues.size() == 2
 	} // }}}
 	
 	def "Should handle compound filter expressions"() { // {{{
 		when:
-			def activeProducts = equals("type", "product")
-				.and(equals("status", "active"))
+			def activeProducts = match('type', 'product')
+				.and(match('status', 'active'))
 			
-			def featuredProducts = equals("type", "product")
-				.and(equals("featured", true))
+			def featuredProducts = match('type', 'product')
+				.and(match('featured', true))
 				
 			def filter = activeProducts.or(featuredProducts)
 				
 		then:
-			filter.expression.contains("type")
-			filter.expression.contains("status")
-			filter.expression.contains("featured")
-			filter.expression.contains("OR")
-			filter.expression.contains("AND")
+			filter.expression.contains('type')
+			filter.expression.contains('status')
+			filter.expression.contains('featured')
+			filter.expression.contains('OR')
+			filter.expression.contains('AND')
 			filter.expressionNames.size() == 3
 	} // }}}
 	
 	def "Should handle complex date range filters"() { // {{{
 		when:
-			def dateFilter = greaterThanEquals("created_at", 20250101)
-				.and(lessThan("created_at", 20250201))
-				.and(isBlank("deleted_at"))
+			def dateFilter = greaterOrEqual('created_at', 20250101)
+				.and(less('created_at', 20250201))
+				.and(isBlank('deleted_at'))
 				
 		then:
-			dateFilter.expression.contains(">= :val_created_at")
-			dateFilter.expression.contains("< :val_created_at")
-			dateFilter.expression.contains("attribute_not_exists(#attr_deleted_at)")
+			dateFilter.expression.contains('>= :val_created_at')
+			dateFilter.expression.contains('< :val_created_at')
+			dateFilter.expression.contains('attribute_not_exists(#attr_deleted_at)')
 			dateFilter.expressionNames.size() == 2
 			dateFilter.expressionValues.size() == 3
 	} // }}}
 	
 	def "Should support multiple comparison filters on different fields"() { // {{{
 		when:
-			def filter = greaterThan("priority", 5)
-				.and(lessThan("price", 100))
-				.and(equals("category", "electronics"))
+			def filter = greater('priority', 5)
+				.and(less('price', 100))
+				.and(match('category', 'electronics'))
 				
 		then:
-			filter.expression.contains("> :val_priority")
-			filter.expression.contains("< :val_price")
-			filter.expression.contains("= :val_category")
+			filter.expression.contains('> :val_priority')
+			filter.expression.contains('< :val_price')
+			filter.expression.contains('= :val_category')
 			filter.expressionNames.size() == 3
 			filter.expressionValues.size() == 3
 	} // }}}
 	
 	def "Should create OR conditions for value ranges"() { // {{{
 		when:
-			def lowRange = lessThan("price", 10)
-			def highRange = greaterThan("price", 100)
+			def lowRange = less('price', 10)
+			def highRange = greater('price', 100)
 			def filter = lowRange.or(highRange)
 				
 		then:
-			filter.expression == "(#attr_price < :val_price) OR (#attr_price > :val_price_1)"
+			filter.expression == '(#attr_price < :val_price) OR (#attr_price > :val_price_1)'
 			filter.expressionNames.size() == 1
 			filter.expressionValues.size() == 2
-			filter.expressionValues.containsKey(":val_price")
-			filter.expressionValues.containsKey(":val_price_1")
+			filter.expressionValues.containsKey(':val_price')
+			filter.expressionValues.containsKey(':val_price_1')
 	} // }}}
 	
 	def "Should correctly combine filters with NOT operations"() { // {{{
 		when:
-			def filter = equals("status", "ACTIVE").and (
-				lessThanEquals("price", 1000).not()
+			def filter = match('status', 'ACTIVE').and (
+				lessOrEqual('price', 1000).not()
 			)
 				
 		then:
-			filter.expression.contains("= :val_status")
-			filter.expression.contains("NOT (#attr_price <= :val_price)")
+			filter.expression.contains('= :val_status')
+			filter.expression.contains('NOT (#attr_price <= :val_price)')
 			filter.expressionNames.size() == 2
 			filter.expressionValues.size() == 2
 	} // }}}

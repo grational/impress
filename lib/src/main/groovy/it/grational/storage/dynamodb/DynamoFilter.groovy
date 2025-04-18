@@ -70,9 +70,9 @@ class DynamoFilter {
 	} // }}}
 
 	/**
-	 * Creates an equality filter for string values
+	 * Creates an match filter for string values
 	 */
-	static DynamoFilter equals(String name, String value) { // {{{
+	static DynamoFilter match(String name, String value) { // {{{
 		String safe = safe(name)
 		String nph = "#attr_${safe}"
 		String vph = ":val_${safe}"
@@ -86,9 +86,9 @@ class DynamoFilter {
 	} // }}}
 
 	/**
-	 * Creates an equality filter for numeric values
+	 * Creates an match filter for numeric values
 	 */
-	static DynamoFilter equals(String name, Number value) { // {{{
+	static DynamoFilter match(String name, Number value) { // {{{
 		String safe = safe(name)
 		String nph = "#attr_${safe}"
 		String vph = ":val_${safe}"
@@ -102,9 +102,9 @@ class DynamoFilter {
 	} // }}}
 
 	/**
-	 * Creates an equality filter for boolean values
+	 * Creates an match filter for boolean values
 	 */
-	static DynamoFilter equals(String name, boolean value) { // {{{
+	static DynamoFilter match(String name, boolean value) { // {{{
 		String safe = safe(name)
 		String nph = "#attr_${safe}"
 		String vph = ":val_${safe}"
@@ -179,28 +179,28 @@ class DynamoFilter {
 	/**
 	 * Creates a "greater than" comparison filter
 	 */
-	static DynamoFilter greaterThan(String name, Number value) {
+	static DynamoFilter greater(String name, Number value) {
 		return compare(name, ">", value)
 	}
 	
 	/**
 	 * Creates a "greater than or equal" comparison filter
 	 */
-	static DynamoFilter greaterThanEquals(String name, Number value) {
+	static DynamoFilter greaterOrEqual(String name, Number value) {
 		return compare(name, ">=", value)
 	}
 	
 	/**
 	 * Creates a "less than" comparison filter
 	 */
-	static DynamoFilter lessThan(String name, Number value) {
+	static DynamoFilter less(String name, Number value) {
 		return compare(name, "<", value)
 	}
 	
 	/**
 	 * Creates a "less than or equal" comparison filter
 	 */
-	static DynamoFilter lessThanEquals(String name, Number value) {
+	static DynamoFilter lessOrEqual(String name, Number value) {
 		return compare(name, "<=", value)
 	}
 
