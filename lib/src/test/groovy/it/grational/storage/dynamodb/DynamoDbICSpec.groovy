@@ -515,7 +515,6 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
-	@IgnoreRest
 	def "Should be capable of querying objects only by their partition key"() { // {{{{
 		given:
 			String table = 'test_partition_key'

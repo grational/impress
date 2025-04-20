@@ -349,5 +349,80 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionNames.size() == 2
 			filter.expressionValues.size() == 2
 	} // }}}
+
+	def "Should be able to create 'compareAttributes' filters"() { // {{{
+		when:
+			def filter = compareAttributes('firstField', op, 'secondField')
+
+		then:
+			filter.expression == "#attr_firstField ${op} #attr_secondField"
+			filter.expressionNames == [
+				'#attr_firstField': 'firstField',
+				'#attr_secondField': 'secondField'
+			]
+			filter.expressionValues.isEmpty()
+
+		where:
+			op << [
+				'>',
+				'>=',
+				'=',
+				'<',
+				'<=',
+				'<>'
+			]
+	} // }}}
+
+	def "Should reject invalid operators in compareAttributes"() { // {{{
+		when:
+			compareAttributes('firstField', '!!', 'secondField')
+
+		then:
+			def e = thrown(IllegalArgumentException)
+			e.message == 'Unsupported operator: !!'
+	} // }}}
+
+	def "Should provide convenience methods for attribute comparisons"() { // {{{
+		expect:
+			attributeGreaterThan('a', 'b').expression == '#attr_a > #attr_b'
+			attributeGreaterOrEqual('a', 'b').expression == '#attr_a >= #attr_b'
+			attributeLessThan('a', 'b').expression == '#attr_a < #attr_b'
+			attributeLessOrEqual('a', 'b').expression == '#attr_a <= #attr_b'
+			attributeEquals('a', 'b').expression == '#attr_a = #attr_b'
+			attributeNotEquals('a', 'b').expression == '#attr_a <> #attr_b'
+	} // }}}
+
+	def "Should be able to combine attribute comparison with other filters"() { // {{{
+		given:
+			def statusFilter = match('status', 'ACTIVE')
+			def amountComparisonFilter = attributeGreaterThan('amount', 'threshold')
+
+		when:
+			def combined = statusFilter.and(amountComparisonFilter)
+
+		then:
+			combined.expression == '(#attr_status = :val_status) AND (#attr_amount > #attr_threshold)'
+			combined.expressionNames.size() == 3
+			combined.expressionNames['#attr_status'] == 'status'
+			combined.expressionNames['#attr_amount'] == 'amount'
+			combined.expressionNames['#attr_threshold'] == 'threshold'
+			combined.expressionValues.size() == 1
+			combined.expressionValues[':val_status'].s() == 'ACTIVE'
+	} // }}}
+
+	def "Should be able to create complex filters with attribute comparisons"() { // {{{
+		when:
+			def filter = match('active', true)
+			.and(attributeGreaterThan('currentValue', 'minValue'))
+			.and(attributeLessThan('currentValue', 'maxValue'))
+
+		then:
+			filter.expression.contains('(#attr_active = :val_active)')
+			filter.expression.contains('(#attr_currentValue > #attr_minValue)')
+			filter.expression.contains('(#attr_currentValue < #attr_maxValue)')
+			filter.expressionNames.size() == 4
+			filter.expressionValues.size() == 1
+	} // }}}
+
 }
 // vim: fdm=marker

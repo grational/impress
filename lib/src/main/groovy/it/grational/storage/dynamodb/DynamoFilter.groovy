@@ -205,6 +205,76 @@ class DynamoFilter {
 	}
 
 	/**
+	 * Creates a comparison filter between two attributes
+	 * @param name1 First attribute name
+	 * @param operator One of: >, <, >=, <=, =, <>
+	 * @param name2 Second attribute name to compare with
+	 */
+	static DynamoFilter compareAttributes (
+		String name1,
+		String operator,
+		String name2
+	) {
+		String safe1 = safe(name1)
+		String safe2 = safe(name2)
+		String safeOperator = operator.trim()
+		String nph1 = "#attr_${safe1}"
+		String nph2 = "#attr_${safe2}"
+
+		if (!['>', '<', '>=', '<=', '=', '<>'].contains(safeOperator))
+			throw new IllegalArgumentException("Unsupported operator: ${operator}")
+
+		String fe = "${nph1} ${safeOperator} ${nph2}"
+		return new DynamoFilter(
+			fe,
+			[(nph1): name1, (nph2): name2],
+			[:]  // No expression values needed since we're comparing attributes
+		)
+	}
+
+	/**
+	 * Creates an "attribute greater than other attribute" comparison filter
+	 */
+	static DynamoFilter attributeGreaterThan(String name1, String name2) {
+		compareAttributes(name1, ">", name2)
+	}
+
+	/**
+	 * Creates an "attribute greater than or equal to other attribute" comparison filter
+	 */
+	static DynamoFilter attributeGreaterOrEqual(String name1, String name2) {
+		compareAttributes(name1, ">=", name2)
+	}
+
+	/**
+	 * Creates an "attribute less than other attribute" comparison filter
+	 */
+	static DynamoFilter attributeLessThan(String name1, String name2) {
+		compareAttributes(name1, "<", name2)
+	}
+
+	/**
+	 * Creates an "attribute less than or equal to other attribute" comparison filter
+	 */
+	static DynamoFilter attributeLessOrEqual(String name1, String name2) {
+		compareAttributes(name1, "<=", name2)
+	}
+
+	/**
+	 * Creates an "attribute equals other attribute" comparison filter
+	 */
+	static DynamoFilter attributeEquals(String name1, String name2) {
+		compareAttributes(name1, "=", name2)
+	}
+
+	/**
+	 * Creates an "attribute not equals other attribute" comparison filter
+	 */
+	static DynamoFilter attributeNotEquals(String name1, String name2) {
+		compareAttributes(name1, "<>", name2)
+	}
+
+	/**
 	 * Combines this filter with another using AND
 	 */
 	DynamoFilter and(DynamoFilter other) { // {{{
