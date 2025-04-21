@@ -36,7 +36,7 @@ class DynamoFilter {
 	} // }}}
 
 	// Static factory methods - for use with static imports
-	
+
 	/**
 	 * Creates a filter checking if an attribute is blank (null or doesn't exist)
 	 */
@@ -158,6 +158,34 @@ class DynamoFilter {
 		String operator,
 		Number value
 	) { // {{{
+		compare (
+			name,
+			operator,
+			fromN(value.toString())
+		)
+	} // }}}
+
+	/**
+	 * Creates a comparison filter with the specified operator for string values
+	 * @param operator One of: >, <, >=, <=, =, <>
+	 */
+	static DynamoFilter compare (
+		String name,
+		String operator,
+		String value
+	) { // {{{
+		compare (
+			name,
+			operator,
+			fromS(value)
+		)
+	} // }}}
+
+	static DynamoFilter compare (
+		String name,
+		String operator,
+		AttributeValue value
+	) { // {{{
 		String safe = safe(name)
 		String safeOperator = operator.trim()
 		String nph = "#attr_${safe}"
@@ -170,37 +198,35 @@ class DynamoFilter {
 		return new DynamoFilter (
 			fe,
 			[(nph): name],
-			[(vph): fromN(value.toString())]
+			[(vph): value]
 		)
 	} // }}}
 
-	// Convenience methods for common comparisons
-	
-	/**
-	 * Creates a "greater than" comparison filter
-	 */
 	static DynamoFilter greater(String name, Number value) {
 		return compare(name, ">", value)
 	}
-	
-	/**
-	 * Creates a "greater than or equal" comparison filter
-	 */
+	static DynamoFilter greater(String name, String value) {
+		return compare(name, ">", value)
+	}
+
 	static DynamoFilter greaterOrEqual(String name, Number value) {
 		return compare(name, ">=", value)
 	}
-	
-	/**
-	 * Creates a "less than" comparison filter
-	 */
+	static DynamoFilter greaterOrEqual(String name, String value) {
+		return compare(name, ">=", value)
+	}
+
 	static DynamoFilter less(String name, Number value) {
 		return compare(name, "<", value)
 	}
-	
-	/**
-	 * Creates a "less than or equal" comparison filter
-	 */
+	static DynamoFilter less(String name, String value) {
+		return compare(name, "<", value)
+	}
+
 	static DynamoFilter lessOrEqual(String name, Number value) {
+		return compare(name, "<=", value)
+	}
+	static DynamoFilter lessOrEqual(String name, String value) {
 		return compare(name, "<=", value)
 	}
 

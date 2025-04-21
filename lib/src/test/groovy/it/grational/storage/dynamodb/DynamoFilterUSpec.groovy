@@ -323,6 +323,60 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionValues.size() == 3
 	} // }}}
 	
+	def "Should support string comparisons"() { // {{{
+		when:
+			def filter = compare('name', op, 'John')
+			
+		then:
+			filter.expression == "#attr_name ${op} :val_name"
+			filter.expressionNames == ['#attr_name': 'name']
+			filter.expressionValues[':val_name'].s() == 'John'
+			
+		where:
+			op << [
+				'>',
+				'>=',
+				'=',
+				'<',
+				'<=',
+				'<>'
+			]
+	} // }}}
+	
+	def "Should support convenience methods for string comparisons"() { // {{{
+		expect:
+			greater('name', 'M').expression == '#attr_name > :val_name'
+			greaterOrEqual('name', 'M').expression == '#attr_name >= :val_name'
+			less('name', 'M').expression == '#attr_name < :val_name'
+			lessOrEqual('name', 'M').expression == '#attr_name <= :val_name'
+			
+		and:
+			greater('name', 'M').expressionValues[':val_name'].s() == 'M'
+			greaterOrEqual('name', 'M').expressionValues[':val_name'].s() == 'M'
+			less('name', 'M').expressionValues[':val_name'].s() == 'M'
+			lessOrEqual('name', 'M').expressionValues[':val_name'].s() == 'M'
+	} // }}}
+	
+	def "Should work with string comparisons in complex expressions"() { // {{{
+		when:
+			def filter = greater('lastname', 'N')
+				.and(lessOrEqual('lastname', 'Z'))
+				.and(greater('age', 21))
+				
+		then:
+			filter.expression.contains('#attr_lastname > :val_lastname')
+			filter.expression.contains('#attr_lastname <= :val_lastname_')
+			filter.expression.contains('#attr_age > :val_age')
+			filter.expressionNames.size() == 2
+			filter.expressionValues.size() == 3
+			filter.expressionValues.containsKey(':val_lastname')
+			filter.expressionValues.containsKey(':val_lastname_1')
+			filter.expressionValues.containsKey(':val_age')
+			filter.expressionValues[':val_lastname'].s() == 'N'
+			filter.expressionValues[':val_lastname_1'].s() == 'Z'
+			filter.expressionValues[':val_age'].n() == '21'
+	} // }}}
+	
 	def "Should create OR conditions for value ranges"() { // {{{
 		when:
 			def lowRange = less('price', 10)
