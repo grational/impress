@@ -20,7 +20,7 @@ plugins {
 
 // [general] configuration
 project.ext {
-	groovyVersion = '4.0.26'
+	groovyVersion = '3.0.24'
 }
 
 project.with {
@@ -30,7 +30,7 @@ project.with {
 }
 
 allprojects {
-	sourceCompatibility = JavaVersion.toVersion('21')
+	sourceCompatibility = JavaVersion.toVersion('8')
 	targetCompatibility = sourceCompatibility
 }
 
@@ -42,14 +42,14 @@ repositories {
 
 dependencies {
 	api (
-		"org.apache.groovy:groovy:$groovyVersion",
+		"org.codehaus.groovy:groovy:$groovyVersion",
 		"software.amazon.awssdk:dynamodb:2.31.22"
 	)
 	
 
 	// We use the awesome Spock testing and specification framework
 	testImplementation (
-		'org.spockframework:spock-core:2.3-groovy-4.0'
+		'org.spockframework:spock-core:2.3-groovy-3.0'
 	)
 }
 
