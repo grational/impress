@@ -250,20 +250,20 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		}
 	} // }}}
 
-	Map<String, String> expressionNames ( // {{{
-		Map<String, String > others = [:]
+	Map<String,String> expressionNames ( // {{{
+		Map<String,String> others = [:]
 	) {
-		map.collectEntries { k, v ->
+		map.collectEntries(others) { String k, AttributeValue v ->
 			[ ("#${safe(k)}" as String): k ]
-		} + others
+		} as Map<String,String>
 	} // }}}
 
-	Map<String, AttributeValue> expressionValues ( // {{{
-		Map<String, AttributeValue> others = [:]
+	Map<String,AttributeValue> expressionValues ( // {{{
+		Map<String,AttributeValue> others = [:]
 	) {
-		map.collectEntries { k, v ->
+		map.collectEntries(others) { String k, AttributeValue v ->
 			[ (":${safe(k)}" as String): v ]
-		} + others
+		} as Map<String,AttributeValue>
 	} // }}}
 
 	private String safe(String name) { // {{{
