@@ -325,13 +325,8 @@ import software.amazon.awssdk.regions.Region
 import java.net.URI
 
 def localClient = DynamoDbClient.builder()
-  .endpointOverride(URI.create("http://localhost:8000"))
-  .region(Region.US_EAST_1)
-  .credentialsProvider(
-    StaticCredentialsProvider.create(
-      AwsBasicCredentials.create("dummy-key", "dummy-secret")
-    )
-  ).build()
+  .endpointOverride('http://localhost:8000'.toURI())
+  .build()
 
 def dynamoDb = new DynamoDb(localClient)
 ```
