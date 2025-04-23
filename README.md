@@ -63,7 +63,10 @@ interface DbMapper<S,B> {
   DbMapper<S,B> with(String k, Number n)
   DbMapper<S,B> with(String k, boolean b)
   DbMapper<S,B> with(String k, DbMapper<S,B> dm, boolean version)
-  DbMapper<S,B> with(String k, List<String> ls)
+  DbMapper<S,B> with(String k, String... ls)
+  DbMapper<S,B> with(String k, Number... ln)
+  DbMapper<S,B> with(String k, boolean v, Storable<S,B>... ast)
+  DbMapper<S,B> with(String k, boolean v, DbMapper<S,B>... adm)
   Map<String,S> storer(boolean version)
   Map<String,B> builder(boolean version)
 }
@@ -140,6 +143,14 @@ def priceFilter = attributeGreaterThan("price", "cost")
 
 // Combine filters
 def complexFilter = activeFilter.and(highPriorityFilter.or(nameFilter))
+
+// IN operator (multiple values)
+def categoryFilter = in("category", "books", "electronics", "clothing")
+def priceRangeFilter = in("price", 10, 20, 30)
+
+// BETWEEN operator (range values)
+def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
+def valueRangeFilter = between("value", 100, 500)
 
 // Use with queries
 List<Item> items = dynamo.objectsQuery(
@@ -234,6 +245,48 @@ def filter = attributeGreaterThan("price", "cost")
 
 // Check if endDate is after startDate
 def dateFilter = attributeGreaterThan("endDate", "startDate")
+```
+
+### IN Operator
+
+Check if an attribute's value matches any from a provided list:
+
+```groovy
+// Check if category is one of multiple values
+def categoryFilter = in("category", "books", "electronics", "clothing")
+
+// Check if price is one of several values
+def priceFilter = in("price", 10, 20, 30)
+```
+
+### BETWEEN Operator
+
+Check if an attribute's value falls within a range (inclusive):
+
+```groovy
+// Check if date is within a range
+def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
+
+// Check if value is within a numeric range
+def valueRangeFilter = between("value", 100, 500)
+```
+
+### Collection Support
+
+Store collections of values using varargs:
+
+```groovy
+// Strings collection
+mapper.with("tags", "important", "urgent", "follow-up")
+
+// Numbers collection
+mapper.with("validYears", 2022, 2023, 2024)
+
+// Storable objects collection
+mapper.with("addresses", true, address1, address2, address3)
+
+// DbMapper objects collection
+mapper.with("configurations", true, config1, config2, config3)
 ```
 
 ### Query by Partition Key Only
