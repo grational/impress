@@ -153,11 +153,11 @@ class DynamoFilter {
 	 * Creates a comparison filter with the specified operator
 	 * @param operator One of: >, <, >=, <=, =, <>
 	 */
-	static DynamoFilter compare (
+	static DynamoFilter compare ( // {{{
 		String name,
 		String operator,
 		Number value
-	) { // {{{
+	) {
 		compare (
 			name,
 			operator,
@@ -169,11 +169,11 @@ class DynamoFilter {
 	 * Creates a comparison filter with the specified operator for string values
 	 * @param operator One of: >, <, >=, <=, =, <>
 	 */
-	static DynamoFilter compare (
+	static DynamoFilter compare ( // {{{
 		String name,
 		String operator,
 		String value
-	) { // {{{
+	) {
 		compare (
 			name,
 			operator,
@@ -181,11 +181,11 @@ class DynamoFilter {
 		)
 	} // }}}
 
-	static DynamoFilter compare (
+	static DynamoFilter compare ( // {{{
 		String name,
 		String operator,
 		AttributeValue value
-	) { // {{{
+	) {
 		String safe = safe(name)
 		String safeOperator = operator.trim()
 		String nph = "#attr_${safe}"
@@ -202,6 +202,7 @@ class DynamoFilter {
 		)
 	} // }}}
 
+	// scalar comparison methods {{{
 	static DynamoFilter greater(String name, Number value) {
 		return compare(name, ">", value)
 	}
@@ -229,6 +230,7 @@ class DynamoFilter {
 	static DynamoFilter lessOrEqual(String name, String value) {
 		return compare(name, "<=", value)
 	}
+	// }}}
 
 	/**
 	 * Creates a comparison filter between two attributes
@@ -236,7 +238,7 @@ class DynamoFilter {
 	 * @param operator One of: >, <, >=, <=, =, <>
 	 * @param name2 Second attribute name to compare with
 	 */
-	static DynamoFilter compareAttributes (
+	static DynamoFilter compareAttributes ( // {{{
 		String name1,
 		String operator,
 		String name2
@@ -256,8 +258,9 @@ class DynamoFilter {
 			[(nph1): name1, (nph2): name2],
 			[:]  // No expression values needed since we're comparing attributes
 		)
-	}
+	} // }}}
 
+	// attributes comparison methods {{{
 	/**
 	 * Creates an "attribute greater than other attribute" comparison filter
 	 */
@@ -299,6 +302,127 @@ class DynamoFilter {
 	static DynamoFilter attributeNotEquals(String name1, String name2) {
 		compareAttributes(name1, "<>", name2)
 	}
+	// }}}
+
+	/**
+	 * Creates a filter checking if an attribute's value is in a list of string values
+	 * @param name The attribute name
+	 * @param values The list of string values to check against
+	 */
+	static DynamoFilter in(String name, String... values) { // {{{
+		if (values.length == 0)
+			throw new IllegalArgumentException (
+				'At least one value must be provided for IN filter'
+			)
+
+		String safe = safe(name)
+		String nph = "#attr_${safe}"
+
+		List<String> conditions = []
+		Map<String, AttributeValue> expressionValues = [:]
+
+		values.eachWithIndex { String value, int index ->
+			String vph = ":val_${safe}_${index}"
+			String condition = "${nph} = ${vph}"
+			conditions.add(condition.toString())
+			expressionValues[vph] = fromS(value)
+		}
+
+		String fe = '(' + conditions.join(' OR ') + ')'
+
+		return new DynamoFilter (
+			fe,
+			[(nph): name],
+			expressionValues
+		)
+	} // }}}
+
+	/**
+	 * Creates a filter checking if an attribute's value is in a list of numeric values
+	 * @param name The attribute name
+	 * @param values The list of numeric values to check against
+	 */
+	static DynamoFilter in(String name, Number... values) { // {{{
+		if (values.length == 0)
+			throw new IllegalArgumentException (
+				'At least one value must be provided for IN filter'
+			)
+
+		String safe = safe(name)
+		String nph = "#attr_${safe}"
+
+		List<String> conditions = []
+		Map<String, AttributeValue> expressionValues = [:]
+
+		values.eachWithIndex { Number value, int index ->
+			String vph = ":val_${safe}_${index}"
+			String condition = "${nph} = ${vph}"
+			conditions.add(condition.toString())
+			expressionValues[vph] = fromN(value.toString())
+		}
+
+		String fe = "(" + conditions.join(' OR ') + ")"
+
+		return new DynamoFilter (
+			fe,
+			[(nph): name],
+			expressionValues
+		)
+	} // }}}
+
+	/**
+	 * Creates a filter checking if an attribute's value is between two string values (inclusive)
+	 * @param name The attribute name
+	 * @param start The lower bound value (inclusive)
+	 * @param end The upper bound value (inclusive)
+	 */
+	static DynamoFilter between ( // {{{
+		String name,
+		String start,
+		String end
+	) {
+		String safe = safe(name)
+		String nph = "#attr_${safe}"
+		String vphStart = ":val_${safe}_start"
+		String vphEnd = ":val_${safe}_end"
+		String fe = "${nph} BETWEEN ${vphStart} AND ${vphEnd}"
+
+		return new DynamoFilter (
+			fe,
+			[(nph): name],
+			[
+				(vphStart): fromS(start),
+				(vphEnd): fromS(end)
+			]
+		)
+	} // }}}
+
+	/**
+	 * Creates a filter checking if an attribute's value is between two numeric values (inclusive)
+	 * @param name The attribute name
+	 * @param start The lower bound value (inclusive)
+	 * @param end The upper bound value (inclusive)
+	 */
+	static DynamoFilter between ( // {{{
+		String name,
+		Number start,
+		Number end
+	) {
+		String safe = safe(name)
+		String nph = "#attr_${safe}"
+		String vphStart = ":val_${safe}_start"
+		String vphEnd = ":val_${safe}_end"
+		String fe = "${nph} BETWEEN ${vphStart} AND ${vphEnd}"
+
+		return new DynamoFilter (
+			fe,
+			[(nph): name],
+			[
+				(vphStart): fromN(start.toString()),
+				(vphEnd): fromN(end.toString())
+			]
+		)
+	} // }}}
 
 	/**
 	 * Combines this filter with another using AND
@@ -314,7 +438,7 @@ class DynamoFilter {
 		return merge(this, 'OR', other)
 	} // }}}
 
-	private DynamoFilter merge (
+	private DynamoFilter merge ( // {{{
 		DynamoFilter a,
 		String operator,
 		DynamoFilter b
@@ -356,7 +480,7 @@ class DynamoFilter {
 			commonNames,
 			newValues
 		)
-	}
+	} // }}}
 
 	/**
 	 * Negates this filter condition

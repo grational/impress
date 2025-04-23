@@ -477,6 +477,101 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionNames.size() == 4
 			filter.expressionValues.size() == 1
 	} // }}}
+	
+	def "Should be able to create IN filter for string values"() { // {{{
+		when:
+			def filter = in('status', 'ACTIVE', 'PENDING', 'PROCESSING')
+			
+		then:
+			filter.expression == '(#attr_status = :val_status_0 OR #attr_status = :val_status_1 OR #attr_status = :val_status_2)'
+			filter.expressionNames == ['#attr_status': 'status']
+			filter.expressionValues.size() == 3
+			filter.expressionValues[':val_status_0'].s() == 'ACTIVE'
+			filter.expressionValues[':val_status_1'].s() == 'PENDING'
+			filter.expressionValues[':val_status_2'].s() == 'PROCESSING'
+	} // }}}
+	
+	def "Should be able to create IN filter for numeric values"() { // {{{
+		when:
+			def filter = in('priority', 1, 2, 3)
+			
+		then:
+			filter.expression == '(#attr_priority = :val_priority_0 OR #attr_priority = :val_priority_1 OR #attr_priority = :val_priority_2)'
+			filter.expressionNames == ['#attr_priority': 'priority']
+			filter.expressionValues.size() == 3
+			filter.expressionValues[':val_priority_0'].n() == '1'
+			filter.expressionValues[':val_priority_1'].n() == '2'
+			filter.expressionValues[':val_priority_2'].n() == '3'
+	} // }}}
+	
+	def "Should throw exception when creating IN filter with no values"() { // {{{
+		when:
+			in('status', [] as String[])
+			
+		then:
+			def e = thrown(IllegalArgumentException)
+			e.message == 'At least one value must be provided for IN filter'
+	} // }}}
+	
+	def "Should be able to combine IN filters with other filters"() { // {{{
+		when:
+			def filter = in('status', 'ACTIVE', 'PENDING')
+				.and(greater('priority', 5))
+				
+		then:
+			filter.expression == '((#attr_status = :val_status_0 OR #attr_status = :val_status_1)) AND (#attr_priority > :val_priority)'
+			filter.expressionNames.size() == 2
+			filter.expressionValues.size() == 3
+	} // }}}
+	
+	def "Should be able to create BETWEEN filter for string values"() { // {{{
+		when:
+			def filter = between('name', 'A', 'M')
+			
+		then:
+			filter.expression == '#attr_name BETWEEN :val_name_start AND :val_name_end'
+			filter.expressionNames == ['#attr_name': 'name']
+			filter.expressionValues.size() == 2
+			filter.expressionValues[':val_name_start'].s() == 'A'
+			filter.expressionValues[':val_name_end'].s() == 'M'
+	} // }}}
+	
+	def "Should be able to create BETWEEN filter for numeric values"() { // {{{
+		when:
+			def filter = between('age', 18, 65)
+			
+		then:
+			filter.expression == '#attr_age BETWEEN :val_age_start AND :val_age_end'
+			filter.expressionNames == ['#attr_age': 'age']
+			filter.expressionValues.size() == 2
+			filter.expressionValues[':val_age_start'].n() == '18'
+			filter.expressionValues[':val_age_end'].n() == '65'
+	} // }}}
+	
+	def "Should be able to combine BETWEEN filters with other filters"() { // {{{
+		when:
+			def filter = between('price', 10, 100)
+				.and(match('category', 'electronics'))
+				
+		then:
+			filter.expression == '(#attr_price BETWEEN :val_price_start AND :val_price_end) AND (#attr_category = :val_category)'
+			filter.expressionNames.size() == 2
+			filter.expressionValues.size() == 3
+	} // }}}
+	
+	def "Should be able to create complex filters with IN and BETWEEN"() { // {{{
+		when:
+			def filter = in('category', 'books', 'electronics')
+				.and(between('price', 20, 200))
+				.and(match('inStock', true))
+				
+		then:
+			filter.expression.contains('category')
+			filter.expression.contains('price BETWEEN')
+			filter.expression.contains('inStock')
+			filter.expressionNames.size() == 3
+			filter.expressionValues.size() == 5
+	} // }}}
 
 }
 // vim: fdm=marker
