@@ -68,11 +68,58 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	@Override
 	DbMapper<AttributeValue,Object> with (
 		String k,
-		List<String> ls
+		String... ls
 	) {
 		List<String> nnls = ls?.findAll { it != null }
 		if (!nnls) return this
 		map[k] = fromSs(nnls)
+		return this
+	}
+
+	@Override
+	DbMapper<AttributeValue,Object> with (
+		String k,
+		Number... ln
+	) {
+		List<String> nnln = ln?.findResults { Number n ->
+			n?.toString()
+		} as List<String>
+		if (!nnln) return this
+		map[k] = fromNs(nnln)
+		return this
+	}
+
+	@Override
+	DbMapper<AttributeValue,Object> with (
+		String k,
+		boolean versioned,
+		Storable<AttributeValue,Object>... ls
+	) {
+		with (
+			k,
+			versioned,
+			ls?.findResults { Storable<AttributeValue,Object> st ->
+				st?.impress(new DynamoMapper(), versioned)
+			}.toArray(new DbMapper[0])
+		)
+	}
+
+	@Override
+	DbMapper<AttributeValue,Object> with (
+		String k,
+		boolean versioned,
+		DbMapper<AttributeValue,Object>... ldm
+	) {
+		List<DbMapper<AttributeValue,Object>> nnldm =
+			ldm?.findAll { it != null }
+		if (!nnldm) return this
+
+		map[k] = fromL (
+			nnldm.collect { DbMapper<AttributeValue,Object> dm ->
+				fromM(dm.storer(versioned))
+			}
+		)
+
 		return this
 	}
 
@@ -192,17 +239,6 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 
 		dm = st.impress(dm, versioned)
 		with(k, dm)
-	} // }}}
-
-	DbMapper<AttributeValue,Object> withNumbers ( // {{{
-		String k,
-		List<Number> ln
-	) {
-		List<Number> nnln = ln?.findAll { it != null }
-		if (!nnln) return this
-
-		map[k] = fromNs(nnln*.toString())
-		return this
 	} // }}}
 
 	DbMapper<AttributeValue,Object> withNull(String k) {
