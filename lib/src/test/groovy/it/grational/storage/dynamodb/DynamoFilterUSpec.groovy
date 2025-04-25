@@ -576,12 +576,75 @@ class DynamoFilterUSpec extends Specification {
 			)
 		and:
 			def expression = filter.expression
-			println "expression (${expression.getClass()}) -> ${expression}"
 
 		then:
 			!expression.contains('((')
 		and:
 			expression == '#attr_date >= :val_date AND #attr_modifiedBy = :val_modifiedBy AND (attribute_not_exists(#attr_aField) OR #attr_aField = :val_aField) AND (NOT #attr_type = :val_type) AND (NOT contains(#attr_anotherField, :val_anotherField)) AND (#attr_created BETWEEN :val_created_start AND :val_created_end) AND #attr_status IN (:val_status_0, :val_status_1)'
+
+		and:
+			filter.expressionNames.size() == 7
+			filter.expressionValues.size() == 9
+	} // }}}
+
+	def "Should support an every condition method"() { // {{{
+		when:
+			def filter = every (
+				greaterOrEqual('date', '2025-01-01'),
+				match('modifiedBy', "someone"),
+				isBlank('aField'),
+				match('type', 'aType').not(),
+				contains("anotherField", "aValue").not(),
+				between('created', "2025-02", '2025-04'),
+				in("status", "ERROR", "OK"),
+			)
+		and:
+			def expression = filter.expression
+
+		then:
+			!expression.contains('((')
+		and:
+			expression == String.join(' AND ',
+				'#attr_date >= :val_date',
+				'#attr_modifiedBy = :val_modifiedBy',
+				'(attribute_not_exists(#attr_aField) OR #attr_aField = :val_aField)',
+				'(NOT #attr_type = :val_type)',
+				'(NOT contains(#attr_anotherField, :val_anotherField))',
+				'(#attr_created BETWEEN :val_created_start AND :val_created_end)',
+				'#attr_status IN (:val_status_0, :val_status_1)'
+			)
+
+		and:
+			filter.expressionNames.size() == 7
+			filter.expressionValues.size() == 9
+	} // }}}
+
+	def "Should support an any condition method"() { // {{{
+		when:
+			def filter = any (
+				greaterOrEqual('date', '2025-01-01'),
+				match('modifiedBy', "someone"),
+				isBlank('aField'),
+				match('type', 'aType').not(),
+				contains("anotherField", "aValue").not(),
+				between('created', "2025-02", '2025-04'),
+				in("status", "ERROR", "OK"),
+			)
+		and:
+			def expression = filter.expression
+
+		then:
+			!expression.contains('((')
+		and:
+			expression == String.join(' OR ',
+				'#attr_date >= :val_date',
+				'#attr_modifiedBy = :val_modifiedBy',
+				'(attribute_not_exists(#attr_aField) OR #attr_aField = :val_aField)',
+				'(NOT #attr_type = :val_type)',
+				'(NOT contains(#attr_anotherField, :val_anotherField))',
+				'(#attr_created BETWEEN :val_created_start AND :val_created_end)',
+				'#attr_status IN (:val_status_0, :val_status_1)'
+			)
 
 		and:
 			filter.expressionNames.size() == 7

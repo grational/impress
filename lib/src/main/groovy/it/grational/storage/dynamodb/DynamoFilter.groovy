@@ -468,6 +468,22 @@ class DynamoFilter {
 		combineMany('OR', [this, first] + rest.toList())
 	} // }}}
 
+	static DynamoFilter every ( // {{{
+		DynamoFilter a,
+		DynamoFilter b,
+		DynamoFilter... others
+	) {
+		combineMany('AND', [ a, b ] + others.toList())
+	} // }}}
+
+	static DynamoFilter any ( // {{{
+		DynamoFilter a,
+		DynamoFilter b,
+		DynamoFilter... others
+	) { 
+		combineMany('OR', [ a, b ] + others.toList())
+	} // }}}
+
 	private static DynamoFilter combineMany (
 		String operator,
 		List<DynamoFilter> filters
