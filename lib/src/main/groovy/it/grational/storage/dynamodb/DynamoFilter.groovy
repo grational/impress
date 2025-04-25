@@ -20,9 +20,9 @@ import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 @CompileStatic
 class DynamoFilter {
 	// fields {{{
-	private final String expression
-	private final Map<String, String> expressionNames
-	private final Map<String, AttributeValue> expressionValues
+	String expression
+	Map<String, String> expressionNames
+	Map<String, AttributeValue> expressionValues
 	// }}}
 
 	DynamoFilter (
@@ -309,64 +309,82 @@ class DynamoFilter {
 	 * @param name The attribute name
 	 * @param values The list of string values to check against
 	 */
-	static DynamoFilter in(String name, String... values) { // {{{
-		if (values.length == 0)
-			throw new IllegalArgumentException (
-				'At least one value must be provided for IN filter'
-			)
+	static DynamoFilter in ( // {{{
+		String name,
+		Number first,
+		Number... rest
+	) { 
+		List<Number> combined = [ first ] + rest.toList()
+		return commonIn (
+			name,
+			combined.collect { Number n -> fromN(n.toString()) }
+		)
+	} // }}}
 
+	static DynamoFilter in ( // {{{
+		String name,
+		String first,
+		String... rest
+	) {
+		List<String> combined = [ first ] + rest.toList()
+		return commonIn (
+			name,
+			combined.collect { String s -> fromS(s) }
+		)
+	} // }}}
+
+	private static DynamoFilter commonIn ( // {{{
+		String name,
+		List<AttributeValue> values
+	) {
 		String safe = safe(name)
-		String nph = "#attr_${safe}"
+		String nph  = "#attr_${safe}"
 
-		List<String> conditions = []
-		Map<String, AttributeValue> expressionValues = [:]
+		List<String> placeholders           = []
+		Map<String, AttributeValue> eValues = [:]
 
-		values.eachWithIndex { String value, int index ->
-			String vph = ":val_${safe}_${index}"
-			String condition = "${nph} = ${vph}"
-			conditions.add(condition.toString())
-			expressionValues[vph] = fromS(value)
+		values.eachWithIndex { AttributeValue av, int i ->
+			String vph = ":val_${safe}_${i}"
+			placeholders << vph
+			eValues[vph] = av
 		}
 
-		String fe = '(' + conditions.join(' OR ') + ')'
+		String fe = "${nph} IN (${placeholders.join(', ')})"
 
 		return new DynamoFilter (
 			fe,
 			[(nph): name],
-			expressionValues
+			eValues
 		)
 	} // }}}
 
 	/**
-	 * Creates a filter checking if an attribute's value is in a list of numeric values
-	 * @param name The attribute name
-	 * @param values The list of numeric values to check against
+	 * Same as above but for numeric values
 	 */
-	static DynamoFilter in(String name, Number... values) { // {{{
+	static DynamoFilter in(String name, Number... values) {	// {{{
 		if (values.length == 0)
-			throw new IllegalArgumentException (
+			throw new IllegalArgumentException(
 				'At least one value must be provided for IN filter'
 			)
 
 		String safe = safe(name)
-		String nph = "#attr_${safe}"
+		String nph  = "#attr_${safe}"
 
-		List<String> conditions = []
-		Map<String, AttributeValue> expressionValues = [:]
+		List<String> placeholders           = []
+		Map<String, AttributeValue> eValues = [:]
 
-		values.eachWithIndex { Number value, int index ->
-			String vph = ":val_${safe}_${index}"
-			String condition = "${nph} = ${vph}"
-			conditions.add(condition.toString())
-			expressionValues[vph] = fromN(value.toString())
+		values.eachWithIndex { Number v, int i ->
+			String vph = ":val_${safe}_${i}"
+			placeholders << vph
+			eValues[vph] = fromN(v.toString())
 		}
 
-		String fe = "(" + conditions.join(' OR ') + ")"
+		String fe = "${nph} IN (${placeholders.join(', ')})"
 
 		return new DynamoFilter (
 			fe,
 			[(nph): name],
-			expressionValues
+			eValues
 		)
 	} // }}}
 
@@ -381,19 +399,10 @@ class DynamoFilter {
 		String start,
 		String end
 	) {
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vphStart = ":val_${safe}_start"
-		String vphEnd = ":val_${safe}_end"
-		String fe = "${nph} BETWEEN ${vphStart} AND ${vphEnd}"
-
-		return new DynamoFilter (
-			fe,
-			[(nph): name],
-			[
-				(vphStart): fromS(start),
-				(vphEnd): fromS(end)
-			]
+		return commonBetween (
+			name,
+			fromS(start),
+			fromS(end)
 		)
 	} // }}}
 
@@ -408,6 +417,18 @@ class DynamoFilter {
 		Number start,
 		Number end
 	) {
+		return commonBetween (
+			name,
+			fromN(start.toString()),
+			fromN(end.toString())
+		)
+	} // }}}
+
+	static DynamoFilter commonBetween ( // {{{
+		String name,
+		AttributeValue start,
+		AttributeValue end
+	) {
 		String safe = safe(name)
 		String nph = "#attr_${safe}"
 		String vphStart = ":val_${safe}_start"
@@ -418,67 +439,9 @@ class DynamoFilter {
 			fe,
 			[(nph): name],
 			[
-				(vphStart): fromN(start.toString()),
-				(vphEnd): fromN(end.toString())
+				(vphStart): start,
+				(vphEnd): end
 			]
-		)
-	} // }}}
-
-	/**
-	 * Combines this filter with another using AND
-	 */
-	DynamoFilter and(DynamoFilter other) { // {{{
-		return merge(this, 'AND', other)
-	} // }}}
-
-	/**
-	 * Combines this filter with another using OR
-	 */
-	DynamoFilter or(DynamoFilter other) { // {{{
-		return merge(this, 'OR', other)
-	} // }}}
-
-	private DynamoFilter merge ( // {{{
-		DynamoFilter a,
-		String operator,
-		DynamoFilter b
-	) {
-		Set<String> commonValues = a.expressionValues.keySet()
-		.intersect (
-			b.expressionValues.keySet()
-		)
-		Map<String,String> commonNames = a.expressionNames + b.expressionNames
-		if ( commonValues.isEmpty() )
-			return new DynamoFilter (
-			"(${a.expression}) ${operator} (${b.expression})",
-				commonNames,
-				a.expressionValues + b.expressionValues
-			)
-
-		Map<String, String> keyMappings = [:]
-		Map<String, AttributeValue> newValues = [:]
-
-		newValues.putAll(a.expressionValues)
-
-		String bExpression = b.expression
-		int counter = 1
-		b.expressionValues.each { key, value ->
-			if (commonValues.contains(key)) {
-				String newKey = "${key}_${counter++}"
-				keyMappings[key] = newKey
-
-				bExpression = bExpression.replace(key, newKey)
-
-				newValues[newKey] = value
-			} else {
-				newValues[key] = value
-			}
-		}
-
-		return new DynamoFilter (
-			"(${a.expression}) ${operator} (${bExpression})",
-			commonNames,
-			newValues
 		)
 	} // }}}
 
@@ -486,12 +449,66 @@ class DynamoFilter {
 	 * Negates this filter condition
 	 */
 	DynamoFilter not() { // {{{
-		String negated = "NOT (${this.expression})"
+		String expr = this.expression
+		String negated = needsGrouping(expr)
+			? "NOT (${expr})"
+			: "NOT ${expr}"
 		return new DynamoFilter (
 			negated,
 			this.expressionNames,
 			this.expressionValues
 		)
+	} // }}}
+
+	DynamoFilter and(DynamoFilter first, DynamoFilter... rest) { // {{{
+		combineMany('AND', [this, first] + rest.toList())
+	} // }}}
+
+	DynamoFilter or(DynamoFilter first, DynamoFilter... rest) { // {{{
+		combineMany('OR', [this, first] + rest.toList())
+	} // }}}
+
+	private static DynamoFilter combineMany (
+		String operator,
+		List<DynamoFilter> filters
+	) { // {{{
+		Map<String, String> names = [:]
+		Map<String, AttributeValue> values = [:]
+		filters.each { DynamoFilter df ->
+			names += df.expressionNames
+			values = mergeValues(values, df)
+		}
+
+		String expr = filters.collect { DynamoFilter df ->
+			boolean needsParens =
+				df.expression.contains(' AND ') ||
+				df.expression.contains(' OR ')  ||
+				df.expression.startsWith('NOT ')
+			needsParens ? "(${df.expression})" : df.expression
+		}.join(" ${operator} ")
+
+		return new DynamoFilter(expr, names, values)
+	} // }}}
+
+	private static Map<String, AttributeValue> mergeValues (
+		Map<String, AttributeValue> combined,
+		DynamoFilter filter
+	) { // {{{
+		Map<String, AttributeValue> result = combined
+		int counter; String key
+		filter.expressionValues.each { String k, AttributeValue v ->
+			counter = 1
+			key = k
+
+			while (result.containsKey(key))
+				key = "${k}_${counter++}"
+
+			if ( k != key )
+				filter.expression = filter.expression.replaceAll(k, key)
+
+			result[key] = v
+		}
+		return result
 	} // }}}
 
 	String getExpression() { // {{{
@@ -509,5 +526,10 @@ class DynamoFilter {
 	static private String safe(String name) { // {{{
 		name.replaceAll(/[^a-zA-Z0-9_]/,'')
 	} // }}}
+
+	private static boolean needsGrouping(String expr) {
+		expr.contains(' AND ') || expr.contains(' OR ')
+	}
+
 }
 // vim: fdm=marker
