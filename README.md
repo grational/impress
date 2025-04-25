@@ -128,6 +128,7 @@ DynamoKey compositeKey = new DynamoKey("userId", "user1", "timestamp", 123456789
 Build query and scan filters with a fluent API:
 
 ```groovy
+// For all filters and static operators (every, any)
 import static it.grational.storage.dynamodb.DynamoFilter.*
 
 // Basic filters
@@ -141,8 +142,11 @@ def descFilter = contains("description", "important")
 // Attribute comparisons
 def priceFilter = attributeGreaterThan("price", "cost")
 
-// Combine filters - automatically optimizes expressions without redundant parentheses
+// Combine filters - automatically optimizes expressions (DynamoDB parser doesn't allow redundant brackets)
 def complexFilter = activeFilter.and(highPriorityFilter.or(nameFilter))
+
+// Static logical operators for better readability
+def complexFiltersStatic = every(activeFilter, any(highPriorityFilter, nameFilter))
 
 // IN operator - uses native DynamoDB IN operator for efficiency
 def categoryFilter = in("category", "books", "electronics", "clothing")
@@ -271,6 +275,30 @@ def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
 def valueRangeFilter = between("value", 100, 500)
 ```
 
+### Static Logical Operators
+
+For more readable filter combinations, you can use the static logical operators:
+
+```groovy
+import static it.grational.storage.dynamodb.DynamoFilter.*
+
+// Using instance methods
+def filter1 = activeFilter.and(highPriorityFilter.or(nameFilter))
+
+// Using static methods (same result, more readable)
+def filter2 = every(activeFilter, any(highPriorityFilter, nameFilter))
+
+// Multiple conditions
+def complexFilter = every(
+  isNotBlank("name"),
+  match("status", "active"),
+  any(
+    greater("priority", 5),
+    contains("tags", "urgent")
+  )
+)
+```
+
 ### Collection Support
 
 Store collections of values using varargs:
@@ -333,8 +361,8 @@ def dynamoDb = new DynamoDb(localClient)
 
 ## Compatibility
 
-- main branch targest Java 21 and Groovy 4.x for maximum performance
-- a version with support to Java 8 and Groovy 3.0.24 or later is available with postfix `$version-j8g3`
+- Main branch targets Java 21 and Groovy 4.x for maximum performance
+- Java 8 and Groovy 3.x compatible version is available on the `java-8-groovy-3` branch released as `$version-j8g3`
 - AWS DynamoDB SDK 2.31.22 or later
 
 ## Contributing
