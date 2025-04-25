@@ -1,6 +1,6 @@
 # Impress
 
-A Groovy library for object persistence with DynamoDB support.
+A Groovy library for object persistence with DynamoDB support
 
 ## Overview
 
@@ -141,10 +141,10 @@ def descFilter = contains("description", "important")
 // Attribute comparisons
 def priceFilter = attributeGreaterThan("price", "cost")
 
-// Combine filters
+// Combine filters - automatically optimizes expressions without redundant parentheses
 def complexFilter = activeFilter.and(highPriorityFilter.or(nameFilter))
 
-// IN operator (multiple values)
+// IN operator - uses native DynamoDB IN operator for efficiency
 def categoryFilter = in("category", "books", "electronics", "clothing")
 def priceRangeFilter = in("price", 10, 20, 30)
 
@@ -153,11 +153,11 @@ def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
 def valueRangeFilter = between("value", 100, 500)
 
 // Use with queries
-List<Item> items = dynamo.objectsQuery(
-  "tableName", 
-  "indexName", 
-  key, 
-  Item.class, 
+List<Item> items = dynamo.objectsQuery (
+  "tableName",
+  "indexName",
+  key,
+  Item.class,
   filter
 )
 ```
@@ -174,15 +174,15 @@ class User extends Dynable {
   String id
   String username
   String email
-  
+
   User() {}
-  
+
   User(Map<String, Object> builder) {
     this.id = builder.id
     this.username = builder.username
     this.email = builder.email
   }
-  
+
   @Override
   protected DbMapper<AttributeValue, Object> inpress(DynamoMapper mapper) {
     return mapper
@@ -190,7 +190,7 @@ class User extends Dynable {
       .with('username', username)
       .with('email', email)
   }
-  
+
   @Override
   DynamoKey key() {
     return new DynamoKey('id', id)
@@ -208,15 +208,15 @@ def user = new User(id: "user1", username: "john", email: "john@example.com")
 dynamoDb.putItem("users", user)
 
 // 5. Retrieve by key
-User retrievedUser = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"), User.class)
+User retrievedUser = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"), User)
 
 // 6. Query by email index with filter
 def activeFilter = match("username", "john")
-List<User> users = dynamoDb.objectsQuery(
+List<User> users = dynamoDb.objectsQuery (
   "users",
   "email-index",
   new DynamoKey("email", "example.com"),
-  User.class,
+  User,
   activeFilter
 )
 ```
@@ -228,7 +228,7 @@ List<User> users = dynamoDb.objectsQuery(
 Automatic optimistic locking:
 
 ```groovy
-// Enable versioning (default)
+// Enable versioning (default, no need to add the extra true param)
 dynamoDb.putItem("users", user, true)
 
 // Disable versioning
@@ -249,7 +249,7 @@ def dateFilter = attributeGreaterThan("endDate", "startDate")
 
 ### IN Operator
 
-Check if an attribute's value matches any from a provided list:
+Check if an attribute's value matches any from a provided list. Uses DynamoDB's native IN operator for optimized performance:
 
 ```groovy
 // Check if category is one of multiple values
@@ -330,6 +330,12 @@ def localClient = DynamoDbClient.builder()
 
 def dynamoDb = new DynamoDb(localClient)
 ```
+
+## Compatibility
+
+- main branch targest Java 21 and Groovy 4.x for maximum performance
+- a version with support to Java 8 and Groovy 3.0.24 or later is available with postfix `$version-j8g3`
+- AWS DynamoDB SDK 2.31.22 or later
 
 ## Contributing
 
