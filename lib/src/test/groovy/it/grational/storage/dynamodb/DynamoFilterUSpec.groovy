@@ -480,7 +480,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create IN filter for string values"() { // {{{
 		when:
-			def filter = in('status', 'ACTIVE', 'PENDING', 'PROCESSING')
+			def filter = matchAny('status', 'ACTIVE', 'PENDING', 'PROCESSING')
 
 		then:
 			filter.expression == '#attr_status IN (:val_status_0, :val_status_1, :val_status_2)'
@@ -493,7 +493,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create IN filter for numeric values"() { // {{{
 		when:
-			def filter = in('priority', 1, 2, 3)
+			def filter = matchAny('priority', 1, 2, 3)
 
 		then:
 			filter.expression == '#attr_priority IN (:val_priority_0, :val_priority_1, :val_priority_2)'
@@ -506,7 +506,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should combine IN filter with others"() { // {{{
 		when:
-			def filter = in('status', 'ACTIVE', 'PENDING')
+			def filter = matchAny('status', 'ACTIVE', 'PENDING')
 				.and(greater('priority', 5))
 
 		then:
@@ -552,7 +552,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to create complex filters with IN and BETWEEN"() { // {{{
 		when:
-			def filter = in('category', 'books', 'electronics')
+			def filter = matchAny('category', 'books', 'electronics')
 				.and(between('price', 20, 200))
 				.and(match('inStock', true))
 
@@ -572,7 +572,7 @@ class DynamoFilterUSpec extends Specification {
 				match('type', 'aType').not(),
 				contains('anotherField', 'aValue').not(),
 				between('created', '2025-02', '2025-04'),
-				in('status', 'ERROR', 'OK')
+				matchAny('status', 'ERROR', 'OK')
 			)
 		and:
 			def expression = filter.expression
@@ -596,7 +596,7 @@ class DynamoFilterUSpec extends Specification {
 				match('type', 'aType').not(),
 				contains("anotherField", "aValue").not(),
 				between('created', "2025-02", '2025-04'),
-				in("status", "ERROR", "OK"),
+				matchAny("status", "ERROR", "OK"),
 			)
 		and:
 			def expression = filter.expression
@@ -628,7 +628,7 @@ class DynamoFilterUSpec extends Specification {
 				match('type', 'aType').not(),
 				contains("anotherField", "aValue").not(),
 				between('created', "2025-02", '2025-04'),
-				in("status", "ERROR", "OK"),
+				matchAny("status", "ERROR", "OK"),
 			)
 		and:
 			def expression = filter.expression

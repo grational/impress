@@ -309,7 +309,7 @@ class DynamoFilter {
 	 * @param name The attribute name
 	 * @param values The list of string values to check against
 	 */
-	static DynamoFilter in ( // {{{
+	static DynamoFilter matchAny ( // {{{
 		String name,
 		Number first,
 		Number... rest
@@ -321,7 +321,7 @@ class DynamoFilter {
 		)
 	} // }}}
 
-	static DynamoFilter in ( // {{{
+	static DynamoFilter matchAny ( // {{{
 		String name,
 		String first,
 		String... rest
@@ -347,36 +347,6 @@ class DynamoFilter {
 			String vph = ":val_${safe}_${i}"
 			placeholders << vph
 			eValues[vph] = av
-		}
-
-		String fe = "${nph} IN (${placeholders.join(', ')})"
-
-		return new DynamoFilter (
-			fe,
-			[(nph): name],
-			eValues
-		)
-	} // }}}
-
-	/**
-	 * Same as above but for numeric values
-	 */
-	static DynamoFilter in(String name, Number... values) {	// {{{
-		if (values.length == 0)
-			throw new IllegalArgumentException(
-				'At least one value must be provided for IN filter'
-			)
-
-		String safe = safe(name)
-		String nph  = "#attr_${safe}"
-
-		List<String> placeholders           = []
-		Map<String, AttributeValue> eValues = [:]
-
-		values.eachWithIndex { Number v, int i ->
-			String vph = ":val_${safe}_${i}"
-			placeholders << vph
-			eValues[vph] = fromN(v.toString())
 		}
 
 		String fe = "${nph} IN (${placeholders.join(', ')})"

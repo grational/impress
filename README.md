@@ -148,9 +148,9 @@ def complexFilter = activeFilter.and(highPriorityFilter.or(nameFilter))
 // Static logical operators for better readability
 def complexFiltersStatic = every(activeFilter, any(highPriorityFilter, nameFilter))
 
-// IN operator - uses native DynamoDB IN operator for efficiency
-def categoryFilter = in("category", "books", "electronics", "clothing")
-def priceRangeFilter = in("price", 10, 20, 30)
+// MATCH-ANY operator - uses native DynamoDB IN operator for efficiency
+def categoryFilter = matchAny("category", "books", "electronics", "clothing")
+def priceRangeFilter = matchAny("price", 10, 20, 30)
 
 // BETWEEN operator (range values)
 def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
@@ -251,16 +251,16 @@ def filter = attributeGreaterThan("price", "cost")
 def dateFilter = attributeGreaterThan("endDate", "startDate")
 ```
 
-### IN Operator
+### MATCH-ANY Operator
 
 Check if an attribute's value matches any from a provided list. Uses DynamoDB's native IN operator for optimized performance:
 
 ```groovy
 // Check if category is one of multiple values
-def categoryFilter = in("category", "books", "electronics", "clothing")
+def categoryFilter = matchAny("category", "books", "electronics", "clothing")
 
 // Check if price is one of several values
-def priceFilter = in("price", 10, 20, 30)
+def priceFilter = matchAny("price", 10, 20, 30)
 ```
 
 ### BETWEEN Operator
@@ -289,10 +289,10 @@ def filter1 = activeFilter.and(highPriorityFilter.or(nameFilter))
 def filter2 = every(activeFilter, any(highPriorityFilter, nameFilter))
 
 // Multiple conditions
-def complexFilter = every(
+def complexFilter = every (
   isNotBlank("name"),
   match("status", "active"),
-  any(
+  any (
     greater("priority", 5),
     contains("tags", "urgent")
   )
