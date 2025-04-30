@@ -98,14 +98,23 @@ DynamoDb dynamo = new DynamoDb()
 // Save item
 dynamo.putItem("tableName", item)
 
-// Get item by key
+// Get item by key (specifying target class)
 Item item = dynamo.objectByKey("tableName", key, Item.class)
 
-// Query by index
-List<Item> items = dynamo.objectsQuery("tableName", "indexName", key, Item.class)
+// Get item by key (using DynamoMap as default)
+DynamoMap map = dynamo.objectByKey("tableName", key)
 
-// Scan entire table
-List<Item> allItems = dynamo.scan("tableName", Item.class)
+// Query by index (specifying target class)
+List<Item> items = dynamo.objectsQuery("tableName", "indexName", key, filter, Item.class)
+
+// Query by index (using DynamoMap as default)
+List<DynamoMap> maps = dynamo.objectsQuery("tableName", "indexName", key, filter)
+
+// Scan entire table (specifying target class)
+List<Item> allItems = dynamo.scan("tableName", filter, Item.class)
+
+// Scan entire table (using DynamoMap as default)
+List<DynamoMap> allMaps = dynamo.scan("tableName")
 
 // Delete item
 dynamo.deleteItem("tableName", key)
@@ -156,12 +165,20 @@ def priceRangeFilter = matchAny("price", 10, 20, 30)
 def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
 def valueRangeFilter = between("value", 100, 500)
 
-// Use with queries
+// Use with queries (specifying target class)
 List<Item> items = dynamo.objectsQuery (
+  "tableName", 
+  "indexName",
+  key,
+  filter,
+  Item.class
+)
+
+// Use with queries (using DynamoMap as default)
+List<DynamoMap> maps = dynamo.objectsQuery (
   "tableName",
   "indexName",
   key,
-  Item.class,
   filter
 )
 ```
@@ -211,16 +228,30 @@ dynamoDb.createTable("users", "id", null, ["email-index": "email"])
 def user = new User(id: "user1", username: "john", email: "john@example.com")
 dynamoDb.putItem("users", user)
 
-// 5. Retrieve by key
+// 5. Retrieve by key (specific class)
 User retrievedUser = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"), User)
 
-// 6. Query by email index with filter
+// 5a. Retrieve by key (using DynamoMap)
+DynamoMap userMap = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"))
+// Direct access to fields via @Delegate
+String username = userMap.username
+String email = userMap.email
+
+// 6. Query by email index with filter (specific class)
 def activeFilter = match("username", "john")
 List<User> users = dynamoDb.objectsQuery (
   "users",
   "email-index",
   new DynamoKey("email", "example.com"),
-  User,
+  activeFilter,
+  User
+)
+
+// 6a. Query by email index with filter (using DynamoMap)
+List<DynamoMap> userMaps = dynamoDb.objectsQuery (
+  "users",
+  "email-index",
+  new DynamoKey("email", "example.com"),
   activeFilter
 )
 ```
@@ -273,6 +304,33 @@ def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
 
 // Check if value is within a numeric range
 def valueRangeFilter = between("value", 100, 500)
+```
+
+### DynamoMap Direct Field Access
+
+DynamoMap now provides direct access to its internal data map through the use of Groovy's `@Delegate` annotation, making it more convenient to work with retrieved data:
+
+```groovy
+// Get item using default DynamoMap target class
+DynamoMap user = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"))
+
+// Direct field access without using the 'data' property
+String username = user.username
+String email = user.email
+Long timestamp = user.timestamp
+
+// Map-like operations are also available
+user.each { key, value -> 
+    println "$key: $value" 
+}
+
+// Check if a field exists
+if (user.containsKey('address')) {
+    // Process address
+}
+
+// Get all keys
+Set<String> fields = user.keySet()
 ```
 
 ### Static Logical Operators
