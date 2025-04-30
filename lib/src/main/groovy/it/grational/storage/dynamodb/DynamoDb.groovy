@@ -157,7 +157,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> T objectByKey (
 		String table,
 		DynamoKey key,
-		Class<T> targetClass
+		Class<T> targetClass = new DynamoMap()
 	) { // {{{
 		log.debug("Getting item with key: {}", key)
 
@@ -183,7 +183,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
 		String table,
 		DynamoKey key,
-		Class<T> targetClass,
+		Class<T> targetClass = new DynamoMap(),
 		DynamoFilter filter = null
 	) { // {{{
 		objectsQuery (
@@ -199,7 +199,7 @@ class DynamoDb {
 		String table,
 		String index,
 		DynamoKey key,
-		Class<T> targetClass,
+		Class<T> targetClass = new DynamoMap(),
 		DynamoFilter filter = null
 	) { // {{{
 		def queryBuilder = QueryRequest
@@ -377,7 +377,7 @@ class DynamoDb {
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> scan (
 		String table,
-		Class<T> targetClass,
+		Class<T> targetClass = new DynamoMap(),
 		DynamoFilter filter = null,
 		Integer limit = null,
 		Integer segment = null,
