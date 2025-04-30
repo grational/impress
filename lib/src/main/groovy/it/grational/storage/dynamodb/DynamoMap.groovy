@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 @CompileStatic
 class DynamoMap implements Storable<AttributeValue,Object> {
 
+	@Delegate
 	Map<String, Object> data
 
 	DynamoMap() {}
