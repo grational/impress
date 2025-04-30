@@ -269,6 +269,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				'data_index',
 				new DynamoKey('tagField', 'tag_a'),
+				null,
 				TestItem
 			)
 		and:
@@ -329,8 +330,8 @@ class DynamoDbICSpec extends Specification {
 				table,
 				'offer-index',
 				new DynamoKey('offer', sharedOffer),
-				ContractItem,
-				match('enabled', true)
+				match('enabled', true),
+				ContractItem
 			)
 		and:
 			objects.size() == 1
@@ -482,7 +483,9 @@ class DynamoDbICSpec extends Specification {
 
 		then:
 			TestItem retrieved = dynamoDb.objectByKey (
-				table, firstKey, TestItem
+				table,
+				firstKey,
+				TestItem
 			)
 			retrieved          != null
 			retrieved.tagField == 'tag1'
@@ -494,6 +497,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				'tag_index',
 				new DynamoKey('tagField', 'tag1'),
+				null,
 				TestItem
 			)
 		then:
@@ -554,6 +558,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.objectsQuery (
 				table,
 				new DynamoKey('id', 'pk1'),
+				null,
 				TestItem
 			)
 		then:
@@ -698,6 +703,7 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> allResults = dynamoDb.scan (
 				table,
+				null,
 				TestItem
 			)
 		then:
@@ -707,8 +713,8 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> enabledResults = dynamoDb.scan (
 				table,
-				TestItem,
-				match('enabled', true)
+				match('enabled', true),
+				TestItem
 			)
 		then:
 			enabledResults.size() == 3
@@ -718,9 +724,11 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> complexResults = dynamoDb.scan (
 				table,
+				every (
+					match('tagField', 'category_a'),
+					match('enabled', true)
+				),
 				TestItem,
-				match('tagField', 'category_a')
-				.and(match('enabled', true))
 			)
 		then:
 			complexResults.size() == 1
@@ -759,8 +767,8 @@ class DynamoDbICSpec extends Specification {
 		when: 'Performing a parallel scan with 2 segments'
 			List<TestItem> segment0Results = dynamoDb.scan (
 				table,
-				TestItem,
 				null,   // No filter
+				TestItem,
 				null,   // No limit
 				0,      // Segment 0
 				2       // Total of 2 segments
@@ -768,8 +776,8 @@ class DynamoDbICSpec extends Specification {
 
 			List<TestItem> segment1Results = dynamoDb.scan (
 				table,
-				TestItem,
 				null,   // No filter
+				TestItem,
 				null,   // No limit
 				1,      // Segment 1
 				2       // Total of 2 segments
@@ -788,8 +796,8 @@ class DynamoDbICSpec extends Specification {
 
 			List<TestItem> filteredSegment0 = dynamoDb.scan (
 				table,
-				TestItem,
 				enabledFilter,
+				TestItem,
 				null,   // No limit
 				0,      // Segment 0
 				2       // Total of 2 segments
@@ -797,8 +805,8 @@ class DynamoDbICSpec extends Specification {
 
 			List<TestItem> filteredSegment1 = dynamoDb.scan (
 				table,
-				TestItem,
 				enabledFilter,
+				TestItem,
 				null,   // No limit
 				1,      // Segment 1
 				2       // Total of 2 segments
@@ -812,8 +820,8 @@ class DynamoDbICSpec extends Specification {
 		when: 'scanning with a limit'
 			List<TestItem> limitedResults = dynamoDb.scan (
 				table,
-				TestItem,
 				null,
+				TestItem,
 				2
 			)
 		
