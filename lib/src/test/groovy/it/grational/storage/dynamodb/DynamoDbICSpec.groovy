@@ -877,6 +877,51 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should return PagedResult when pagination parameters are used"() {
+		given:
+			String table = 'test_paged'
+			dynamoDb.createTable(table, 'id', 'sortKey')
+			Integer totalSize = 20
+			Integer pageSize = 5
+		and:
+			List<TestItem> items = (1..totalSize).collect { 
+				new TestItem(id: "user1", sortKey: "key${it}")
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Using limit parameter'
+			PagedResult<TestItem> first = dynamoDb.objectsQuery (
+				table,
+				null,
+				new DynamoKey('id', 'user1'),
+				null,
+				TestItem.class,
+				pageSize
+			)
+
+		then:
+			first.count == 5
+			first.more == true
+
+		when: 'Using last parameter'
+			PagedResult<TestItem> second = dynamoDb.objectsQuery (
+				table,
+				null,
+				new DynamoKey('id', 'user1'),
+				null,
+				TestItem.class,
+				totalSize, // more than the rest
+				first.last
+			)
+
+		then:
+			second.count == 15
+			second.more == false
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	}
+
 	@Ignore
 	// Both these options are ignored in the local version of DynamoDB
 	// see: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.UsageNotes.html

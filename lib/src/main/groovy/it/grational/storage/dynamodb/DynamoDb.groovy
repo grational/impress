@@ -195,6 +195,9 @@ class DynamoDb {
 		)
 	} // }}}
 
+	/**
+	 * Query objects without index (backward compatible version)
+	 */
 	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
 		String table,
 		String index,
@@ -202,6 +205,47 @@ class DynamoDb {
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
+		PagedResult<T> paged = objectsQuery (
+			table,
+			index,
+			key,
+			filter,
+			targetClass,
+			0,
+			null
+		)
+		return paged.items
+	} // }}}
+
+	/**
+	 * Complete version of objectsQuery with all parameters
+	 */
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> objectsQuery (
+		String table,
+		String index = null,
+		DynamoKey key,
+		DynamoFilter filter = null,
+		Class<T> targetClass = DynamoMap.class,
+		int limit,
+		Map<String, AttributeValue> last = null
+	) { // {{{
+		log.debug (
+			String.join(", ",
+				"Executing query on table {}",
+				"index: {}",
+				"key: {}",
+				"filter: {}",
+				"limit: {}",
+				"last: {}"
+			),
+			table,
+			index,
+			key,
+			filter,
+			limit,
+			last
+		)
+
 		def queryBuilder = QueryRequest
 			.builder()
 			.tableName(table)
@@ -220,19 +264,31 @@ class DynamoDb {
 				: key.conditionValues()
 			)
 
-		// Applica il filtro se presente
 		if ( filter )
 			queryBuilder.filterExpression(filter.expression)
 
+		if ( limit > 0 )
+			queryBuilder.limit(limit)
+
+		if ( last )
+			queryBuilder.exclusiveStartKey(last)
+
 		def request = queryBuilder.build()
 		log.debug("Executing query request: {}", request)
+		
 		def response = client.query(request)
 
 		log.debug("Found {} items", response.count())
-		return response.items().collect { item ->
+		
+		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
 			targetClass.newInstance(builder)
 		}
+
+		return new PagedResult<T> (
+			items,
+			response.lastEvaluatedKey()
+		)
 	} // }}}
 
 	DeleteItemResponse deleteItem (
