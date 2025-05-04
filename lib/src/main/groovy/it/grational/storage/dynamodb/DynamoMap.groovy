@@ -26,8 +26,59 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 	@Override
 	DbMapper<AttributeValue,Object> impress (
 		DbMapper<AttributeValue,Object> mapper,
-		boolean versioned
+		boolean versioned = false
 	) {
+		data.each { String key, value ->
+			switch (value) {
+				case String:
+					mapper.with(key, value as String)
+					break
+				case Number:
+					mapper.with(key, value as Number)
+					break
+				case Boolean:
+					mapper.with(key, value as Boolean)
+					break
+				case List:
+					List lv = value as List
+					if (lv.isEmpty())
+						break
+					switch (lv[0]) {
+						case String:
+							mapper.with (
+								key,
+								value as String[]
+							)
+							break
+						case Number:
+							mapper.with (
+								key,
+								value as Number[]
+							)
+							break
+						case Storable:
+							mapper.with (
+								key,
+								versioned,
+								value as Storable[]
+							)
+							break
+						case DbMapper:
+							mapper.with (
+								key,
+								versioned,
+								value as DbMapper[]
+							)
+							break
+					}
+				case DbMapper:
+					mapper.with (
+						key,
+						value as DbMapper,
+						versioned
+					)
+			}
+		}
 		return mapper
 	}
 }
