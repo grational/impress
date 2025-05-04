@@ -107,8 +107,16 @@ DynamoMap map = dynamo.objectByKey("tableName", key)
 // Query by index (specifying target class)
 List<Item> items = dynamo.objectsQuery("tableName", "indexName", key, filter, Item.class)
 
-// Query by index (using DynamoMap as default)
-List<DynamoMap> maps = dynamo.objectsQuery("tableName", "indexName", key, filter)
+// Query with paged results (new feature!)
+PagedResult<Item> paged = dynamo.objectsQuery("tableName", "indexName", key, filter, Item.class, limit)
+paged.items    // List of items
+paged.more     // Are there more results?
+paged.last     // Last evaluated key for next page
+paged.count    // Number of items in current page
+
+// Query with ordering control (new feature!)
+List<Item> ascending = dynamo.objectsQuery("tableName", key, filter, Item.class, true)   // Forward order
+List<Item> descending = dynamo.objectsQuery("tableName", key, filter, Item.class, false) // Backward order
 
 // Scan entire table (specifying target class)
 List<Item> allItems = dynamo.scan("tableName", filter, Item.class)
@@ -440,6 +448,75 @@ int deleted = dynamoDb.deleteItemsScan (
     match("status", "deleted"),
     less("lastAccess", "2023-01-01")
    )
+)
+```
+
+### Paginated Queries
+
+Query with pagination support using `PagedResult`:
+
+```groovy
+// Query with limit for pagination
+PagedResult<User> page1 = dynamoDb.objectsQuery (
+  "users",
+  new DynamoKey("id", "user1"),
+  null,    // no filters in this example
+  User.class,
+  5     // Limit to 5 items per page
+)
+
+// Access results
+page1.items    // List of User objects
+page1.more     // true if more results available
+page1.last     // Last evaluated key for next page
+page1.count    // Number of items in this page
+
+// Get next page if more results exist
+if (page1.more) {
+  PagedResult<User> page2 = dynamoDb.objectsQuery (
+    "users",
+    new DynamoKey("id", "user1"),
+    null,    // no filters in this example
+    User.class,
+    5,          // Limit
+    page1.last  // Last evaluated key from previous page
+  )
+}
+```
+
+### Query Ordering
+
+Control the ordering of query results using the forward parameter:
+
+```groovy
+// Query with ascending order (default)
+List<Item> ascending = dynamoDb.objectsQuery (
+  "users",
+  new DynamoKey("id", "user1"),
+  null,    // no filters in this example
+  Item.class,
+  true     // Forward order (oldest to newest if sort key is timestamp)
+)
+
+// Query with descending order
+List<Item> descending = dynamoDb.objectsQuery (
+  "users",
+  new DynamoKey("id", "user1"),
+  null,    // no filters in this example
+  Item.class,
+  false    // Backward order (newest to oldest if sort key is timestamp)
+)
+
+// Complete query method with all parameters
+PagedResult<Item> result = dynamoDb.objectsQuery (
+  "users",               // Table name
+  "email-index",        // Index name (optional)
+  new DynamoKey("email", "test@example.com"), // Key condition
+  match("active", true), // Filter expression (optional)
+  Item.class,           // Target class
+  10,                   // Limit (for pagination)
+  null,                 // Last evaluated key from previous query
+  false                 // Backward order (newest first)
 )
 ```
 
