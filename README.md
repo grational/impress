@@ -116,8 +116,17 @@ List<Item> allItems = dynamo.scan("tableName", filter, Item.class)
 // Scan entire table (using DynamoMap as default)
 List<DynamoMap> allMaps = dynamo.scan("tableName")
 
-// Delete item
+// Delete single item
 dynamo.deleteItem("tableName", key)
+
+// Delete multiple items by key and optional filter
+int count = dynamo.deleteItems("tableName", key, filter)
+
+// Delete multiple items using an index
+int count = dynamo.deleteItems("tableName", "indexName", key, filter)
+
+// Delete multiple items using a scan (full table scan with optional filter)
+int count = dynamo.deleteItemsScan("tableName", filter)
 ```
 
 ### DynamoKey
@@ -398,6 +407,40 @@ def users = [
 ]
 
 dynamoDb.putItems("users", users)
+```
+
+Delete multiple items in a batch:
+
+```groovy
+// Delete items by partition key
+int deleted = dynamoDb.deleteItems (
+  "users",
+  new DynamoKey("status", "inactive")
+)
+
+// Delete items by partition key with additional filter
+int deleted = dynamoDb.deleteItems (
+  "users",
+  new DynamoKey("status", "inactive"), 
+  match("lastLogin", "2022-01-01")
+)
+
+// Delete items using an index
+int deleted = dynamoDb.deleteItems(
+  "users",
+  "email-index", 
+  new DynamoKey("domain", "example.com"), 
+  match("active", false)
+)
+
+// Delete items by scanning the entire table with a filter
+int deleted = dynamoDb.deleteItemsScan (
+  "users", 
+   every (
+    match("status", "deleted"),
+    less("lastAccess", "2023-01-01")
+   )
+)
 ```
 
 ### Local Development

@@ -740,6 +740,143 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should delete multiple items by key and filter"() { // {{{
+		setup:
+			String table = 'test_bulk_delete'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey
+			)
+		and: 'Creating a batch of items to delete'
+			List<TestItem> items = (1..15).collect { int i ->
+				new TestItem (
+					id: "del${i}",
+					tagField: "cat_${(i % 3) + 1}", // 2,3,1, 2,3,1...
+					data: "data${i}",
+					enabled: (i % 2 == 0) // false if odd
+				)
+			}
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Verifying items were inserted'
+			List<TestItem> allItems = dynamoDb.scan (
+				table,
+				null,
+				TestItem
+			)
+		then:
+			allItems.size() == 15
+
+		when: 'Deleting items with partition key only'
+			int deletedCount = dynamoDb.deleteItems (
+				table,
+				new DynamoKey('id', 'del1')
+			)
+		then:
+			deletedCount == 1
+
+		when: 'Checking item was deleted'
+			TestItem shouldBeDeleted = dynamoDb.objectByKey (
+				table,
+				new DynamoKey('id', 'del1'),
+				TestItem
+			)
+		then:
+			shouldBeDeleted == null
+
+		when: 'Mass deleting items with a filter'
+			int filterDeleteCount = dynamoDb.deleteItemsScan (
+				table,
+				match('tagField', 'cat_2')
+			)
+		then:
+			filterDeleteCount == 4  // 5 items with tagField='cat_1' but one was already deleted
+
+		when: 'Verifying remaining items'
+			List<TestItem> remaining = dynamoDb.scan (
+				table,
+				null,
+				TestItem
+			)
+		then:
+			remaining.size() == 10
+			remaining.every { it.tagField != 'cat_2' }
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should delete multiple items by index and filter"() { // {{{
+		setup:
+			String table = 'test_delete_by_index'
+			String partKey = 'id'
+			Map<String, String> indexes = [
+				'tag_index': 'tagField'
+			]
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				null,  // no sort key
+				indexes
+			)
+		and:
+			List<TestItem> items = [
+				new TestItem(id: 'idx1', tagField: 'tag_a', data: 'data1', enabled: true),
+				new TestItem(id: 'idx2', tagField: 'tag_a', data: 'data2', enabled: false),
+				new TestItem(id: 'idx3', tagField: 'tag_b', data: 'data3', enabled: true),
+				new TestItem(id: 'idx4', tagField: 'tag_b', data: 'data4', enabled: false),
+				new TestItem(id: 'idx5', tagField: 'tag_c', data: 'data5', enabled: true)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Deleting items using an index'
+			int deleteCount = dynamoDb.deleteItems (
+				table,
+				'tag_index',
+				new DynamoKey('tagField', 'tag_a'),
+				null
+			)
+		then:
+			deleteCount == 2
+
+		when: 'Verifying remaining items'
+			List<TestItem> remaining = dynamoDb.scan (
+				table,
+				null,
+				TestItem
+			)
+		then:
+			remaining.size() == 3
+			remaining.every { it.tagField != 'tag_a' }
+
+		when: 'Deleting with index and additional filter'
+			int filteredDeleteCount = dynamoDb.deleteItems (
+				table,
+				'tag_index',
+				new DynamoKey('tagField', 'tag_b'),
+				match('enabled', true)
+			)
+		then:
+			filteredDeleteCount == 1
+
+		when: 'Verifying final remaining items'
+			List<TestItem> finalRemaining = dynamoDb.scan (
+				table,
+				null,
+				TestItem
+			)
+		then:
+			finalRemaining ==~ items.findAll { it.id in [ 'idx4', 'idx5' ] }
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	@Ignore
 	// Both these options are ignored in the local version of DynamoDB
 	// see: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.UsageNotes.html
@@ -824,7 +961,7 @@ class DynamoDbICSpec extends Specification {
 				TestItem,
 				2
 			)
-		
+
 		then: 'only the specified number of items should be returned'
 			limitedResults.size() <= 2
 

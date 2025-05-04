@@ -44,7 +44,7 @@ abstract class Dynable
 		DbMapper<AttributeValue,Object> mapper,
 		boolean versioned = true
 	) {
-		return ( 
+		return (
 			inpress(mapper as DynamoMapper) as DynamoMapper
 		).with ('v', v,
 			versioned ? VERSION : STANDARD

@@ -127,7 +127,7 @@ class DynamoDb {
 			.builder()
 			.tableName(table)
 			.key(mapper.key())
-		
+
 		if ( mapper.hasVersion() ) {
 			builder.conditionExpression (
 				mapper.versionCondition()
@@ -179,7 +179,7 @@ class DynamoDb {
 		return targetClass.newInstance(builder)
 	} // }}}
 
-	
+
 	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
 		String table,
 		DynamoKey key,
@@ -219,11 +219,11 @@ class DynamoDb {
 				? ( key.conditionValues() + filter.expressionValues )
 				: key.conditionValues()
 			)
-			
+
 		// Applica il filtro se presente
 		if ( filter )
 			queryBuilder.filterExpression(filter.expression)
-		
+
 		def request = queryBuilder.build()
 		log.debug("Executing query request: {}", request)
 		def response = client.query(request)
@@ -365,8 +365,202 @@ class DynamoDb {
 	} // }}}
 
 	/**
+	 * Deletes multiple items based on query results
+	 *
+	 * @param table The name of the table to delete items from
+	 * @param key The key condition to identify items to delete
+	 * @param filter Optional filter to further restrict which items are deleted
+	 * @return The number of items deleted
+	 */
+	int deleteItems (
+		String table,
+		DynamoKey key,
+		DynamoFilter filter = null
+	) { // {{{
+		deleteItems(table, null, key, filter)
+	} // }}}
+
+	/**
+	 * Deletes multiple items based on query results using an index
+	 *
+	 * @param table The name of the table to delete items from
+	 * @param index The index name to query on
+	 * @param key The key condition to identify items to delete
+	 * @param filter Optional filter to further restrict which items are deleted
+	 * @return The number of items deleted
+	 */
+	int deleteItems (
+		String table,
+		String index,
+		DynamoKey key,
+		DynamoFilter filter = null
+	) { // {{{
+		log.debug (
+			String.join(", ",
+				"Deleting items from table {}",
+				"with index: {}",
+				"key: {}",
+				"and filter: {}"
+			),
+			table,
+			index,
+			key,
+			filter
+		)
+
+		List<DynamoMap> itemsToDelete = objectsQuery (
+			table,
+			index,
+			key,
+			filter
+		)
+
+		if (itemsToDelete.isEmpty()) {
+			log.debug("No items found to delete")
+			return 0
+		}
+
+		List<Map<String, AttributeValue>> itemMaps = itemsToDelete
+		.collect { DynamoMap item ->
+			item.impress(new DynamoMapper()).storer(false)
+		}
+
+		batchDelete(table, itemMaps)
+
+		return itemsToDelete.size()
+	} // }}}
+
+	/**
+	 * Deletes multiple items based on scan results
+	 *
+	 * @param table The name of the table to delete items from
+	 * @param filter Optional filter to restrict which items are deleted
+	 * @return The number of items deleted
+	 */
+	int deleteItemsScan (
+		String table,
+		DynamoFilter filter = null
+	) { // {{{
+		log.debug (
+			String.join(", ",
+				"Deleting items from table {}",
+				"with filter: {}"
+			),
+			table,
+			filter
+		)
+
+		List<DynamoMap> itemsToDelete = scan (
+			table,
+			filter,
+			DynamoMap.class
+		)
+
+		if (itemsToDelete.isEmpty()) {
+			log.debug("No items found to delete")
+			return 0
+		}
+
+		List<Map<String, AttributeValue>> itemMaps = itemsToDelete
+		.collect { DynamoMap item ->
+			item.impress(new DynamoMapper()).storer(false)
+		}
+
+		batchDelete(table, itemMaps)
+
+		return itemsToDelete.size()
+	} // }}}
+
+	/**
+	 * Batch delete items using transactWriteItems
+	 *
+	 * @param table The table name
+	 * @param items The list of item maps to delete
+	 */
+	private void batchDelete (
+		String table,
+		List<Map<String, AttributeValue>> items
+	) { // {{{
+		log.debug("Batch deleting {} items", items.size())
+
+		items.collate(maxTransactions)
+		.each { List<Map<String, AttributeValue>> batch ->
+			List<TransactWriteItem> transactItems = batch
+			.collect { Map<String, AttributeValue> item ->
+				// Extract only the key attributes from the item
+				Map<String, AttributeValue> keyAttributes = extractKeyAttributes(table, item)
+
+				TransactWriteItem.builder().delete (
+					Delete.builder()
+						.tableName(table)
+						.key(keyAttributes)
+						.build()
+				).build()
+			}
+
+			if (transactItems.isEmpty()) {
+				return
+			}
+
+			log.debug(
+				"Executing deletion transaction with {} items",
+				transactItems.size()
+			)
+
+			client.transactWriteItems(
+				TransactWriteItemsRequest.builder()
+					.transactItems(transactItems)
+					.build()
+			)
+		}
+	} // }}}
+
+	/**
+	 * Extracts the key attributes from a DynamoDB item
+	 *
+	 * @param table The table name to identify the key schema
+	 * @param item The full item map
+	 * @return A map containing only the key attributes
+	 */
+	private Map<String, AttributeValue> extractKeyAttributes (
+		String table,
+		Map<String, AttributeValue> item
+	) { // {{{
+		try {
+			// Describe the table to get the key schema
+			DescribeTableResponse tableInfo = client.describeTable (
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			)
+
+			List<KeySchemaElement> keySchema = tableInfo.table().keySchema()
+
+			// Extract key attributes based on the key schema
+			Map<String, AttributeValue> keyAttributes = [:]
+
+			keySchema.each { KeySchemaElement element ->
+				String keyName = element.attributeName()
+				if (item.containsKey(keyName)) {
+					keyAttributes[keyName] = item[keyName]
+				} else {
+					throw new IllegalStateException (
+						"Key attribute ${keyName} not found in item"
+					)
+				}
+			}
+
+			return keyAttributes
+		} catch (Exception e) {
+			log.error("Error extracting key attributes: {}", e.message)
+			// Fallback: return the entire item, though this may fail
+			return item
+		}
+	} // }}}
+
+	/**
 	 * Scans the entire table and returns items that match the optional filter expression
-	 * 
+	 *
 	 * @param table The name of the table to scan
 	 * @param targetClass The class of objects to create from the scan results
 	 * @param filter Optional DynamoFilter to filter the scan results
