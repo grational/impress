@@ -922,6 +922,54 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	}
 
+	def "Should handle scanIndexForward for query ordering"() {
+		given:
+			String table = 'test_scan_order'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+			
+			dynamoDb.createTable(table, partKey, sortKey)
+			
+			List<TestItem> items = [
+				new TestItem(id: 'user1', sortKey: '2025-01-01'),
+				new TestItem(id: 'user1', sortKey: '2025-01-02'),
+				new TestItem(id: 'user1', sortKey: '2025-01-03')
+			]
+			
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with forward order'
+			List<TestItem> ascending = dynamoDb.objectsQuery (
+				table,
+				new DynamoKey('id', 'user1'),
+				null,
+				TestItem,
+				true
+			)
+			
+		then:
+			ascending[0].sortKey == '2025-01-01'
+			ascending[1].sortKey == '2025-01-02'
+			ascending[2].sortKey == '2025-01-03'
+
+		when: 'Query with backward order'
+			List<TestItem> descending = dynamoDb.objectsQuery(
+				table,
+				new DynamoKey('id', 'user1'),
+				null,
+				TestItem,
+				false
+			)
+			
+		then:
+			descending[0].sortKey == '2025-01-03'
+			descending[1].sortKey == '2025-01-02'
+			descending[2].sortKey == '2025-01-01'
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	}
+
 	@Ignore
 	// Both these options are ignored in the local version of DynamoDB
 	// see: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.UsageNotes.html

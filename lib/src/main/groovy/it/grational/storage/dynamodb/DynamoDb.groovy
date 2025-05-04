@@ -184,14 +184,16 @@ class DynamoDb {
 		String table,
 		DynamoKey key,
 		DynamoFilter filter = null,
-		Class<T> targetClass = DynamoMap.class
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
 	) { // {{{
 		objectsQuery (
 			table,
 			null, // no index is needed
 			key.partition(),
 			filter,
-			targetClass
+			targetClass,
+			forward
 		)
 	} // }}}
 
@@ -203,7 +205,8 @@ class DynamoDb {
 		String index,
 		DynamoKey key,
 		DynamoFilter filter = null,
-		Class<T> targetClass = DynamoMap.class
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
 	) { // {{{
 		PagedResult<T> paged = objectsQuery (
 			table,
@@ -212,7 +215,8 @@ class DynamoDb {
 			filter,
 			targetClass,
 			0,
-			null
+			null,
+			forward
 		)
 		return paged.items
 	} // }}}
@@ -227,7 +231,8 @@ class DynamoDb {
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		int limit,
-		Map<String, AttributeValue> last = null
+		Map<String, AttributeValue> last = null,
+		boolean forward = true
 	) { // {{{
 		log.debug (
 			String.join(", ",
@@ -236,19 +241,22 @@ class DynamoDb {
 				"key: {}",
 				"filter: {}",
 				"limit: {}",
-				"last: {}"
+				"last: {}",
+				"forward: {}"
 			),
 			table,
 			index,
 			key,
 			filter,
 			limit,
-			last
+			last,
+			forward
 		)
 
 		def queryBuilder = QueryRequest
 			.builder()
 			.tableName(table)
+			.scanIndexForward(forward)
 
 		if ( index )
 			queryBuilder.indexName(index)
