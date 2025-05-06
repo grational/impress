@@ -1,5 +1,9 @@
 # Impress
 
+<p align="center">
+  <img src="resources/logo.png" alt="Impress Logo" width="400"/>
+</p>
+
 A Groovy library for object persistence with DynamoDB support
 
 ## Overview
