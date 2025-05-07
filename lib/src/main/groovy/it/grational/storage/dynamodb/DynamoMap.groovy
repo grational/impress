@@ -25,7 +25,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 
 	@Override
 	DbMapper<AttributeValue,Object> impress (
-		DbMapper<AttributeValue,Object> mapper,
+		DbMapper<AttributeValue,Object> mapper = new DynamoMapper(),
 		boolean versioned = false
 	) {
 		data.each { String key, value ->
@@ -71,12 +71,18 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 							)
 							break
 					}
+					break
 				case DbMapper:
 					mapper.with (
 						key,
 						value as DbMapper,
 						versioned
 					)
+					break
+				case Storable:
+					def dynamoMapper = new DynamoMapper()
+					(value as Storable).impress(dynamoMapper, versioned)
+					mapper.with(key, dynamoMapper, versioned)
 			}
 		}
 		return mapper
