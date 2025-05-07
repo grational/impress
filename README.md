@@ -1,5 +1,3 @@
-# Impress
-
 <p align="center">
   <img src="resources/logo.png" alt="Impress Logo" width="400"/>
 </p>
