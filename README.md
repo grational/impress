@@ -548,5 +548,3 @@ def dynamoDb = new DynamoDb(localClient)
 ## Contributing
 
 Contributions are welcome! See the repository for more details.
-
-<!-- vim: ts=2:sts=2:sw=2:et=false -->
