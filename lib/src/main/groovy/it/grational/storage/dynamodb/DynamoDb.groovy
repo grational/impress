@@ -154,7 +154,7 @@ class DynamoDb {
 		return client.updateItem(request)
 	} // }}}
 
-	<T extends Storable<AttributeValue,Object>> T objectByKey (
+	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
 		DynamoKey key,
 		Class<T> targetClass = DynamoMap.class
@@ -180,14 +180,14 @@ class DynamoDb {
 	} // }}}
 
 
-	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
+	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		DynamoKey key,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		objectsQuery (
+		query (
 			table,
 			null, // no index is needed
 			key.partition(),
@@ -200,7 +200,7 @@ class DynamoDb {
 	/**
 	 * Query objects without index (backward compatible version)
 	 */
-	<T extends Storable<AttributeValue,Object>> List<T> objectsQuery (
+	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		String index,
 		DynamoKey key,
@@ -208,7 +208,7 @@ class DynamoDb {
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		PagedResult<T> paged = objectsQuery (
+		PagedResult<T> paged = query (
 			table,
 			index,
 			key,
@@ -222,9 +222,9 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Complete version of objectsQuery with all parameters
+	 * Complete version of query with all parameters
 	 */
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> objectsQuery (
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
 		String index = null,
 		DynamoKey key,
@@ -472,7 +472,7 @@ class DynamoDb {
 			filter
 		)
 
-		List<DynamoMap> itemsToDelete = objectsQuery (
+		List<DynamoMap> itemsToDelete = query (
 			table,
 			index,
 			key,
@@ -501,7 +501,7 @@ class DynamoDb {
 	 * @param filter Optional filter to restrict which items are deleted
 	 * @return The number of items deleted
 	 */
-	int deleteItemsScan (
+	int deleteItems (
 		String table,
 		DynamoFilter filter = null
 	) { // {{{

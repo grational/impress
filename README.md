@@ -101,24 +101,24 @@ DynamoDb dynamo = new DynamoDb()
 dynamo.putItem("tableName", item)
 
 // Get item by key (specifying target class)
-Item item = dynamo.objectByKey("tableName", key, Item.class)
+Item item = dynamo.getItem("tableName", key, Item.class)
 
 // Get item by key (using DynamoMap as default)
-DynamoMap map = dynamo.objectByKey("tableName", key)
+DynamoMap map = dynamo.getItem("tableName", key)
 
 // Query by index (specifying target class)
-List<Item> items = dynamo.objectsQuery("tableName", "indexName", key, filter, Item.class)
+List<Item> items = dynamo.query("tableName", "indexName", key, filter, Item.class)
 
 // Query with paged results (new feature!)
-PagedResult<Item> paged = dynamo.objectsQuery("tableName", "indexName", key, filter, Item.class, limit)
+PagedResult<Item> paged = dynamo.query("tableName", "indexName", key, filter, Item.class, limit)
 paged.items    // List of items
 paged.more     // Are there more results?
 paged.last     // Last evaluated key for next page
 paged.count    // Number of items in current page
 
 // Query with ordering control (new feature!)
-List<Item> ascending = dynamo.objectsQuery("tableName", key, filter, Item.class, true)   // Forward order
-List<Item> descending = dynamo.objectsQuery("tableName", key, filter, Item.class, false) // Backward order
+List<Item> ascending = dynamo.query("tableName", key, filter, Item.class, true)   // Forward order
+List<Item> descending = dynamo.query("tableName", key, filter, Item.class, false) // Backward order
 
 // Scan entire table (specifying target class)
 List<Item> allItems = dynamo.scan("tableName", filter, Item.class)
@@ -136,7 +136,7 @@ int count = dynamo.deleteItems("tableName", key, filter)
 int count = dynamo.deleteItems("tableName", "indexName", key, filter)
 
 // Delete multiple items using a scan (full table scan with optional filter)
-int count = dynamo.deleteItemsScan("tableName", filter)
+int count = dynamo.deleteItems("tableName", filter)
 ```
 
 ### DynamoKey
@@ -185,7 +185,7 @@ def dateRangeFilter = between("date", "2023-01-01", "2023-12-31")
 def valueRangeFilter = between("value", 100, 500)
 
 // Use with queries (specifying target class)
-List<Item> items = dynamo.objectsQuery (
+List<Item> items = dynamo.query (
   "tableName", 
   "indexName",
   key,
@@ -194,7 +194,7 @@ List<Item> items = dynamo.objectsQuery (
 )
 
 // Use with queries (using DynamoMap as default)
-List<DynamoMap> maps = dynamo.objectsQuery (
+List<DynamoMap> maps = dynamo.query (
   "tableName",
   "indexName",
   key,
@@ -248,17 +248,17 @@ def user = new User(id: "user1", username: "john", email: "john@example.com")
 dynamoDb.putItem("users", user)
 
 // 5. Retrieve by key (specific class)
-User retrievedUser = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"), User)
+User retrievedUser = dynamoDb.getItem("users", new DynamoKey("id", "user1"), User)
 
 // 5a. Retrieve by key (using DynamoMap)
-DynamoMap userMap = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"))
+DynamoMap userMap = dynamoDb.getItem("users", new DynamoKey("id", "user1"))
 // Direct access to fields via @Delegate
 String username = userMap.username
 String email = userMap.email
 
 // 6. Query by email index with filter (specific class)
 def activeFilter = match("username", "john")
-List<User> users = dynamoDb.objectsQuery (
+List<User> users = dynamoDb.query (
   "users",
   "email-index",
   new DynamoKey("email", "example.com"),
@@ -267,7 +267,7 @@ List<User> users = dynamoDb.objectsQuery (
 )
 
 // 6a. Query by email index with filter (using DynamoMap)
-List<DynamoMap> userMaps = dynamoDb.objectsQuery (
+List<DynamoMap> userMaps = dynamoDb.query (
   "users",
   "email-index",
   new DynamoKey("email", "example.com"),
@@ -331,7 +331,7 @@ DynamoMap now provides direct access to its internal data map through the use of
 
 ```groovy
 // Get item using default DynamoMap target class
-DynamoMap user = dynamoDb.objectByKey("users", new DynamoKey("id", "user1"))
+DynamoMap user = dynamoDb.getItem("users", new DynamoKey("id", "user1"))
 
 // Direct field access without using the 'data' property
 String username = user.username
@@ -403,7 +403,7 @@ Query tables using just the partition key:
 DynamoKey partitionKey = key.partition()
 
 // Query with partition key only
-List<Item> items = dynamoDb.objectsQuery("tableName", partitionKey, Item.class)
+List<Item> items = dynamoDb.query("tableName", partitionKey, Item.class)
 ```
 
 ### Batch Operations
@@ -444,7 +444,7 @@ int deleted = dynamoDb.deleteItems(
 )
 
 // Delete items by scanning the entire table with a filter
-int deleted = dynamoDb.deleteItemsScan (
+int deleted = dynamoDb.deleteItems (
   "users", 
    every (
     match("status", "deleted"),
@@ -459,7 +459,7 @@ Query with pagination support using `PagedResult`:
 
 ```groovy
 // Query with limit for pagination
-PagedResult<User> page1 = dynamoDb.objectsQuery (
+PagedResult<User> page1 = dynamoDb.query (
   "users",
   new DynamoKey("id", "user1"),
   null,    // no filters in this example
@@ -475,7 +475,7 @@ page1.count    // Number of items in this page
 
 // Get next page if more results exist
 if (page1.more) {
-  PagedResult<User> page2 = dynamoDb.objectsQuery (
+  PagedResult<User> page2 = dynamoDb.query (
     "users",
     new DynamoKey("id", "user1"),
     null,    // no filters in this example
@@ -492,7 +492,7 @@ Control the ordering of query results using the forward parameter:
 
 ```groovy
 // Query with ascending order (default)
-List<Item> ascending = dynamoDb.objectsQuery (
+List<Item> ascending = dynamoDb.query (
   "users",
   new DynamoKey("id", "user1"),
   null,    // no filters in this example
@@ -501,7 +501,7 @@ List<Item> ascending = dynamoDb.objectsQuery (
 )
 
 // Query with descending order
-List<Item> descending = dynamoDb.objectsQuery (
+List<Item> descending = dynamoDb.query (
   "users",
   new DynamoKey("id", "user1"),
   null,    // no filters in this example
@@ -510,7 +510,7 @@ List<Item> descending = dynamoDb.objectsQuery (
 )
 
 // Complete query method with all parameters
-PagedResult<Item> result = dynamoDb.objectsQuery (
+PagedResult<Item> result = dynamoDb.query (
   "users",               // Table name
   "email-index",        // Index name (optional)
   new DynamoKey("email", "test@example.com"), // Key condition

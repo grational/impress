@@ -60,7 +60,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			TestItem inserted = dynamoDb.objectByKey (
+			TestItem inserted = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -78,7 +78,7 @@ class DynamoDbICSpec extends Specification {
 				inserted
 			)
 		then:
-			TestItem versionUpdate = dynamoDb.objectByKey (
+			TestItem versionUpdate = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -136,7 +136,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			TestItem retrieved = dynamoDb.objectByKey (
+			TestItem retrieved = dynamoDb.getItem (
 				table,
 				firstKey,
 				TestItem
@@ -177,7 +177,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def retrieved = dynamoDb.objectByKey (
+			def retrieved = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -195,7 +195,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then: 'data and version should be updated'
-			def updated = dynamoDb.objectByKey (
+			def updated = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -227,7 +227,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then: 'data should be forcefully updated'
-			def forced = dynamoDb.objectByKey (
+			def forced = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -265,7 +265,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		then:
-			List<TestItem> results = dynamoDb.objectsQuery (
+			List<TestItem> results = dynamoDb.query (
 				table,
 				'data_index',
 				new DynamoKey('tagField', 'tag_a'),
@@ -326,7 +326,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		then:
-			List<ContractItem> objects = dynamoDb.objectsQuery (
+			List<ContractItem> objects = dynamoDb.query (
 				table,
 				'offer-index',
 				new DynamoKey('offer', sharedOffer),
@@ -370,7 +370,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItem(table, item)
 
 		then:
-			TestItem exists = dynamoDb.objectByKey (
+			TestItem exists = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -382,7 +382,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.deleteItem(table, key)
 
 		then:
-			TestItem deleted = dynamoDb.objectByKey (
+			TestItem deleted = dynamoDb.getItem (
 				table,
 				key,
 				TestItem
@@ -416,7 +416,7 @@ class DynamoDbICSpec extends Specification {
 
 		then:
 			items.each { TestItem item ->
-				TestItem retrieved = dynamoDb.objectByKey (
+				TestItem retrieved = dynamoDb.getItem (
 					table,
 					new DynamoKey('id', item.id),
 					TestItem
@@ -482,7 +482,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			TestItem retrieved = dynamoDb.objectByKey (
+			TestItem retrieved = dynamoDb.getItem (
 				table,
 				firstKey,
 				TestItem
@@ -493,7 +493,7 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version  == 1
 
 		when:
-			List<TestItem> results = dynamoDb.objectsQuery (
+			List<TestItem> results = dynamoDb.query (
 				table,
 				'tag_index',
 				new DynamoKey('tagField', 'tag1'),
@@ -555,7 +555,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		when:
-			List<TestItem> results = dynamoDb.objectsQuery (
+			List<TestItem> results = dynamoDb.query (
 				table,
 				new DynamoKey('id', 'pk1'),
 				null,
@@ -606,7 +606,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		expect:
-			TestItem unmodified = dynamoDb.objectByKey (
+			TestItem unmodified = dynamoDb.getItem (
 				table, key, TestItem
 			)
 			unmodified          != null
@@ -626,7 +626,7 @@ class DynamoDbICSpec extends Specification {
 		then:
 			noExceptionThrown()
 		and:
-			TestItem updated = dynamoDb.objectByKey (
+			TestItem updated = dynamoDb.getItem (
 				table, key, TestItem
 			)
 			updated          != null
@@ -648,7 +648,7 @@ class DynamoDbICSpec extends Specification {
 			def exception = thrown(ConditionalCheckFailedException)
 			exception.message.startsWith('The conditional request failed')
 		and:
-			TestItem untouched = dynamoDb.objectByKey (
+			TestItem untouched = dynamoDb.getItem (
 				table, key, TestItem
 			)
 			untouched          != null
@@ -667,7 +667,7 @@ class DynamoDbICSpec extends Specification {
 				mapper
 			)
 		then:
-			TestItem versioned = dynamoDb.objectByKey (
+			TestItem versioned = dynamoDb.getItem (
 				table, key, TestItem
 			)
 			versioned          != null
@@ -779,7 +779,7 @@ class DynamoDbICSpec extends Specification {
 			deletedCount == 1
 
 		when: 'Checking item was deleted'
-			TestItem shouldBeDeleted = dynamoDb.objectByKey (
+			TestItem shouldBeDeleted = dynamoDb.getItem (
 				table,
 				new DynamoKey('id', 'del1'),
 				TestItem
@@ -788,7 +788,7 @@ class DynamoDbICSpec extends Specification {
 			shouldBeDeleted == null
 
 		when: 'Mass deleting items with a filter'
-			int filterDeleteCount = dynamoDb.deleteItemsScan (
+			int filterDeleteCount = dynamoDb.deleteItems (
 				table,
 				match('tagField', 'cat_2')
 			)
@@ -890,7 +890,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		when: 'Using limit parameter'
-			PagedResult<TestItem> first = dynamoDb.objectsQuery (
+			PagedResult<TestItem> first = dynamoDb.query (
 				table,
 				null,
 				new DynamoKey('id', 'user1'),
@@ -904,7 +904,7 @@ class DynamoDbICSpec extends Specification {
 			first.more == true
 
 		when: 'Using last parameter'
-			PagedResult<TestItem> second = dynamoDb.objectsQuery (
+			PagedResult<TestItem> second = dynamoDb.query (
 				table,
 				null,
 				new DynamoKey('id', 'user1'),
@@ -939,7 +939,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		when: 'Query with forward order'
-			List<TestItem> ascending = dynamoDb.objectsQuery (
+			List<TestItem> ascending = dynamoDb.query (
 				table,
 				new DynamoKey('id', 'user1'),
 				null,
@@ -953,7 +953,7 @@ class DynamoDbICSpec extends Specification {
 			ascending[2].sortKey == '2025-01-03'
 
 		when: 'Query with backward order'
-			List<TestItem> descending = dynamoDb.objectsQuery(
+			List<TestItem> descending = dynamoDb.query(
 				table,
 				new DynamoKey('id', 'user1'),
 				null,
