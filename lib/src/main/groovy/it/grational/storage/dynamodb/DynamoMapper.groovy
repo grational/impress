@@ -238,7 +238,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		if (st == null) return this
 
 		dm = st.impress(dm, versioned)
-		with(k, dm)
+		with(k, dm, versioned)
 	} // }}}
 
 	DbMapper<AttributeValue,Object> withNull(String k) {

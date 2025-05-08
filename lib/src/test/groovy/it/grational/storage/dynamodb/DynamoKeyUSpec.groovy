@@ -149,4 +149,69 @@ class DynamoKeyUSpec extends Specification {
 			[ one: fromN('1'), two: fromN('2') ] || new DynamoKey(two: fromN('1'))
 	}
 
+	def "Should handle nested field paths in condition expression"() {
+		when:
+			DynamoKey dk = new DynamoKey('user.profile.id', 'ABC123')
+
+		then:
+			dk.condition() == "#user.#profile.#id = :userprofileid"
+			dk.conditionNames() == [
+				'#user': 'user',
+				'#profile': 'profile',
+				'#id': 'id'
+			]
+			dk.conditionValues() == [':userprofileid': fromS('ABC123')]
+	}
+
+	def "Should handle nested field paths in composite keys"() {
+		when:
+			DynamoKey dk = new DynamoKey(
+				'user.id', 'USER001',
+				'user.group.name', 'ADMIN'
+			)
+
+		then:
+			dk.condition() == "#user.#id = :userid AND #user.#group.#name = :usergroupname"
+			dk.conditionNames().size() == 4  // user, id, group, name
+			dk.conditionNames() == [
+				'#user': 'user',
+				'#id': 'id',
+				'#group': 'group',
+				'#name': 'name'
+			]
+			dk.conditionValues() == [
+				':userid': fromS('USER001'),
+				':usergroupname': fromS('ADMIN')
+			]
+	}
+
+	def "Should handle deeply nested field paths"() {
+		when:
+			DynamoKey dk = new DynamoKey('data.user.profile.contact.email', 'test@example.com')
+
+		then:
+			dk.condition() == "#data.#user.#profile.#contact.#email = :datauserprofilecontactemail"
+			dk.conditionNames().size() == 5
+			dk.conditionNames() == [
+				'#data': 'data',
+				'#user': 'user',
+				'#profile': 'profile',
+				'#contact': 'contact',
+				'#email': 'email'
+			]
+			dk.conditionValues() == [':datauserprofilecontactemail': fromS('test@example.com')]
+	}
+	
+	def "Should handle special characters in path segments"() {
+		when:
+			DynamoKey dk = new DynamoKey('user-data.custom_field', 'value')
+
+		then:
+			dk.condition() == "#userdata.#custom_field = :userdatacustom_field"
+			dk.conditionNames() == [
+				'#userdata': 'user-data',
+				'#custom_field': 'custom_field'
+			]
+			dk.conditionValues() == [':userdatacustom_field': fromS('value')]
+	}
 }

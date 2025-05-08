@@ -19,7 +19,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 
 	DynamoMap() {}
 
-	DynamoMap(Map<String, Object> data) {
+	DynamoMap(Map<String, Object> data = [:]) {
 		this.data = data
 	}
 
@@ -28,63 +28,78 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		DbMapper<AttributeValue,Object> mapper = new DynamoMapper(),
 		boolean versioned = false
 	) {
-		data.each { String key, value ->
-			switch (value) {
+		data.each { String k, Object v ->
+			println "entry ${k} -> ${v} (${v.getClass()})"
+			switch (v) {
 				case String:
-					mapper.with(key, value as String)
+					mapper.with(k, v as String)
 					break
 				case Number:
-					mapper.with(key, value as Number)
+					mapper.with(k, v as Number)
 					break
 				case Boolean:
-					mapper.with(key, value as Boolean)
+					mapper.with(k, v as Boolean)
 					break
-				case List:
-					List lv = value as List
-					if (lv.isEmpty())
+				case Map:
+					Map<String,Object> mv = v as Map
+					if (mv.isEmpty())
 						break
-					switch (lv[0]) {
-						case String:
-							mapper.with (
-								key,
-								value as String[]
-							)
-							break
-						case Number:
-							mapper.with (
-								key,
-								value as Number[]
-							)
-							break
-						case Storable:
-							mapper.with (
-								key,
-								versioned,
-								value as Storable[]
-							)
-							break
-						case DbMapper:
-							mapper.with (
-								key,
-								versioned,
-								value as DbMapper[]
-							)
-							break
-					}
+					mapper.with (
+						k,
+						new DynamoMap(mv).impress (
+							new DynamoMapper(),
+							versioned
+						),
+						versioned
+					)
 					break
 				case DbMapper:
 					mapper.with (
-						key,
-						value as DbMapper,
+						k,
+						(v as DbMapper<AttributeValue,Object>),
 						versioned
 					)
 					break
 				case Storable:
-					def dynamoMapper = new DynamoMapper()
-					(value as Storable).impress(dynamoMapper, versioned)
-					mapper.with(key, dynamoMapper, versioned)
+					mapper.with (
+						k,
+						(v as Storable<AttributeValue,Object>).impress (
+							new DynamoMapper(),
+							versioned
+						),
+						versioned
+					)
+					break
+				case List:
+					List lv = v as List<Object>
+					if (lv.isEmpty())
+						break
+					switch (lv[0]) {
+						case String:
+							mapper.with(k, lv as String[])
+							break
+						case Number:
+							mapper.with(k, lv as Number[])
+							break
+						case DbMapper:
+							mapper.with (
+								k,
+								versioned,
+								lv as DbMapper[]
+							)
+							break
+						case Storable:
+							mapper.with (
+								k,
+								versioned,
+								lv as Storable[]
+							)
+					}
 			}
+			println "current mapper (${mapper.getClass()}) -> ${mapper}"
 		}
+		println "FINAL mapper (${mapper.getClass()}) -> ${mapper}\n"
 		return mapper
 	}
+
 }

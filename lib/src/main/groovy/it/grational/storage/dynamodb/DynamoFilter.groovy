@@ -3,6 +3,7 @@ package it.grational.storage.dynamodb
 // imports {{{
 import groovy.transform.ToString
 import groovy.transform.CompileStatic
+import static it.grational.storage.dynamodb.NestedPathProcessor.*
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 // }}}
@@ -41,14 +42,16 @@ class DynamoFilter {
 	 * Creates a filter checking if an attribute is blank (null or doesn't exist)
 	 */
 	static DynamoFilter isBlank(String name) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "attribute_not_exists(${nph}) OR ${nph} = ${vph}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "attribute_not_exists(${nameRef}) OR ${nameRef} = ${vph}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromNul(true)]
 		)
 	} // }}}
@@ -57,14 +60,16 @@ class DynamoFilter {
 	 * Creates a filter checking if an attribute is not blank
 	 */
 	static DynamoFilter isNotBlank(String name) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "attribute_exists(${nph}) AND NOT ${nph} = ${vph}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "attribute_exists(${nameRef}) AND NOT ${nameRef} = ${vph}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromNul(true)]
 		)
 	} // }}}
@@ -73,14 +78,16 @@ class DynamoFilter {
 	 * Creates an match filter for string values
 	 */
 	static DynamoFilter match(String name, String value) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "${nph} = ${vph}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "${nameRef} = ${vph}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromS(value)]
 		)
 	} // }}}
@@ -89,14 +96,16 @@ class DynamoFilter {
 	 * Creates an match filter for numeric values
 	 */
 	static DynamoFilter match(String name, Number value) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "${nph} = ${vph}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "${nameRef} = ${vph}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromN(value.toString())]
 		)
 	} // }}}
@@ -105,14 +114,16 @@ class DynamoFilter {
 	 * Creates an match filter for boolean values
 	 */
 	static DynamoFilter match(String name, boolean value) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "${nph} = ${vph}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "${nameRef} = ${vph}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromBool(value)]
 		)
 	} // }}}
@@ -121,14 +132,16 @@ class DynamoFilter {
 	 * Creates a filter checking if an attribute contains the specified string
 	 */
 	static DynamoFilter contains(String name, String value) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "contains(${nph}, ${vph})"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "contains(${nameRef}, ${vph})"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromS(value)]
 		)
 	} // }}}
@@ -137,14 +150,16 @@ class DynamoFilter {
 	 * Creates a filter checking if an attribute begins with the specified string
 	 */
 	static DynamoFilter beginsWith(String name, String value) { // {{{
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
-		String fe = "begins_with(${nph}, ${vph})"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String vph = ":val_${safeValueName(name)}"
+		String fe = "begins_with(${nameRef}, ${vph})"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): fromS(value)]
 		)
 	} // }}}
@@ -186,18 +201,20 @@ class DynamoFilter {
 		String operator,
 		AttributeValue value
 	) {
-		String safe = safe(name)
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
 		String safeOperator = operator.trim()
-		String nph = "#attr_${safe}"
-		String vph = ":val_${safe}"
+		String vph = ":val_${safeValueName(name)}"
 
 		if (!['>', '<', '>=', '<=', '=', '<>'].contains(safeOperator))
 			throw new IllegalArgumentException("Unsupported operator: ${operator}")
 
-		String fe = "${nph} ${safeOperator} ${vph}"
+		String fe = "${nameRef} ${safeOperator} ${vph}"
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[(vph): value]
 		)
 	} // }}}
@@ -243,19 +260,25 @@ class DynamoFilter {
 		String operator,
 		String name2
 	) {
-		String safe1 = safe(name1)
-		String safe2 = safe(name2)
+		PathResult processed1 = processForFilter(name1)
+		PathResult processed2 = processForFilter(name2)
+
+		String nameRef1 = processed1.nameRef
+		String nameRef2 = processed2.nameRef
+
+		Map<String, String> nameMap = [:]
+		nameMap.putAll(processed1.nameMap)
+		nameMap.putAll(processed2.nameMap)
+
 		String safeOperator = operator.trim()
-		String nph1 = "#attr_${safe1}"
-		String nph2 = "#attr_${safe2}"
 
 		if (!['>', '<', '>=', '<=', '=', '<>'].contains(safeOperator))
 			throw new IllegalArgumentException("Unsupported operator: ${operator}")
 
-		String fe = "${nph1} ${safeOperator} ${nph2}"
+		String fe = "${nameRef1} ${safeOperator} ${nameRef2}"
 		return new DynamoFilter(
 			fe,
-			[(nph1): name1, (nph2): name2],
+			nameMap,
 			[:]  // No expression values needed since we're comparing attributes
 		)
 	} // }}}
@@ -313,7 +336,7 @@ class DynamoFilter {
 		String name,
 		Number first,
 		Number... rest
-	) { 
+	) {
 		List<Number> combined = [ first ] + rest.toList()
 		return commonIn (
 			name,
@@ -337,23 +360,26 @@ class DynamoFilter {
 		String name,
 		List<AttributeValue> values
 	) {
-		String safe = safe(name)
-		String nph  = "#attr_${safe}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String safeName = safeValueName(name)
 
 		List<String> placeholders           = []
 		Map<String, AttributeValue> eValues = [:]
 
 		values.eachWithIndex { AttributeValue av, int i ->
-			String vph = ":val_${safe}_${i}"
+			String vph = ":val_${safeName}_${i}"
 			placeholders << vph
 			eValues[vph] = av
 		}
 
-		String fe = "${nph} IN (${placeholders.join(', ')})"
+		String fe = "${nameRef} IN (${placeholders.join(', ')})"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			eValues
 		)
 	} // }}}
@@ -399,15 +425,18 @@ class DynamoFilter {
 		AttributeValue start,
 		AttributeValue end
 	) {
-		String safe = safe(name)
-		String nph = "#attr_${safe}"
-		String vphStart = ":val_${safe}_start"
-		String vphEnd = ":val_${safe}_end"
-		String fe = "${nph} BETWEEN ${vphStart} AND ${vphEnd}"
+		PathResult processed = processForFilter(name)
+		String nameRef = processed.nameRef
+		Map<String, String> nameMap = processed.nameMap
+
+		String safeName = safeValueName(name)
+		String vphStart = ":val_${safeName}_start"
+		String vphEnd = ":val_${safeName}_end"
+		String fe = "${nameRef} BETWEEN ${vphStart} AND ${vphEnd}"
 
 		return new DynamoFilter (
 			fe,
-			[(nph): name],
+			nameMap,
 			[
 				(vphStart): start,
 				(vphEnd): end
@@ -450,7 +479,7 @@ class DynamoFilter {
 		DynamoFilter a,
 		DynamoFilter b,
 		DynamoFilter... others
-	) { 
+	) {
 		combineMany('OR', [ a, b ] + others.toList())
 	} // }}}
 
@@ -507,10 +536,6 @@ class DynamoFilter {
 
 	Map<String, AttributeValue> getExpressionValues() { // {{{
 		return expressionValues
-	} // }}}
-
-	static private String safe(String name) { // {{{
-		name.replaceAll(/[^a-zA-Z0-9_]/,'')
 	} // }}}
 
 	private static boolean needsGrouping(String expr) {

@@ -3,6 +3,7 @@ package it.grational.storage.dynamodb
 import groovy.transform.ToString
 import groovy.transform.CompileStatic
 import groovy.transform.EqualsAndHashCode
+import static it.grational.storage.dynamodb.NestedPathProcessor.*
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 
@@ -76,24 +77,24 @@ class DynamoKey {
 
 	String condition() {
 		map.collect { k, v ->
-			"#${safe(k)} = :${safe(k)}"
+			PathResult processed = processForKey(k)
+			"${processed.nameRef} = :${safeValueName(k)}"
 		}.join(' AND ')
 	}
 
 	Map<String, String> conditionNames() {
-		map.collectEntries { k, v ->
-			[ ("#${safe(k)}" as String): k ]
+		Map<String,String> result = [:]
+		map.each { k, v ->
+			PathResult processed = processForKey(k)
+			result.putAll(processed.nameMap)
 		}
+		return result
 	}
 
 	Map<String, AttributeValue> conditionValues() {
 		map.collectEntries { k, v ->
-			[ (":${safe(k)}" as String): v ]
+			[ (":${safeValueName(k)}" as String): v ]
 		}
-	}
-
-	private String safe(String name) {
-		name.replaceAll(/[^a-zA-Z0-9_]/,'')
 	}
 
 }

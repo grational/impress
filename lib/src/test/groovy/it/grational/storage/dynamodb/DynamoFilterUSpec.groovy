@@ -650,5 +650,65 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionNames.size() == 7
 			filter.expressionValues.size() == 9
 	} // }}}
+	
+	def "Should handle nested field paths with dot notation"() { // {{{
+		when:
+			def filter = compare('user.address.zipcode', '>', '10000')
+
+		then:
+			filter.expression == '#attr_user.#attr_address.#attr_zipcode > :val_useraddresszipcode'
+			filter.expressionNames == [
+				'#attr_user': 'user',
+				'#attr_address': 'address',
+				'#attr_zipcode': 'zipcode'
+			]
+			filter.expressionValues[':val_useraddresszipcode'].s() == '10000'
+	} // }}}
+
+	def "Should handle complex filters with nested fields"() { // {{{
+		when:
+			def filter = match('user.profile.active', true)
+				.and(greater('user.stats.score', 100))
+				.and(contains('user.profile.tags', 'premium'))
+
+		then:
+			filter.expression.contains('#attr_user.#attr_profile.#attr_active = :val_userprofileactive')
+			filter.expression.contains('#attr_user.#attr_stats.#attr_score > :val_userstatsscore')
+			filter.expression.contains('contains(#attr_user.#attr_profile.#attr_tags, :val_userprofiletags)')
+			filter.expressionNames.size() == 6  // user, profile, active, stats, score, tags
+			filter.expressionValues.size() == 3
+	} // }}}
+
+	def "Should allow deep nested paths with multiple levels"() { // {{{
+		when:
+			def filter = match('data.user.contact.address.country', 'USA')
+
+		then:
+			filter.expression == '#attr_data.#attr_user.#attr_contact.#attr_address.#attr_country = :val_datausercontactaddresscountry'
+			filter.expressionNames.size() == 5
+			filter.expressionNames == [
+				'#attr_data': 'data',
+				'#attr_user': 'user',
+				'#attr_contact': 'contact',
+				'#attr_address': 'address',
+				'#attr_country': 'country'
+			]
+			filter.expressionValues[':val_datausercontactaddresscountry'].s() == 'USA'
+	} // }}}
+
+	def "Should handle attribute comparisons with nested fields"() { // {{{
+		when:
+			def filter = attributeGreaterThan('user.balance', 'user.minBalance')
+
+		then:
+			filter.expression == '#attr_user.#attr_balance > #attr_user.#attr_minBalance'
+			filter.expressionNames.size() == 3  // user, balance, minBalance
+			filter.expressionNames == [
+				'#attr_user': 'user',
+				'#attr_balance': 'balance',
+				'#attr_minBalance': 'minBalance'
+			]
+			filter.expressionValues.isEmpty()
+	} // }}}
 }
 // vim: fdm=marker

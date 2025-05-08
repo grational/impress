@@ -884,7 +884,7 @@ class DynamoDbICSpec extends Specification {
 			Integer totalSize = 20
 			Integer pageSize = 5
 		and:
-			List<TestItem> items = (1..totalSize).collect { 
+			List<TestItem> items = (1..totalSize).collect {
 				new TestItem(id: "user1", sortKey: "key${it}")
 			}
 			dynamoDb.putItems(table, items)
@@ -927,15 +927,15 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_order'
 			String partKey = 'id'
 			String sortKey = 'sortKey'
-			
+
 			dynamoDb.createTable(table, partKey, sortKey)
-			
+
 			List<TestItem> items = [
 				new TestItem(id: 'user1', sortKey: '2025-01-01'),
 				new TestItem(id: 'user1', sortKey: '2025-01-02'),
 				new TestItem(id: 'user1', sortKey: '2025-01-03')
 			]
-			
+
 			dynamoDb.putItems(table, items)
 
 		when: 'Query with forward order'
@@ -946,7 +946,7 @@ class DynamoDbICSpec extends Specification {
 				TestItem,
 				true
 			)
-			
+
 		then:
 			ascending[0].sortKey == '2025-01-01'
 			ascending[1].sortKey == '2025-01-02'
@@ -960,7 +960,7 @@ class DynamoDbICSpec extends Specification {
 				TestItem,
 				false
 			)
-			
+
 		then:
 			descending[0].sortKey == '2025-01-03'
 			descending[1].sortKey == '2025-01-02'
