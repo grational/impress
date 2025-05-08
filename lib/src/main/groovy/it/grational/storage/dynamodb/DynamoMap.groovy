@@ -17,8 +17,6 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 	@Delegate
 	Map<String, Object> data
 
-	DynamoMap() {}
-
 	DynamoMap(Map<String, Object> data = [:]) {
 		this.data = data
 	}
