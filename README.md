@@ -170,6 +170,11 @@ def descFilter = contains("description", "important")
 // Attribute comparisons
 def priceFilter = attributeGreaterThan("price", "cost")
 
+// Nested field filters - use dot notation for path
+def premiumUserFilter = match("user.subscription.tier", "premium")
+def highScoreFilter = greater("user.stats.score", 90)
+def addressFilter = contains("user.address.city", "New York")
+
 // Combine filters - automatically optimizes expressions (DynamoDB parser doesn't allow redundant brackets)
 def complexFilter = activeFilter.and(highPriorityFilter.or(nameFilter))
 
@@ -247,6 +252,26 @@ dynamoDb.createTable("users", "id", null, ["email-index": "email"])
 def user = new User(id: "user1", username: "john", email: "john@example.com")
 dynamoDb.putItem("users", user)
 
+// 4a. Create and save a user with nested fields using DynamoMap
+def userWithProfile = new DynamoMap (
+  id: "user2",
+  username: "jane",
+  email: "jane@example.com",
+  profile: [
+    active: true,
+    preferences: [
+      theme: "dark",
+      language: "en-US"
+    ],
+    address: [
+      street: "123 Main St",
+      city: "New York",
+      zipcode: "10001"
+    ]
+  ]
+)
+dynamoDb.putItem("users", userWithProfile)
+
 // 5. Retrieve by key (specific class)
 User retrievedUser = dynamoDb.getItem("users", new DynamoKey("id", "user1"), User)
 
@@ -272,6 +297,13 @@ List<DynamoMap> userMaps = dynamoDb.query (
   "email-index",
   new DynamoKey("email", "example.com"),
   activeFilter
+)
+
+// 7. Query using nested field filter
+def darkThemeFilter = match("profile.preferences.theme", "dark")
+List<DynamoMap> darkThemeUsers = dynamoDb.scan(
+  "users",
+  darkThemeFilter
 )
 ```
 
@@ -351,6 +383,59 @@ if (user.containsKey('address')) {
 // Get all keys
 Set<String> fields = user.keySet()
 ```
+
+### Nested Fields Support
+
+Access and filter by nested object properties using dot notation:
+
+```groovy
+import static it.grational.storage.dynamodb.DynamoFilter.*
+
+// Store nested object structures
+def user = new DynamoMap (
+  id: 'user123',
+  profile: [
+    name: 'John Doe',
+    settings: [
+      theme: 'dark',
+      notifications: true
+    ],
+    address: [
+      street: '123 Main St',
+      city: 'San Francisco',
+      zipcode: '94105'
+    ]
+  ]
+)
+dynamoDb.putItem("users", user)
+
+// Query with filters on nested fields
+def darkThemeUsers = dynamoDb.scan (
+  "users",
+  match("profile.settings.theme", "dark")
+)
+
+// Combine multiple nested field conditions
+def activeCaliforniaUsers = dynamoDb.scan (
+  "users",
+  every (
+    match("profile.settings.notifications", true),
+    contains("profile.address.city", "Francisco")
+  )
+)
+
+// Compare nested numeric fields
+def highScoreUsers = dynamoDb.scan (
+  "users",
+  greater("profile.stats.score", 90)
+)
+```
+
+The nested path notation works with all filter operations including:
+- Equality checks: `match("user.status", "active")`
+- Comparisons: `greater("user.stats.score", 80)`
+- String operations: `contains("user.bio", "developer")`
+- Existence checks: `isNotBlank("user.profile.image")`
 
 ### Static Logical Operators
 
