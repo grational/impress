@@ -313,11 +313,21 @@ class DynamoDb {
 		return client.deleteItem(request)
 	} // }}}
 
+	/**
+	 * Creates a DynamoDB table with support for secondary indexes
+	 *
+	 * @param table The name of the table to create
+	 * @param partitionKey The attribute name for the partition key
+	 * @param sortKey Optional sort key attribute name
+	 * @param indexes Map of index configurations. Can be either:
+	 *        - indexName -> [partition: partitionKeyAttribute, sort: sortKeyAttribute]
+	 * @return void
+	 */
 	void createTable (
 		String table,
-		String partitionKey,
-		String sortKey = null,
-		Map<String, String> indexes = [:]
+		Scalar partition,
+		Optional<Scalar> sort = Optional.empty(),
+		Index[] indexes
 	) { // {{{
 		try {
 			client.describeTable (
@@ -331,41 +341,64 @@ class DynamoDb {
 
 		def keySchema = [
 			KeySchemaElement.builder()
-				.attributeName(partitionKey)
+				.attributeName(partition.name)
 				.keyType(KeyType.HASH)
 				.build()
 		]
 
-		if (sortKey) {
-			keySchema << KeySchemaElement.builder()
-				.attributeName(sortKey)
-				.keyType(KeyType.RANGE)
-				.build()
-		}
-
 		def attributeDefinitions = [
 			AttributeDefinition.builder()
-				.attributeName(partitionKey)
-				.attributeType(ScalarAttributeType.S)
+				.attributeName(partition.name)
+				.attributeType(partition.type)
 				.build()
 		]
 
-		if (sortKey) {
+		sort.ifPresent { Scalar ssort ->
+			keySchema << KeySchemaElement.builder()
+				.attributeName(ssort.name)
+				.keyType(KeyType.RANGE)
+				.build()
+
 			attributeDefinitions << AttributeDefinition.builder()
-				.attributeName(sortKey)
-				.attributeType(ScalarAttributeType.S)
+				.attributeName(ssort.name)
+				.attributeType(ssort.type)
 				.build()
 		}
 
-		indexes.each { indexName, indexKey ->
-			if (!attributeDefinitions.any {
-				it.attributeName() == indexKey
-			}) {
+		def gsiList = indexes.collect { Index idx ->
+			idx.attributes().each { Scalar attribute ->
+				if ( attributeDefined(attributeDefinitions, attribute) )
+					return
+
 				attributeDefinitions << AttributeDefinition.builder()
-					.attributeName(indexKey)
-					.attributeType(ScalarAttributeType.S)
+					.attributeName(attribute.name)
+					.attributeType(attribute.type)
 					.build()
 			}
+
+			def schema = [
+				KeySchemaElement.builder()
+					.attributeName(idx.partition.name)
+					.keyType(KeyType.HASH)
+					.build()
+			]
+
+			idx.sort.ifPresent { Scalar ssort ->
+				schema << KeySchemaElement.builder()
+					.attributeName(ssort.name)
+					.keyType(KeyType.RANGE)
+					.build()
+			}
+
+			GlobalSecondaryIndex.builder()
+				.indexName(idx.name)
+				.keySchema(schema)
+				.projection(
+					Projection.builder()
+					.projectionType(
+						ProjectionType.ALL
+					).build()
+				).build()
 		}
 
 		def builder = CreateTableRequest
@@ -379,27 +412,8 @@ class DynamoDb {
 				BillingMode.PAY_PER_REQUEST
 			)
 
-		if (indexes) {
-			def gsiList = indexes.collect { indexName, indexKey ->
-				GlobalSecondaryIndex.builder()
-				.indexName(indexName)
-				.keySchema([
-					KeySchemaElement.builder()
-					.attributeName(indexKey)
-					.keyType(KeyType.HASH)
-					.build()
-				])
-				.projection (
-					Projection.builder()
-					.projectionType (
-						ProjectionType.ALL
-					).build()
-				).build()
-			}
-			builder.globalSecondaryIndexes (
-				gsiList
-			)
-		}
+		if (gsiList)
+			builder.globalSecondaryIndexes(gsiList)
 
 		client.createTable(builder.build())
 
@@ -411,6 +425,13 @@ class DynamoDb {
 		)
 
 		log.info "Table ${table} successfully created"
+	} // }}}
+
+	private boolean attributeDefined ( // {{{
+		List<AttributeDefinition> definitions,
+		Scalar attribute
+	) {
+		definitions.any { it.attributeName() == attribute.name }
 	} // }}}
 
 	void dropTable(String table) { // {{{

@@ -281,6 +281,64 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should retrieve objects through secondary index with sort key"() { // {{{
+		given:
+			String table = 'test_index_sort_key'
+			String partKey = 'id'
+			Map<String, Object> indexes = [
+				'data_index': [
+					partition: 'tagField',
+					sort: 'sortKey'
+				]
+			]
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				null, // primary table sortKey
+				indexes
+			)
+		and:
+			def items = [
+				new TestItem(id:'idx1', tagField:'tag_a', sortKey:'sort1'),
+				new TestItem(id:'idx2', tagField:'tag_a', sortKey:'sort2'),
+				new TestItem(id:'idx3', tagField:'tag_a', sortKey:'sort3'),
+				new TestItem(id:'idx4', tagField:'tag_b', sortKey:'sort1')
+			]
+
+		when:
+			dynamoDb.putItems(table, items)
+
+		then: "Can query by partition key only"
+			List<TestItem> results = dynamoDb.query (
+				table,
+				'data_index',
+				new DynamoKey('tagField', 'tag_a'),
+				null,
+				TestItem
+			)
+		and:
+			results.size() == 3
+			results*.id ==~ ['idx1', 'idx2', 'idx3']
+			results*.sortKey.sort() == ['sort1', 'sort2', 'sort3']
+
+		and: "Can query by partition and sort key"
+			List<TestItem> specificResult = dynamoDb.query (
+				table,
+				'data_index',
+				new DynamoKey('tagField', 'tag_a', 'sortKey', 'sort2'),
+				null,
+				TestItem
+			)
+		and:
+			specificResult.size() == 1
+			specificResult.first().id == 'idx2'
+			specificResult.first().sortKey == 'sort2'
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	def "Should retrieve objects through secondary index and filters"() { // {{{
 		given:
 			String table = 'contract_item_filters'
@@ -342,6 +400,95 @@ class DynamoDbICSpec extends Specification {
 			first.sheet == '001'
 			first.data == 'data1'
 			first.enabled == true
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should retrieve objects through secondary index with sort key and filter"() { // {{{
+		given:
+			String table = 'composite_index_filter'
+			String partKey = 'id'
+			String sortKey = 'timestamp'
+			Map<String, Object> indexes = [
+				'tag-data-index': [
+					partition: 'tagField',
+					sort: 'data'
+				]
+			]
+		and:
+			dynamoDb.createTable(
+				table,
+				partKey,
+				sortKey,
+				indexes
+			)
+		and:
+			def items = [
+				new TestItem(
+					id: 'item1',
+					timestamp: '2023-01-01',
+					tagField: 'category_a',
+					data: 'high',
+					enabled: true
+				),
+				new TestItem(
+					id: 'item2',
+					timestamp: '2023-01-02',
+					tagField: 'category_a',
+					data: 'medium',
+					enabled: false
+				),
+				new TestItem(
+					id: 'item3',
+					timestamp: '2023-01-03',
+					tagField: 'category_a',
+					data: 'low',
+					enabled: true
+				),
+				new TestItem(
+					id: 'item4',
+					timestamp: '2023-01-04',
+					tagField: 'category_b',
+					data: 'high',
+					enabled: true
+				)
+			]
+
+		when:
+			dynamoDb.putItems(table, items)
+
+		then: "Can query with composite index and filter"
+			List<TestItem> results = dynamoDb.query(
+				table,
+				'tag-data-index',
+				new DynamoKey('tagField', 'category_a', 'data', 'high'),
+				match('enabled', true),
+				TestItem
+			)
+
+		and:
+			results.size() == 1
+			results.first().id == 'item1'
+			results.first().tagField == 'category_a'
+			results.first().data == 'high'
+			results.first().enabled == true
+
+		and: "Can query by index partition key only with range condition in filter"
+			def rangeFilter = DynamoFilter.beginsWith('data', 'h')
+
+			List<TestItem> partitionResults = dynamoDb.query(
+				table,
+				'tag-data-index',
+				new DynamoKey('tagField', 'category_a'),
+				rangeFilter,
+				TestItem
+			)
+
+		and:
+			partitionResults.size() == 1
+			partitionResults.first().id == 'item1'
+			partitionResults.first().data == 'high'
 
 		cleanup:
 			dynamoDb.dropTable(table)
@@ -436,8 +583,12 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_composite'
 			String partKey = 'id'
 			String sortKey = 'sortKey'
-			Map<String, String> indexes = [
-				'tag_index': 'tagField'
+			Map<String, Object> indexes = [
+				'tag_index': 'tagField',
+				'composite_index': [
+					partition: 'tagField',
+					sort: 'data'
+				]
 			]
 		and:
 			dynamoDb.createTable (
@@ -492,7 +643,7 @@ class DynamoDbICSpec extends Specification {
 			retrieved.data     == 'c1'
 			retrieved.version  == 1
 
-		when:
+		when: "Query using simple index"
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'tag_index',
@@ -514,6 +665,33 @@ class DynamoDbICSpec extends Specification {
 				it.tagField == 'tag1' &&
 				it.version  == 1
 			}
+
+		when: "Query using composite index with partition key only"
+			List<TestItem> compositeResults = dynamoDb.query (
+				table,
+				'composite_index',
+				new DynamoKey('tagField', 'tag1'),
+				null,
+				TestItem
+			)
+		then:
+			compositeResults.size() == 2
+			compositeResults.every { it.tagField == 'tag1' }
+			compositeResults*.data.sort() == ['c1', 'c3']
+
+		when: "Query using composite index with both partition and sort keys"
+			List<TestItem> specificResults = dynamoDb.query (
+				table,
+				'composite_index',
+				new DynamoKey('tagField', 'tag1', 'data', 'c1'),
+				null,
+				TestItem
+			)
+		then:
+			specificResults.size() == 1
+			specificResults.first().id == 'pk1'
+			specificResults.first().sortKey == 'sk1'
+			specificResults.first().data == 'c1'
 
 		cleanup:
 			dynamoDb.dropTable(table)
@@ -877,7 +1055,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
-	def "Should return PagedResult when pagination parameters are used"() {
+	def "Should return PagedResult when pagination parameters are used"() { // {{{
 		given:
 			String table = 'test_paged'
 			dynamoDb.createTable(table, 'id', 'sortKey')
@@ -920,9 +1098,9 @@ class DynamoDbICSpec extends Specification {
 
 		cleanup:
 			dynamoDb.dropTable(table)
-	}
+	} // }}}
 
-	def "Should handle scanIndexForward for query ordering"() {
+	def "Should handle scanIndexForward for query ordering"() { // {{{
 		given:
 			String table = 'test_scan_order'
 			String partKey = 'id'
@@ -968,7 +1146,7 @@ class DynamoDbICSpec extends Specification {
 
 		cleanup:
 			dynamoDb.dropTable(table)
-	}
+	} // }}}
 
 	@Ignore
 	// Both these options are ignored in the local version of DynamoDB
