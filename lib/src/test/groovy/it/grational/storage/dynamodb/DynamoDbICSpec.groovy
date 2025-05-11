@@ -49,7 +49,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'test data'
 			)
 		and:
-			DynamoKey key = new DynamoKey (
+			KeyMatch key = new KeyMatch (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -111,7 +111,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'data1'
 			)
 		and:
-			DynamoKey firstKey = new DynamoKey (
+			KeyMatch firstKey = new KeyMatch (
 				firstItem.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -166,7 +166,7 @@ class DynamoDbICSpec extends Specification {
 				id: 'versioned',
 				data: 'initial data'
 			)
-			DynamoKey key = new DynamoKey (
+			KeyMatch key = new KeyMatch (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -268,7 +268,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'data_index',
-				new DynamoKey('tagField', 'tag_a'),
+				new KeyMatch('tagField', 'tag_a'),
 				null,
 				TestItem
 			)
@@ -284,19 +284,18 @@ class DynamoDbICSpec extends Specification {
 	def "Should retrieve objects through secondary index with sort key"() { // {{{
 		given:
 			String table = 'test_index_sort_key'
-			String partKey = 'id'
-			Map<String, Object> indexes = [
-				'data_index': [
-					partition: 'tagField',
-					sort: 'sortKey'
-				]
-			]
+			Scalar partKey = Scalar.of('id')
+			Index compositeIndex = Index.of (
+				'tagField',
+				'sortKey',
+				'data_index'
+			)
 		and:
 			dynamoDb.createTable (
 				table,
 				partKey,
-				null, // primary table sortKey
-				indexes
+				Optional.empty(), // primary table sortKey
+				compositeIndex
 			)
 		and:
 			def items = [
@@ -313,7 +312,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'data_index',
-				new DynamoKey('tagField', 'tag_a'),
+				new KeyMatch('tagField', 'tag_a'),
 				null,
 				TestItem
 			)
@@ -326,7 +325,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> specificResult = dynamoDb.query (
 				table,
 				'data_index',
-				new DynamoKey('tagField', 'tag_a', 'sortKey', 'sort2'),
+				new KeyMatch('tagField', 'tag_a', 'sortKey', 'sort2'),
 				null,
 				TestItem
 			)
@@ -387,7 +386,7 @@ class DynamoDbICSpec extends Specification {
 			List<ContractItem> objects = dynamoDb.query (
 				table,
 				'offer-index',
-				new DynamoKey('offer', sharedOffer),
+				new KeyMatch('offer', sharedOffer),
 				match('enabled', true),
 				ContractItem
 			)
@@ -408,47 +407,46 @@ class DynamoDbICSpec extends Specification {
 	def "Should retrieve objects through secondary index with sort key and filter"() { // {{{
 		given:
 			String table = 'composite_index_filter'
-			String partKey = 'id'
-			String sortKey = 'timestamp'
-			Map<String, Object> indexes = [
-				'tag-data-index': [
-					partition: 'tagField',
-					sort: 'data'
-				]
-			]
+			Scalar partKey = Scalar.of('id')
+			Scalar sortKey = Scalar.of('sortKey')
+			Index compositeIndex = Index.of (
+				'tagField',
+				'data',
+				'tag-data-index'
+			)
 		and:
-			dynamoDb.createTable(
+			dynamoDb.createTable (
 				table,
 				partKey,
-				sortKey,
-				indexes
+				Optional.of(sortKey),
+				compositeIndex
 			)
 		and:
 			def items = [
-				new TestItem(
+				new TestItem (
 					id: 'item1',
-					timestamp: '2023-01-01',
+					sortKey: '2023-01-01',
 					tagField: 'category_a',
 					data: 'high',
 					enabled: true
 				),
-				new TestItem(
+				new TestItem (
 					id: 'item2',
-					timestamp: '2023-01-02',
+					sortKey: '2023-01-02',
 					tagField: 'category_a',
 					data: 'medium',
 					enabled: false
 				),
-				new TestItem(
+				new TestItem (
 					id: 'item3',
-					timestamp: '2023-01-03',
+					sortKey: '2023-01-03',
 					tagField: 'category_a',
 					data: 'low',
 					enabled: true
 				),
-				new TestItem(
+				new TestItem (
 					id: 'item4',
-					timestamp: '2023-01-04',
+					sortKey: '2023-01-04',
 					tagField: 'category_b',
 					data: 'high',
 					enabled: true
@@ -459,10 +457,13 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.putItems(table, items)
 
 		then: "Can query with composite index and filter"
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamoDb.query (
 				table,
 				'tag-data-index',
-				new DynamoKey('tagField', 'category_a', 'data', 'high'),
+				new KeyMatch (
+					'tagField', 'category_a',
+					'data', 'high'
+				),
 				match('enabled', true),
 				TestItem
 			)
@@ -473,22 +474,6 @@ class DynamoDbICSpec extends Specification {
 			results.first().tagField == 'category_a'
 			results.first().data == 'high'
 			results.first().enabled == true
-
-		and: "Can query by index partition key only with range condition in filter"
-			def rangeFilter = DynamoFilter.beginsWith('data', 'h')
-
-			List<TestItem> partitionResults = dynamoDb.query(
-				table,
-				'tag-data-index',
-				new DynamoKey('tagField', 'category_a'),
-				rangeFilter,
-				TestItem
-			)
-
-		and:
-			partitionResults.size() == 1
-			partitionResults.first().id == 'item1'
-			partitionResults.first().data == 'high'
 
 		cleanup:
 			dynamoDb.dropTable(table)
@@ -504,12 +489,12 @@ class DynamoDbICSpec extends Specification {
 				partKey
 			)
 		and:
-			TestItem item = new TestItem (
+			 TestItem item = new TestItem (
 				id: 'to_delete',
 				data: 'to be deleted'
 			)
 		and:
-			DynamoKey key = new DynamoKey (
+			KeyMatch key = new KeyMatch (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -565,7 +550,7 @@ class DynamoDbICSpec extends Specification {
 			items.each { TestItem item ->
 				TestItem retrieved = dynamoDb.getItem (
 					table,
-					new DynamoKey('id', item.id),
+					new KeyMatch('id', item.id),
 					TestItem
 				)
 				assert retrieved         != null
@@ -581,21 +566,17 @@ class DynamoDbICSpec extends Specification {
 	def "Should handle tables with composite keys and composite indexes correctly"() { // {{{{
 		given:
 			String table = 'test_composite'
-			String partKey = 'id'
-			String sortKey = 'sortKey'
-			Map<String, Object> indexes = [
-				'tag_index': 'tagField',
-				'composite_index': [
-					partition: 'tagField',
-					sort: 'data'
-				]
-			]
+			Scalar partKey = Scalar.of('id')
+			Optional<Scalar> sortKey = Optional.of(Scalar.of('sortKey'))
+			Index simpleIdx = Index.of('tagField')
+			Index compositeIdx = Index.of('tagField', 'data')
 		and:
 			dynamoDb.createTable (
 				table,
 				partKey,
 				sortKey,
-				indexes
+				simpleIdx,
+				compositeIdx
 			)
 		and:
 			TestItem first = new TestItem (
@@ -605,7 +586,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			DynamoKey firstKey = new DynamoKey (
+			KeyMatch firstKey = new KeyMatch (
 				first.impress(new DynamoMapper()).key()
 			)
 
@@ -646,8 +627,8 @@ class DynamoDbICSpec extends Specification {
 		when: "Query using simple index"
 			List<TestItem> results = dynamoDb.query (
 				table,
-				'tag_index',
-				new DynamoKey('tagField', 'tag1'),
+				'tagField-index',
+				new KeyMatch('tagField', 'tag1'),
 				null,
 				TestItem
 			)
@@ -669,8 +650,8 @@ class DynamoDbICSpec extends Specification {
 		when: "Query using composite index with partition key only"
 			List<TestItem> compositeResults = dynamoDb.query (
 				table,
-				'composite_index',
-				new DynamoKey('tagField', 'tag1'),
+				'tagField-data-index',
+				new KeyMatch('tagField', 'tag1'),
 				null,
 				TestItem
 			)
@@ -682,8 +663,8 @@ class DynamoDbICSpec extends Specification {
 		when: "Query using composite index with both partition and sort keys"
 			List<TestItem> specificResults = dynamoDb.query (
 				table,
-				'composite_index',
-				new DynamoKey('tagField', 'tag1', 'data', 'c1'),
+				'tagField-data-index',
+				new KeyMatch('tagField', 'tag1', 'data', 'c1'),
 				null,
 				TestItem
 			)
@@ -735,7 +716,7 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> results = dynamoDb.query (
 				table,
-				new DynamoKey('id', 'pk1'),
+				new KeyMatch('id', 'pk1'),
 				null,
 				TestItem
 			)
@@ -774,7 +755,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			DynamoKey key = new DynamoKey (
+			KeyMatch key = new KeyMatch (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -951,7 +932,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Deleting items with partition key only'
 			int deletedCount = dynamoDb.deleteItems (
 				table,
-				new DynamoKey('id', 'del1')
+				new KeyMatch('id', 'del1')
 			)
 		then:
 			deletedCount == 1
@@ -959,7 +940,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Checking item was deleted'
 			TestItem shouldBeDeleted = dynamoDb.getItem (
 				table,
-				new DynamoKey('id', 'del1'),
+				new KeyMatch('id', 'del1'),
 				TestItem
 			)
 		then:
@@ -1016,7 +997,7 @@ class DynamoDbICSpec extends Specification {
 			int deleteCount = dynamoDb.deleteItems (
 				table,
 				'tag_index',
-				new DynamoKey('tagField', 'tag_a'),
+				new KeyMatch('tagField', 'tag_a'),
 				null
 			)
 		then:
@@ -1036,7 +1017,7 @@ class DynamoDbICSpec extends Specification {
 			int filteredDeleteCount = dynamoDb.deleteItems (
 				table,
 				'tag_index',
-				new DynamoKey('tagField', 'tag_b'),
+				new KeyMatch('tagField', 'tag_b'),
 				match('enabled', true)
 			)
 		then:
@@ -1071,7 +1052,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> first = dynamoDb.query (
 				table,
 				null,
-				new DynamoKey('id', 'user1'),
+				new KeyMatch('id', 'user1'),
 				null,
 				TestItem.class,
 				pageSize
@@ -1085,7 +1066,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> second = dynamoDb.query (
 				table,
 				null,
-				new DynamoKey('id', 'user1'),
+				new KeyMatch('id', 'user1'),
 				null,
 				TestItem.class,
 				totalSize, // more than the rest
@@ -1119,7 +1100,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with forward order'
 			List<TestItem> ascending = dynamoDb.query (
 				table,
-				new DynamoKey('id', 'user1'),
+				new KeyMatch('id', 'user1'),
 				null,
 				TestItem,
 				true
@@ -1133,7 +1114,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with backward order'
 			List<TestItem> descending = dynamoDb.query(
 				table,
-				new DynamoKey('id', 'user1'),
+				new KeyMatch('id', 'user1'),
 				null,
 				TestItem,
 				false

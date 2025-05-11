@@ -156,7 +156,7 @@ class DynamoDb {
 
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
-		DynamoKey key,
+		KeyMatch key,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
 		log.debug("Getting item with key: {}", key)
@@ -182,7 +182,7 @@ class DynamoDb {
 
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
-		DynamoKey key,
+		KeyMatch key,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
@@ -203,7 +203,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		String index,
-		DynamoKey key,
+		KeyMatch key,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
@@ -227,7 +227,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
 		String index = null,
-		DynamoKey key,
+		KeyMatch key,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		int limit,
@@ -301,7 +301,7 @@ class DynamoDb {
 
 	DeleteItemResponse deleteItem (
 		String table,
-		DynamoKey key
+		KeyMatch key
 	) { // {{{
 		log.debug("Deleting item with key: {}", key)
 
@@ -313,14 +313,33 @@ class DynamoDb {
 		return client.deleteItem(request)
 	} // }}}
 
+	void createTable (
+		String table,
+		String partition,
+		String sort = null,
+		Map<String, String> indexes = [:]
+	) { // {{{
+		Optional<Scalar> sortKey = sort
+			? Optional.of(Scalar.of(sort))
+			: Optional.empty()
+
+		createTable (
+			table,
+			Scalar.of(partition),
+			sortKey,
+			indexes.collect { String idxName, String idxPart ->
+				Index.of(Scalar.of(idxPart), null, idxName)
+			} as Index[]
+		)
+	} // }}}
+
 	/**
 	 * Creates a DynamoDB table with support for secondary indexes
 	 *
 	 * @param table The name of the table to create
 	 * @param partitionKey The attribute name for the partition key
 	 * @param sortKey Optional sort key attribute name
-	 * @param indexes Map of index configurations. Can be either:
-	 *        - indexName -> [partition: partitionKeyAttribute, sort: sortKeyAttribute]
+	 * @param indexes List of indexes to create on the table
 	 * @return void
 	 */
 	void createTable (
@@ -459,7 +478,7 @@ class DynamoDb {
 	 */
 	int deleteItems (
 		String table,
-		DynamoKey key,
+		KeyMatch key,
 		DynamoFilter filter = null
 	) { // {{{
 		deleteItems(table, null, key, filter)
@@ -477,7 +496,7 @@ class DynamoDb {
 	int deleteItems (
 		String table,
 		String index,
-		DynamoKey key,
+		KeyMatch key,
 		DynamoFilter filter = null
 	) { // {{{
 		log.debug (

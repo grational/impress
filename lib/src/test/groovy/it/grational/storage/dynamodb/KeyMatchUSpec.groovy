@@ -3,12 +3,21 @@ package it.grational.storage.dynamodb
 import spock.lang.*
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
+import software.amazon.awssdk.core.SdkBytes
+import static software.amazon.awssdk.core.SdkBytes.*
 
-class DynamoKeyUSpec extends Specification {
+class KeyMatchUSpec extends Specification {
 
-	def "Should return a valid dynamo key given each supported type"() {
+	@Shared
+	SdkBytes sdkBytes
+
+	def setup() {
+		sdkBytes = fromUtf8String('binary')
+	}
+
+	def "Should return a valid dynamo key match given each supported type"() {
 		when:
-			DynamoKey dk = new DynamoKey(key, value)
+			KeyMatch dk = new KeyMatch(key, value)
 
 		then:
 			noExceptionThrown()
@@ -18,14 +27,15 @@ class DynamoKeyUSpec extends Specification {
 			dk.toMap() == expected
 
 		where:
-			key      | value   || expected
-			'string' | 'value' || [string: fromS('value')]
-			'number' | 1       || [number: fromN('1')]
+			key      | value                    || expected
+			'string' | 'value'                  || [string: fromS('value')]
+			'number' | 1                        || [number: fromN('1')]
+			'binary' | fromUtf8String('binary') || [binary: fromB(fromUtf8String('binary'))]
 	}
 
 	def "Should return a valid dynamo key also when a combined key is used"() {
 		when:
-			DynamoKey dk = new DynamoKey(pk, pv, sk, sv)
+			KeyMatch dk = new KeyMatch(pk, pv, sk, sv)
 
 		then:
 			noExceptionThrown()
@@ -42,9 +52,29 @@ class DynamoKeyUSpec extends Specification {
 			'part' | 1        | 'sort' | 'svalue' || [ part: fromN('1'),      sort: fromS('svalue') ]
 	}
 
+	def "Should return a valid dynamo key with binary data in various composite key combinations"() {
+		when:
+			KeyMatch dk = new KeyMatch(pk, pv, sk, sv)
+
+		then:
+			noExceptionThrown()
+		and:
+			dk.composite() == true
+		and:
+			dk.toMap() == expected
+
+		where:
+			pk     | pv       | sk     | sv       || expected
+			'part' | 'pvalue' | 'sort' | sdkBytes || [ part: fromS('pvalue'), sort: fromB(sdkBytes) ]
+			'part' | 1        | 'sort' | sdkBytes || [ part: fromN('1'),      sort: fromB(sdkBytes) ]
+			'part' | sdkBytes | 'sort' | 'svalue' || [ part: fromB(sdkBytes), sort: fromS('svalue') ]
+			'part' | sdkBytes | 'sort' | 2        || [ part: fromB(sdkBytes), sort: fromN('2')      ]
+			'part' | sdkBytes | 'sort' | sdkBytes || [ part: fromB(sdkBytes), sort: fromB(sdkBytes) ]
+	}
+
 	def "Should be able to return the key condition expression and the relative placeholders"() {
 		when:
-			DynamoKey dk = new DynamoKey('string', 'value')
+			KeyMatch dk = new KeyMatch('string', 'value')
 
 		then:
 			dk.composite() == false
@@ -59,7 +89,7 @@ class DynamoKeyUSpec extends Specification {
 
 	def "Should be able to return the key condition expressions for composite keys"() {
 		when:
-			DynamoKey dk = new DynamoKey (
+			KeyMatch dk = new KeyMatch (
 				'string', 'value',
 				'number', 1
 			)
@@ -83,7 +113,7 @@ class DynamoKeyUSpec extends Specification {
 
 	def "Should throw an exception if the key map is invalid"() {
 		when:
-			new DynamoKey(input)
+			new KeyMatch(input)
 
 		then:
 			Exception e = thrown(IllegalArgumentException)
@@ -99,7 +129,7 @@ class DynamoKeyUSpec extends Specification {
 
 	def "Should be able to instantiate it directly with an appropriate map"() {
 		when:
-			DynamoKey dk = new DynamoKey(input)
+			KeyMatch dk = new KeyMatch(input)
 
 		then:
 			noExceptionThrown()
@@ -111,15 +141,19 @@ class DynamoKeyUSpec extends Specification {
 		where:
 			input                                || expected
 			[ string: fromS('value') ]           || false
+			[ binary: fromB(sdkBytes) ]          || false
 			[ a: fromS('a'), b: fromS('b') ]     || true
 			[ a: fromS('a'), one: fromN('1') ]   || true
 			[ one: fromN('1'), b: fromS('b') ]   || true
 			[ one: fromN('1'), two: fromN('2') ] || true
+			[ bin: fromB(sdkBytes), b: fromS('b') ] || true
+			[ a: fromS('a'), bin: fromB(sdkBytes) ] || true
+			[ bin1: fromB(sdkBytes), bin2: fromB(sdkBytes) ] || true
 	}
 
 	def "Should be able to extract a partition key from a composite one"() {
 		when:
-			DynamoKey dk = new DynamoKey(input)
+			KeyMatch dk = new KeyMatch(input)
 
 		then:
 			dk.partition().toMap() == expected
@@ -127,15 +161,18 @@ class DynamoKeyUSpec extends Specification {
 		where:
 			input                                || expected
 			[ string: fromS('value') ]           || input
+			[ binary: fromB(sdkBytes) ]          || input
 			[ a: fromS('a'), b: fromS('b') ]     || [ a: fromS('a') ]
 			[ a: fromS('a'), one: fromN('1') ]   || [ a: fromS('a') ]
 			[ one: fromN('1'), b: fromS('b') ]   || [ one: fromN('1') ]
 			[ one: fromN('1'), two: fromN('2') ] || [ one: fromN('1') ]
+			[ binary: fromB(sdkBytes), string: fromS('value') ] || [ binary: fromB(sdkBytes) ]
+			[ a: fromS('a'), binary: fromB(sdkBytes) ] || [ a: fromS('a') ]
 	}
 
 	def "Should be able to extract a sort key from a composite one"() {
 		when:
-			DynamoKey dk = new DynamoKey(input)
+			KeyMatch dk = new KeyMatch(input)
 
 		then:
 			dk.sort() == Optional.ofNullable(expected)
@@ -143,15 +180,19 @@ class DynamoKeyUSpec extends Specification {
 		where:
 			input                                || expected
 			[ string: fromS('value') ]           || null
-			[ a: fromS('a'), b: fromS('b') ]     || new DynamoKey(b: fromS('b'))
-			[ a: fromS('a'), one: fromN('1') ]   || new DynamoKey(one: fromN('1'))
-			[ one: fromN('1'), b: fromS('b') ]   || new DynamoKey(b: fromS('b'))
-			[ one: fromN('1'), two: fromN('2') ] || new DynamoKey(two: fromN('1'))
+			[ binary: fromB(sdkBytes) ]          || null
+			[ a: fromS('a'), b: fromS('b') ]     || new KeyMatch(b: fromS('b'))
+			[ a: fromS('a'), one: fromN('1') ]   || new KeyMatch(one: fromN('1'))
+			[ one: fromN('1'), b: fromS('b') ]   || new KeyMatch(b: fromS('b'))
+			[ one: fromN('1'), two: fromN('2') ] || new KeyMatch(two: fromN('1'))
+			[ a: fromS('a'), bin: fromB(sdkBytes) ] || new KeyMatch(bin: fromB(sdkBytes))
+			[ bin: fromB(sdkBytes), a: fromS('a') ] || new KeyMatch(a: fromS('a'))
+			[ bin1: fromB(sdkBytes), bin2: fromB(sdkBytes) ] || new KeyMatch(bin2: fromB(sdkBytes))
 	}
 
 	def "Should handle nested field paths in condition expression"() {
 		when:
-			DynamoKey dk = new DynamoKey('user.profile.id', 'ABC123')
+			KeyMatch dk = new KeyMatch('user.profile.id', 'ABC123')
 
 		then:
 			dk.condition() == "#user.#profile.#id = :userprofileid"
@@ -165,7 +206,7 @@ class DynamoKeyUSpec extends Specification {
 
 	def "Should handle nested field paths in composite keys"() {
 		when:
-			DynamoKey dk = new DynamoKey(
+			KeyMatch dk = new KeyMatch(
 				'user.id', 'USER001',
 				'user.group.name', 'ADMIN'
 			)
@@ -187,7 +228,7 @@ class DynamoKeyUSpec extends Specification {
 
 	def "Should handle deeply nested field paths"() {
 		when:
-			DynamoKey dk = new DynamoKey('data.user.profile.contact.email', 'test@example.com')
+			KeyMatch dk = new KeyMatch('data.user.profile.contact.email', 'test@example.com')
 
 		then:
 			dk.condition() == "#data.#user.#profile.#contact.#email = :datauserprofilecontactemail"
@@ -204,7 +245,7 @@ class DynamoKeyUSpec extends Specification {
 	
 	def "Should handle special characters in path segments"() {
 		when:
-			DynamoKey dk = new DynamoKey('user-data.custom_field', 'value')
+			KeyMatch dk = new KeyMatch('user-data.custom_field', 'value')
 
 		then:
 			dk.condition() == "#userdata.#custom_field = :userdatacustom_field"
@@ -213,5 +254,54 @@ class DynamoKeyUSpec extends Specification {
 				'#custom_field': 'custom_field'
 			]
 			dk.conditionValues() == [':userdatacustom_field': fromS('value')]
+	}
+
+	def "Should handle binary data in condition expressions"() {
+		when:
+			KeyMatch dk = new KeyMatch('binary_data', sdkBytes)
+
+		then:
+			dk.condition() == "#binary_data = :binary_data"
+			dk.conditionNames() == [
+				'#binary_data': 'binary_data'
+			]
+			dk.conditionValues() == [':binary_data': fromB(sdkBytes)]
+	}
+
+	def "Should handle binary data in nested field paths"() {
+		when:
+			KeyMatch dk = new KeyMatch('user.profile.image', sdkBytes)
+
+		then:
+			dk.condition() == "#user.#profile.#image = :userprofileimage"
+			dk.conditionNames() == [
+				'#user': 'user',
+				'#profile': 'profile',
+				'#image': 'image'
+			]
+			dk.conditionValues() == [':userprofileimage': fromB(sdkBytes)]
+	}
+
+	def "Should handle binary data in composite keys with nested paths"() {
+		when:
+			KeyMatch dk = new KeyMatch (
+				'user.id', 'USER001',
+				'user.profile.image',
+				sdkBytes
+			)
+
+		then:
+			dk.condition() == "#user.#id = :userid AND #user.#profile.#image = :userprofileimage"
+			dk.conditionNames().size() == 4  // user, id, profile, image
+			dk.conditionNames() == [
+				'#user': 'user',
+				'#id': 'id',
+				'#profile': 'profile',
+				'#image': 'image'
+			]
+			dk.conditionValues() == [
+				':userid': fromS('USER001'),
+				':userprofileimage': fromB(sdkBytes)
+			]
 	}
 }

@@ -85,7 +85,7 @@ abstract class Dynable implements Storable<AttributeValue,Object> {
   protected Integer v = 0  // For versioning
 
   protected abstract DbMapper<AttributeValue,Object> inpress(DynamoMapper mapper)
-  abstract DynamoKey key()
+  abstract KeyMatch key()
 }
 ```
 
@@ -139,16 +139,16 @@ int count = dynamo.deleteItems("tableName", "indexName", key, filter)
 int count = dynamo.deleteItems("tableName", filter)
 ```
 
-### DynamoKey
+### KeyMatch
 
 Create keys for DynamoDB operations:
 
 ```groovy
 // Partition key only
-DynamoKey key = new DynamoKey("id", "abc123")
+KeyMatch key = new KeyMatch("id", "abc123")
 
 // Partition and sort key
-DynamoKey compositeKey = new DynamoKey("userId", "user1", "timestamp", 1234567890)
+KeyMatch compositeKey = new KeyMatch("userId", "user1", "timestamp", 1234567890)
 ```
 
 ### DynamoFilter
@@ -237,8 +237,8 @@ class User extends Dynable {
   }
 
   @Override
-  DynamoKey key() {
-    return new DynamoKey('id', id)
+  KeyMatch key() {
+    return new KeyMatch('id', id)
   }
 }
 
@@ -273,10 +273,10 @@ def userWithProfile = new DynamoMap (
 dynamoDb.putItem("users", userWithProfile)
 
 // 5. Retrieve by key (specific class)
-User retrievedUser = dynamoDb.getItem("users", new DynamoKey("id", "user1"), User)
+User retrievedUser = dynamoDb.getItem("users", new KeyMatch("id", "user1"), User)
 
 // 5a. Retrieve by key (using DynamoMap)
-DynamoMap userMap = dynamoDb.getItem("users", new DynamoKey("id", "user1"))
+DynamoMap userMap = dynamoDb.getItem("users", new KeyMatch("id", "user1"))
 // Direct access to fields via @Delegate
 String username = userMap.username
 String email = userMap.email
@@ -286,7 +286,7 @@ def activeFilter = match("username", "john")
 List<User> users = dynamoDb.query (
   "users",
   "email-index",
-  new DynamoKey("email", "example.com"),
+  new KeyMatch("email", "example.com"),
   activeFilter,
   User
 )
@@ -295,7 +295,7 @@ List<User> users = dynamoDb.query (
 List<DynamoMap> userMaps = dynamoDb.query (
   "users",
   "email-index",
-  new DynamoKey("email", "example.com"),
+  new KeyMatch("email", "example.com"),
   activeFilter
 )
 
@@ -363,7 +363,7 @@ DynamoMap now provides direct access to its internal data map through the use of
 
 ```groovy
 // Get item using default DynamoMap target class
-DynamoMap user = dynamoDb.getItem("users", new DynamoKey("id", "user1"))
+DynamoMap user = dynamoDb.getItem("users", new KeyMatch("id", "user1"))
 
 // Direct field access without using the 'data' property
 String username = user.username
@@ -485,7 +485,7 @@ Query tables using just the partition key:
 
 ```groovy
 // Create partition-only key
-DynamoKey partitionKey = key.partition()
+KeyMatch partitionKey = key.partition()
 
 // Query with partition key only
 List<Item> items = dynamoDb.query("tableName", partitionKey, Item.class)
@@ -510,13 +510,13 @@ Delete multiple items in a batch:
 // Delete items by partition key
 int deleted = dynamoDb.deleteItems (
   "users",
-  new DynamoKey("status", "inactive")
+  new KeyMatch("status", "inactive")
 )
 
 // Delete items by partition key with additional filter
 int deleted = dynamoDb.deleteItems (
   "users",
-  new DynamoKey("status", "inactive"), 
+  new KeyMatch("status", "inactive"), 
   match("lastLogin", "2022-01-01")
 )
 
@@ -524,7 +524,7 @@ int deleted = dynamoDb.deleteItems (
 int deleted = dynamoDb.deleteItems(
   "users",
   "email-index", 
-  new DynamoKey("domain", "example.com"), 
+  new KeyMatch("domain", "example.com"), 
   match("active", false)
 )
 
@@ -546,7 +546,7 @@ Query with pagination support using `PagedResult`:
 // Query with limit for pagination
 PagedResult<User> page1 = dynamoDb.query (
   "users",
-  new DynamoKey("id", "user1"),
+  new KeyMatch("id", "user1"),
   null,    // no filters in this example
   User.class,
   5     // Limit to 5 items per page
@@ -562,7 +562,7 @@ page1.count    // Number of items in this page
 if (page1.more) {
   PagedResult<User> page2 = dynamoDb.query (
     "users",
-    new DynamoKey("id", "user1"),
+    new KeyMatch("id", "user1"),
     null,    // no filters in this example
     User.class,
     5,          // Limit
@@ -579,7 +579,7 @@ Control the ordering of query results using the forward parameter:
 // Query with ascending order (default)
 List<Item> ascending = dynamoDb.query (
   "users",
-  new DynamoKey("id", "user1"),
+  new KeyMatch("id", "user1"),
   null,    // no filters in this example
   Item.class,
   true     // Forward order (oldest to newest if sort key is timestamp)
@@ -588,7 +588,7 @@ List<Item> ascending = dynamoDb.query (
 // Query with descending order
 List<Item> descending = dynamoDb.query (
   "users",
-  new DynamoKey("id", "user1"),
+  new KeyMatch("id", "user1"),
   null,    // no filters in this example
   Item.class,
   false    // Backward order (newest to oldest if sort key is timestamp)
@@ -598,7 +598,7 @@ List<Item> descending = dynamoDb.query (
 PagedResult<Item> result = dynamoDb.query (
   "users",               // Table name
   "email-index",        // Index name (optional)
-  new DynamoKey("email", "test@example.com"), // Key condition
+  new KeyMatch("email", "test@example.com"), // Key condition
   match("active", true), // Filter expression (optional)
   Item.class,           // Target class
   10,                   // Limit (for pagination)

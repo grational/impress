@@ -1,65 +1,52 @@
 package it.grational.storage.dynamodb
 
 class Index {
-	Scalar partition
-	Optional<Scalar> sort
+	@Delegate
+	Keys keys
 	String name
 
 	private Index (
-		Scalar partition,
-		Optional<Scalar> sort,
+		Keys keys,
 		String name
 	) {
-		this.partition = partition
-		this.sort = sort
+		this.keys = keys
 		this.name = name
 	}
 
-	static of(Scalar partition) {
-		new Index (
-			partition,
-			Optional.empty(),
-			"${partition.name}-index"
-		)
-	}
-
-	static of (
-		Scalar partition,
-		Scalar sort
+	static Index of (
+		String partition,
+		String sort = null,
+		String name = null
 	) {
+		String safe = name ?: autoname(partition, sort)
 		new Index (
-			partition,
-			Optional.of(sort),
-			autoname(partition, sort)
-		)
-	}
-
-	static of (
-		Scalar partition,
-		Scalar sort,
-		String name
-	) {
-		Optional<Scalar> osort = optionalize(sort)
-		String safe = name ?: autoname(partition, osort)
-		new Index (
-			partition,
-			osort,
+			Keys.of(partition, sort),
 			safe
 		)
 	}
 
-	private static Optional<Scalar> optionalize(Scalar value) {
-		( value ) ? Optional.of(value) : Optional.empty()
+	static Index of (
+		Scalar partition,
+		Scalar sort = null,
+		String name = null
+	) {
+		String safe = name ?: autoname (
+			partition.name, sort ? sort.name : null
+		)
+		new Index (
+			Keys.of(partition, sort),
+			safe
+		)
 	}
 
 	private static String autoname (
-		Scalar partition,
-		Optional<Scalar> sort
+		String partition,
+		String sort
 	) {
 		StringBuilder sb = new StringBuilder()
-		sb.append(partition.name)
-		if ( sort.isPresent() )
-			sb.append("-").append(sort.get().name)
+		sb.append(partition)
+		if ( sort )
+			sb.append("-").append(sort)
 		sb.append("-index")
 		return sb.toString()
 	}

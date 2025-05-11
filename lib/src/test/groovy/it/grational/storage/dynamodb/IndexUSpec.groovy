@@ -28,13 +28,15 @@ class IndexUSpec extends Specification {
 			)
 
 		then:
-			index.partition == partition
 			index.name == name
 
 			if ( sort )
 				index.sort == sort
 			else
 				index.sort == Optional.empty()
+
+			and:
+				index.attributes() == [ partition, sort ].grep()
 
 		where:
 			partition           | sort                | name

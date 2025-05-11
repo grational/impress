@@ -8,7 +8,10 @@ class Scalar {
 	String name
 	ScalarAttributeType type
 
-	static of(String name, ScalarAttributeType type) {
+	static Scalar of (
+		String name,
+		ScalarAttributeType type = ScalarAttributeType.S
+	) {
 		new Scalar(name, type)
 	}
 }
