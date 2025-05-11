@@ -15,6 +15,113 @@ class KeyMatchUSpec extends Specification {
 		sdkBytes = fromUtf8String('binary')
 	}
 
+	def "Should create valid key match via static of() method with string value"() {
+		when:
+			KeyMatch km = KeyMatch.of('string', 'value')
+
+		then:
+			noExceptionThrown()
+		and:
+			km.composite() == false
+		and:
+			km.toMap() == [string: fromS('value')]
+	}
+
+	def "Should create valid key match via static of() method with number value"() {
+		when:
+			KeyMatch km = KeyMatch.of('number', 1)
+
+		then:
+			noExceptionThrown()
+		and:
+			km.composite() == false
+		and:
+			km.toMap() == [number: fromN('1')]
+	}
+
+	def "Should create valid key match via static of() method with binary value"() {
+		when:
+			KeyMatch km = KeyMatch.of('binary', sdkBytes)
+
+		then:
+			noExceptionThrown()
+		and:
+			km.composite() == false
+		and:
+			km.toMap() == [binary: fromB(sdkBytes)]
+	}
+
+	def "Should create valid composite key match via static of() method"() {
+		when:
+			KeyMatch km = KeyMatch.of(pk, pv, sk, sv)
+
+		then:
+			noExceptionThrown()
+		and:
+			km.composite() == true
+		and:
+			km.toMap() == expected
+
+		where:
+			pk     | pv       | sk     | sv       || expected
+			'part' | 'pvalue' | 'sort' | 'svalue' || [ part: fromS('pvalue'), sort: fromS('svalue') ]
+			'part' | 'pvalue' | 'sort' | 2        || [ part: fromS('pvalue'), sort: fromN('2')      ]
+			'part' | 1        | 'sort' | 2        || [ part: fromN('1'),      sort: fromN('2')      ]
+			'part' | 1        | 'sort' | 'svalue' || [ part: fromN('1'),      sort: fromS('svalue') ]
+			'part' | 'pvalue' | 'sort' | sdkBytes || [ part: fromS('pvalue'), sort: fromB(sdkBytes) ]
+			'part' | 1        | 'sort' | sdkBytes || [ part: fromN('1'),      sort: fromB(sdkBytes) ]
+			'part' | sdkBytes | 'sort' | 'svalue' || [ part: fromB(sdkBytes), sort: fromS('svalue') ]
+			'part' | sdkBytes | 'sort' | 2        || [ part: fromB(sdkBytes), sort: fromN('2')      ]
+			'part' | sdkBytes | 'sort' | sdkBytes || [ part: fromB(sdkBytes), sort: fromB(sdkBytes) ]
+	}
+
+	def "Should create key match from map via static of() method"() {
+		given:
+			Map<String, AttributeValue> keyMap = [string: fromS('value')]
+
+		when:
+			KeyMatch km = KeyMatch.of(keyMap)
+
+		then:
+			noExceptionThrown()
+		and:
+			km.toMap() == keyMap
+	}
+
+	def "Static of() and constructor should create equivalent instances"() {
+		when:
+			KeyMatch fromCtor = new KeyMatch(key, value)
+			KeyMatch fromOf = KeyMatch.of(key, value)
+
+		then:
+			fromCtor == fromOf
+		and:
+			fromCtor.toMap() == fromOf.toMap()
+
+		where:
+			key      | value
+			'string' | 'value'
+			'number' | 1
+			'binary' | sdkBytes
+	}
+
+	def "Static of() and constructor should create equivalent composite instances"() {
+		when:
+			KeyMatch fromCtor = new KeyMatch(pk, pv, sk, sv)
+			KeyMatch fromOf = KeyMatch.of(pk, pv, sk, sv)
+
+		then:
+			fromCtor == fromOf
+		and:
+			fromCtor.toMap() == fromOf.toMap()
+
+		where:
+			pk     | pv       | sk     | sv
+			'part' | 'pvalue' | 'sort' | 'svalue'
+			'part' | 1        | 'sort' | 2
+			'part' | sdkBytes | 'sort' | 'svalue'
+	}
+
 	def "Should return a valid dynamo key match given each supported type"() {
 		when:
 			KeyMatch dk = new KeyMatch(key, value)

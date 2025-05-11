@@ -180,10 +180,50 @@ class DynamoDb {
 	} // }}}
 
 
+	/**
+	 * Query a table using just a partition key
+	 *
+	 * Just a convenience method using the partition key 
+	 * of the provided composite key
+	 *
+	 * @param table The table name to query
+	 * @param key The KeyMatch representing the composite key condition
+	 * @param targetClass The class to deserialize results into
+	 * @param forward Whether to sort in forward (true) or reverse (false) order
+	 * @return A list of objects of the specified target class
+	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		KeyMatch key,
-		DynamoFilter filter = null,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		query (
+			table,
+			null, // no index is needed
+			key.partition(),
+			null,
+			targetClass,
+			forward
+		)
+	} // }}}
+
+	/**
+	 * Query a table using just a partition key
+	 *
+	 * This is a convenience method that uses the partition component of the provided key
+	 *
+	 * @param table The table name to query
+	 * @param key The KeyMatch representing the key condition
+	 * @param filter Optional filter expression to apply to results
+	 * @param targetClass The class to deserialize results into
+	 * @param forward Whether to sort in forward (true) or reverse (false) order
+	 * @return A list of objects of the specified target class
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		KeyMatch key,
+		DynamoFilter filter,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
@@ -198,13 +238,36 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Query objects without index (backward compatible version)
+	 * Query objects using an index (no filters version)
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		String index,
 		KeyMatch key,
-		DynamoFilter filter = null,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		PagedResult<T> paged = query (
+			table,
+			index,
+			key,
+			null,
+			targetClass,
+			0,
+			null,
+			forward
+		)
+		return paged.items
+	} // }}}
+
+	/**
+	 * Query objects using an index (with filters version)
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		String index,
+		KeyMatch key,
+		DynamoFilter filter,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
@@ -316,8 +379,50 @@ class DynamoDb {
 	void createTable (
 		String table,
 		String partition,
-		String sort = null,
 		Map<String, String> indexes = [:]
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			null, // no sort string key
+			indexes
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		String sort,
+		Map<String, String> indexes = [:]
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			sort,
+			indexes.collect { String idxName, String idxPart ->
+				Index.of(Scalar.of(idxPart), null, idxName)
+			} as Index[]
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		Index[] indexes
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			null, // no sort string key
+			indexes
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		String sort,
+		Index[] indexes
 	) { // {{{
 		Optional<Scalar> sortKey = sort
 			? Optional.of(Scalar.of(sort))
@@ -327,19 +432,34 @@ class DynamoDb {
 			table,
 			Scalar.of(partition),
 			sortKey,
-			indexes.collect { String idxName, String idxPart ->
-				Index.of(Scalar.of(idxPart), null, idxName)
-			} as Index[]
+			indexes
 		)
 	} // }}}
 
 	/**
-	 * Creates a DynamoDB table with support for secondary indexes
+	 * Creates a DynamoDB table with support for secondary indexes using the Keys and Index classes
+	 *
+	 * This more advanced version of createTable uses the Scalar, Keys, and Index classes
+	 * to provide more control over the table creation process, including key types and index naming.
+	 *
+	 * Example usage:
+	 * <pre>
+	 * // Create a table with a string partition key and numeric sort key
+	 * dynamoDb.createTable(
+	 *   "users",
+	 *   Scalar.of("userId", ScalarAttributeType.S),
+	 *   Optional.of(Scalar.of("createdAt", ScalarAttributeType.N)),
+	 *   [
+	 *     Index.of("email"),  // Auto-named as "email-index"
+	 *     Index.of("status", "createdAt", "custom-index-name")
+	 *   ] as Index[]
+	 * )
+	 * </pre>
 	 *
 	 * @param table The name of the table to create
-	 * @param partitionKey The attribute name for the partition key
-	 * @param sortKey Optional sort key attribute name
-	 * @param indexes List of indexes to create on the table
+	 * @param partition The Scalar representing the partition key
+	 * @param sort Optional Scalar for the sort key
+	 * @param indexes Array of Index objects defining secondary indexes
 	 * @return void
 	 */
 	void createTable (

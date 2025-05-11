@@ -1129,6 +1129,323 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should create table with partition key and array of Index objects"() {
+		given:
+			String table = 'test_index_array'
+			String partKey = 'id'
+			Index[] indexes = [
+				Index.of('email'),
+				Index.of('status', 'createdAt', 'custom-status-index')
+			]
+
+		when:
+			dynamoDb.createTable(
+				table,
+				partKey,
+				indexes
+			)
+
+		then:
+			def description = dynamoDb.client.describeTable(
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			).table()
+
+			// Check primary key schema
+			description.keySchema().size() == 1
+			description.keySchema()[0].attributeName() == 'id'
+			description.keySchema()[0].keyType() == KeyType.HASH
+
+			// Check secondary indexes
+			description.globalSecondaryIndexes().size() == 2
+			
+			// Check first index
+			def emailIndex = description.globalSecondaryIndexes().find { it.indexName() == 'email-index' }
+			emailIndex != null
+			emailIndex.keySchema().size() == 1
+			emailIndex.keySchema()[0].attributeName() == 'email'
+			emailIndex.keySchema()[0].keyType() == KeyType.HASH
+			
+			// Check second index
+			def statusIndex = description.globalSecondaryIndexes().find { it.indexName() == 'custom-status-index' }
+			statusIndex != null
+			statusIndex.keySchema().size() == 2
+			statusIndex.keySchema()[0].attributeName() == 'status'
+			statusIndex.keySchema()[0].keyType() == KeyType.HASH
+			statusIndex.keySchema()[1].attributeName() == 'createdAt'
+			statusIndex.keySchema()[1].keyType() == KeyType.RANGE
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	}
+
+	def "Should create table with partition key, sort key and array of Index objects"() {
+		given:
+			String table = 'test_index_array_with_sort'
+			String partKey = 'id'
+			String sortKey = 'timestamp'
+			Index[] indexes = [
+				Index.of('category', 'price'),
+				Index.of('status')
+			]
+
+		when:
+			dynamoDb.createTable(
+				table,
+				partKey,
+				sortKey,
+				indexes
+			)
+
+		then:
+			def description = dynamoDb.client.describeTable(
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			).table()
+
+			// Check primary key schema
+			description.keySchema().size() == 2
+			description.keySchema().find { it.attributeName() == 'id' && it.keyType() == KeyType.HASH }
+			description.keySchema().find { it.attributeName() == 'timestamp' && it.keyType() == KeyType.RANGE }
+
+			// Check secondary indexes
+			description.globalSecondaryIndexes().size() == 2
+			
+			// Check indexes
+			def categoryIndex = description.globalSecondaryIndexes().find { it.indexName() == 'category-price-index' }
+			categoryIndex != null
+			categoryIndex.keySchema().size() == 2
+			categoryIndex.keySchema()[0].attributeName() == 'category'
+			categoryIndex.keySchema()[0].keyType() == KeyType.HASH
+			categoryIndex.keySchema()[1].attributeName() == 'price'
+			categoryIndex.keySchema()[1].keyType() == KeyType.RANGE
+			
+			def statusIndex = description.globalSecondaryIndexes().find { it.indexName() == 'status-index' }
+			statusIndex != null
+			statusIndex.keySchema().size() == 1
+			statusIndex.keySchema()[0].attributeName() == 'status'
+			statusIndex.keySchema()[0].keyType() == KeyType.HASH
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	}
+
+	def "Should create table with Scalar partition key and array of Index objects"() { // {{{
+		given:
+			String table = 'test_scalar_partition'
+			Scalar partKey = Scalar.of('id', ScalarAttributeType.S)
+			Index[] indexes = [
+				Index.of(
+					Scalar.of('email', ScalarAttributeType.S)
+				),
+				Index.of(
+					Scalar.of('age', ScalarAttributeType.N)
+				)
+			]
+
+		when:
+			dynamoDb.createTable(
+				table,
+				partKey,
+				Optional.empty(),
+				indexes
+			)
+
+		then:
+			def description = dynamoDb.client.describeTable(
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			).table()
+
+			// Check primary key schema
+			description.keySchema().size() == 1
+			description.keySchema()[0].attributeName() == 'id'
+			description.keySchema()[0].keyType() == KeyType.HASH
+
+			// Check attribute definitions
+			def idAttr = description.attributeDefinitions().find { it.attributeName() == 'id' }
+			idAttr != null
+			idAttr.attributeType() == ScalarAttributeType.S
+
+			def emailAttr = description.attributeDefinitions().find { it.attributeName() == 'email' }
+			emailAttr != null
+			emailAttr.attributeType() == ScalarAttributeType.S
+
+			def ageAttr = description.attributeDefinitions().find { it.attributeName() == 'age' }
+			ageAttr != null
+			ageAttr.attributeType() == ScalarAttributeType.N
+
+			// Check secondary indexes
+			description.globalSecondaryIndexes().size() == 2
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should create table with Scalar partition key, sort key and array of Index objects"() { // {{{
+		given:
+			String table = 'test_scalar_composite'
+			Scalar partKey = Scalar.of('id', ScalarAttributeType.S)
+			Scalar sortKey = Scalar.of('timestamp', ScalarAttributeType.N)
+			Index[] indexes = [
+				Index.of(
+					Scalar.of('category', ScalarAttributeType.S),
+					Scalar.of('price', ScalarAttributeType.N),
+					'cat-price-index'
+				),
+				Index.of(
+					Scalar.of('status', ScalarAttributeType.S),
+					Scalar.of('count', ScalarAttributeType.N)
+				)
+			]
+
+		when:
+			dynamoDb.createTable(
+				table,
+				partKey,
+				Optional.of(sortKey),
+				indexes
+			)
+
+		then:
+			def description = dynamoDb.client.describeTable(
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			).table()
+
+			// Check primary key schema
+			description.keySchema().size() == 2
+			description.keySchema().find { it.attributeName() == 'id' && it.keyType() == KeyType.HASH }
+			description.keySchema().find { it.attributeName() == 'timestamp' && it.keyType() == KeyType.RANGE }
+
+			// Check attribute definitions
+			def idAttr = description.attributeDefinitions().find { it.attributeName() == 'id' }
+			idAttr != null
+			idAttr.attributeType() == ScalarAttributeType.S
+
+			def timestampAttr = description.attributeDefinitions().find { it.attributeName() == 'timestamp' }
+			timestampAttr != null
+			timestampAttr.attributeType() == ScalarAttributeType.N
+
+			// Check secondary indexes
+			description.globalSecondaryIndexes().size() == 2
+			
+			// Check custom named index
+			def catPriceIndex = description.globalSecondaryIndexes().find { it.indexName() == 'cat-price-index' }
+			catPriceIndex != null
+			catPriceIndex.keySchema().size() == 2
+			catPriceIndex.keySchema()[0].attributeName() == 'category'
+			catPriceIndex.keySchema()[0].keyType() == KeyType.HASH
+			catPriceIndex.keySchema()[1].attributeName() == 'price'
+			catPriceIndex.keySchema()[1].keyType() == KeyType.RANGE
+			
+			// Check auto-named index
+			def statusIndex = description.globalSecondaryIndexes().find { it.indexName() == 'status-count-index' }
+			statusIndex != null
+			statusIndex.keySchema().size() == 2
+			statusIndex.keySchema()[0].attributeName() == 'status'
+			statusIndex.keySchema()[0].keyType() == KeyType.HASH
+			statusIndex.keySchema()[1].attributeName() == 'count'
+			statusIndex.keySchema()[1].keyType() == KeyType.RANGE
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should verify table functionality after creation with different key types"() { // {{{
+		given:
+			String table = 'test_table_functionality'
+			Scalar partKey = Scalar.of('id', ScalarAttributeType.S)
+			Scalar sortKey = Scalar.of('sortKey', ScalarAttributeType.S)
+			Index[] indexes = [
+				Index.of(
+					Scalar.of('email', ScalarAttributeType.S)
+				),
+				Index.of(
+					Scalar.of('status', ScalarAttributeType.S),
+					Scalar.of('timestamp', ScalarAttributeType.N)
+				)
+			]
+
+		when:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				Optional.of(sortKey),
+				indexes
+			)
+
+		and: 'Insert test items'
+			List<TestItem> items = [
+				new TestItem (
+					id: 'user1',
+					sortKey: 'record1',
+					email: 'user1@example.com',
+					status: 'active',
+					timestamp: 1000
+				),
+				new TestItem (
+					id: 'user2',
+					sortKey: 'record1',
+					email: 'user2@example.com',
+					status: 'inactive',
+					timestamp: 2000
+				),
+				new TestItem (
+					id: 'user1',
+					sortKey: 'record2',
+					email: 'user1@example.com',
+					status: 'active',
+					timestamp: 3000
+				)
+			]
+			dynamoDb.putItems(table, items)
+
+		then: 'Can query by primary key'
+			TestItem item = dynamoDb.getItem(
+				table,
+				new KeyMatch('id', 'user1', 'sortKey', 'record1'),
+				TestItem
+			)
+			item != null
+			item.id == 'user1'
+			item.sortKey == 'record1'
+			item.email == 'user1@example.com'
+
+		and: 'Can query using the email index'
+			List<TestItem> userItems = dynamoDb.query(
+				table,
+				'email-index',
+				new KeyMatch('email', 'user1@example.com'),
+				null,
+				TestItem
+			)
+			userItems.size() == 2
+			userItems.every { it.email == 'user1@example.com' }
+			userItems.every { it.id == 'user1' }
+			userItems.collect { it.sortKey }.sort() == ['record1', 'record2']
+
+		and: 'Can query using the status-timestamp index'
+			List<TestItem> activeItems = dynamoDb.query(
+				table,
+				'status-timestamp-index',
+				new KeyMatch('status', 'active'),
+				null,
+				TestItem
+			)
+			activeItems.size() == 2
+			activeItems.every { it.status == 'active' }
+			activeItems.find { it.timestamp == 1000 && it.id == 'user1' && it.sortKey == 'record1' }
+			activeItems.find { it.timestamp == 3000 && it.id == 'user1' && it.sortKey == 'record2' }
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	@Ignore
 	// Both these options are ignored in the local version of DynamoDB
 	// see: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.UsageNotes.html
@@ -1225,6 +1542,9 @@ class DynamoDbICSpec extends Specification {
 		implements Storable<AttributeValue,String> {
 		String id
 		String sortKey
+		String email
+		String status
+		BigInteger timestamp
 		String contract
 		String sheet
 		String offer
@@ -1248,6 +1568,15 @@ class DynamoDbICSpec extends Specification {
 					'sortKey', sortKey,
 					FieldType.SORT_KEY
 				)
+
+			if (email)
+				mapper.with('email', email)
+
+			if (status)
+				mapper.with('status', status)
+
+			if (timestamp)
+				mapper.with('timestamp', timestamp)
 
 			if (data)
 				mapper.with('data', data)
