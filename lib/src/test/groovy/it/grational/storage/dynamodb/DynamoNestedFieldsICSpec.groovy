@@ -97,7 +97,6 @@ class DynamoNestedFieldsICSpec extends Specification {
 		when:
 			def filter = DynamoFilter.match('user.profile.active', true)
 			def results = dynamoDb.scan(tableName, filter)
-			println "results (${results.getClass()}) -> ${results}"
 
 		then:
 			results.size() == 2

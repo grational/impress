@@ -27,7 +27,6 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		boolean versioned = false
 	) {
 		data.each { String k, Object v ->
-			println "entry ${k} -> ${v} (${v.getClass()})"
 			switch (v) {
 				case String:
 					mapper.with(k, v as String)
@@ -94,9 +93,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 							)
 					}
 			}
-			println "current mapper (${mapper.getClass()}) -> ${mapper}"
 		}
-		println "FINAL mapper (${mapper.getClass()}) -> ${mapper}\n"
 		return mapper
 	}
 
