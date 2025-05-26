@@ -18,6 +18,7 @@ import static it.grational.storage.dynamodb.FieldType.*
 @CompileStatic
 class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	private Map<String, AttributeValue> map = [:]
+	private Set<String> removeAttributes = []
 	private Tuple2<String, AttributeValue> pk
 	private Tuple2<String, AttributeValue> sk
 	private Tuple2<String, AttributeValue> vf
@@ -246,6 +247,15 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	}
 
+	DbMapper<AttributeValue,Object> remove(String... attributeNames) { // {{{
+		attributeNames.each { String name ->
+			if (name != null && !name.trim().isEmpty()) {
+				removeAttributes.add(name)
+			}
+		}
+		return this
+	} // }}}
+
 	String versionCondition(boolean current = true) { // {{{
 		String.join(" ",
 			"attribute_not_exists(${versionName()})",
@@ -277,7 +287,17 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	} // }}}
 
 	String updateExpression() { // {{{
-		"SET ${setList().join(', ')}"
+		List<String> clauses = []
+		
+		if (!map.isEmpty()) {
+			clauses.add("SET ${setList().join(', ')}" as String)
+		}
+		
+		if (!removeAttributes.isEmpty()) {
+			clauses.add("REMOVE ${removeList().join(', ')}" as String)
+		}
+		
+		return clauses.join(' ')
 	} // }}}
 
 	private List<GString> setList() { // {{{
@@ -286,12 +306,27 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		}
 	} // }}}
 
+	private List<String> removeList() { // {{{
+		removeAttributes.collect { k ->
+			"#${safe(k)}" as String
+		}
+	} // }}}
+
 	Map<String,String> expressionNames ( // {{{
 		Map<String,String> others = [:]
 	) {
-		map.collectEntries(others) { String k, AttributeValue v ->
-			[ ("#${safe(k)}" as String): k ]
-		} as Map<String,String>
+		Map<String,String> result = [:]
+		result.putAll(others)
+		
+		map.each { String k, AttributeValue v ->
+			result["#${safe(k)}" as String] = k
+		}
+		
+		removeAttributes.each { String k ->
+			result["#${safe(k)}" as String] = k
+		}
+		
+		return result
 	} // }}}
 
 	Map<String,AttributeValue> expressionValues ( // {{{

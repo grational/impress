@@ -199,6 +199,9 @@ int count = dynamo.deleteItems('tableName', 'indexName', key, filter)
 
 // Delete multiple items using a scan (full table scan with optional filter)
 int count = dynamo.deleteItems('tableName', filter)
+
+// Remove specific attributes from an item
+dynamo.removeAttributes('tableName', keyMatch, 'attribute1', 'attribute2')
 ```
 
 ### Keys and KeyMatch
@@ -751,6 +754,47 @@ PagedResult<Item> result = dynamoDb.query (
   false                  // Backward order (newest first)
 )
 ```
+
+### Removing Attributes
+
+Remove specific attributes from existing items without affecting other fields:
+
+```groovy
+// Remove single attribute
+dynamoDb.removeAttributes (
+  'users',
+  KeyMatch.of('id', 'user123'),
+  'temporaryField'
+)
+
+// Remove multiple attributes at once
+dynamoDb.removeAttributes (
+  'users', 
+  KeyMatch.of('id', 'user123'),
+  'oldField1', 'oldField2', 'deprecatedData'
+)
+
+// Works with composite keys
+dynamoDb.removeAttributes (
+  'userEvents',
+  KeyMatch.of('userId', 'user123', 'timestamp', 1642681200),
+  'cachedData', 'processedFlag'
+)
+
+// Use in combination with updates via DynamoMapper
+DynamoMapper mapper = new DynamoMapper()
+  .with('id', 'user123', FieldType.PARTITION_KEY)
+  .with('status', 'updated')           // SET operation
+  .remove('temporaryField', 'cache')   // REMOVE operation
+  
+dynamoDb.updateItem('users', mapper)
+```
+
+**Important Notes:**
+- Key attributes (partition key, sort key) cannot be removed and will throw a `DynamoDbException` if specified
+- Non-existent attributes are silently ignored without causing errors
+- Remove operations are atomic and can be combined with SET operations in update expressions
+- The operation preserves versioning if enabled on the item
 
 ### Local Development
 

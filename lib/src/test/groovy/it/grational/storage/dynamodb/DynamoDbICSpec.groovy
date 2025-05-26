@@ -1538,6 +1538,202 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should remove attributes from existing items"() { // {{{
+		given:
+			String table = 'test_remove_attributes'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey
+			)
+		and:
+			TestItem item = new TestItem (
+				id: 'test_item',
+				data: 'some data',
+				tagField: 'tag_value',
+				enabled: true
+			)
+		and:
+			KeyMatch key = new KeyMatch (
+				item.impress(new DynamoMapper()).key()
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		expect: 'Item has all initial attributes'
+			TestItem initial = dynamoDb.getItem (
+				table, key, TestItem
+			)
+			initial != null
+			initial.data == 'some data'
+			initial.tagField == 'tag_value'
+			initial.enabled == true
+
+		when: 'Remove some attributes'
+			dynamoDb.removeAttributes (
+				table,
+				key,
+				'data', 'tagField'
+			)
+
+		then: 'Specified attributes should be removed'
+			TestItem updated = dynamoDb.getItem (
+				table, key, TestItem
+			)
+			updated != null
+			updated.id == 'test_item'
+			updated.data == null
+			updated.tagField == null
+			updated.enabled == true  // This attribute should remain
+			updated.version == 1     // Version should remain
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should handle removing non-existent attributes gracefully"() { // {{{
+		given:
+			String table = 'test_remove_nonexistent'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey
+			)
+		and:
+			TestItem item = new TestItem (
+				id: 'test_item',
+				data: 'some data'
+			)
+		and:
+			KeyMatch key = new KeyMatch (
+				item.impress(new DynamoMapper()).key()
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		when: 'Remove non-existent attributes'
+			dynamoDb.removeAttributes (
+				table,
+				key,
+				'nonExistentField1', 'nonExistentField2'
+			)
+
+		then: 'Operation should succeed without errors'
+			noExceptionThrown()
+
+		and: 'Existing data should remain unchanged'
+			TestItem unchanged = dynamoDb.getItem (
+				table, key, TestItem
+			)
+			unchanged != null
+			unchanged.id == 'test_item'
+			unchanged.data == 'some data'
+			unchanged.version == 1
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should remove attributes from items with composite keys"() { // {{{
+		given:
+			String table = 'test_remove_composite'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				sortKey
+			)
+		and:
+			TestItem item = new TestItem (
+				id: 'parent1',
+				sortKey: 'child1',
+				data: 'original data',
+				tagField: 'original tag',
+				enabled: true
+			)
+		and:
+			KeyMatch key = new KeyMatch (
+				item.impress(new DynamoMapper()).key()
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		when: 'Remove attributes from composite key item'
+			dynamoDb.removeAttributes (
+				table,
+				key,
+				'data', 'enabled'
+			)
+
+		then: 'Specified attributes should be removed'
+			TestItem updated = dynamoDb.getItem (
+				table, key, TestItem
+			)
+			updated != null
+			updated.id == 'parent1'
+			updated.sortKey == 'child1'
+			updated.data == null
+			updated.enabled == false  // boolean fields default to false when null
+			updated.tagField == 'original tag'  // This should remain
+			updated.version == 1
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should prevent removing key attributes"() { // {{{
+		given:
+			String table = 'test_remove_key_protection'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable (
+				table,
+				partKey,
+				sortKey
+			)
+		and:
+			TestItem item = new TestItem (
+				id: 'test_id',
+				sortKey: 'test_sort',
+				data: 'test data'
+			)
+		and:
+			KeyMatch key = new KeyMatch (
+				item.impress(new DynamoMapper()).key()
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		when: 'Try to remove key attributes'
+			dynamoDb.removeAttributes (
+				table,
+				key,
+				'id', 'sortKey'  // Key attributes only
+			)
+
+		then: 'DynamoDB should throw an exception'
+			def exception = thrown(DynamoDbException)
+			exception.message.contains('Cannot update attribute')
+			exception.message.contains('This attribute is part of the key')
+
+		and: 'Item should remain unchanged'
+			TestItem unchanged = dynamoDb.getItem (
+				table, key, TestItem
+			)
+			unchanged != null
+			unchanged.id == 'test_id'
+			unchanged.sortKey == 'test_sort'
+			unchanged.data == 'test data'
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	static class TestItem // {{{
 		implements Storable<AttributeValue,String> {
 		String id

@@ -398,5 +398,88 @@ class DynamoMapperUSpec extends Specification {
 			names == ['#field1': 'field-1', '#field2': 'field.2']
 			values == [':field1': fromS('value1'), ':field2': fromN('2')]
 	} // }}}
+	
+	def "Should support removing attributes"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				remove('attribute1', 'attribute2', 'attribute3')
+			}
+			
+		when:
+			def updateExpr = mapper.updateExpression()
+			def names = mapper.expressionNames()
+			
+		then:
+			updateExpr == "REMOVE #attribute1, #attribute2, #attribute3"
+			names == [
+				'#attribute1': 'attribute1',
+				'#attribute2': 'attribute2', 
+				'#attribute3': 'attribute3'
+			]
+	} // }}}
+	
+	def "Should combine SET and REMOVE in update expressions"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('field1', 'newValue')
+				with('field2', 42)
+				remove('oldField1', 'oldField2')
+			}
+			
+		when:
+			def updateExpr = mapper.updateExpression()
+			def names = mapper.expressionNames()
+			def values = mapper.expressionValues()
+			
+		then:
+			updateExpr.contains("SET #field1 = :field1, #field2 = :field2")
+			updateExpr.contains("REMOVE #oldField1, #oldField2")
+			names == [
+				'#field1': 'field1',
+				'#field2': 'field2',
+				'#oldField1': 'oldField1',
+				'#oldField2': 'oldField2'
+			]
+			values == [
+				':field1': fromS('newValue'),
+				':field2': fromN('42')
+			]
+	} // }}}
+	
+	def "Should handle null and empty attribute names in remove"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				remove('validField', null, '', '  ', 'anotherValidField')
+			}
+			
+		when:
+			def updateExpr = mapper.updateExpression()
+			def names = mapper.expressionNames()
+			
+		then:
+			updateExpr == "REMOVE #validField, #anotherValidField"
+			names == [
+				'#validField': 'validField',
+				'#anotherValidField': 'anotherValidField'
+			]
+	} // }}}
+	
+	def "Should handle special characters in remove attribute names"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				remove('field-with-dashes', 'field.with.dots')
+			}
+			
+		when:
+			def updateExpr = mapper.updateExpression()
+			def names = mapper.expressionNames()
+			
+		then:
+			updateExpr == "REMOVE #fieldwithdashes, #fieldwithdots"
+			names == [
+				'#fieldwithdashes': 'field-with-dashes',
+				'#fieldwithdots': 'field.with.dots'
+			]
+	} // }}}
 }
 // vim: fdm=marker

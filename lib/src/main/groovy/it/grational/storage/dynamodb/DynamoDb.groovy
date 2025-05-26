@@ -154,6 +154,41 @@ class DynamoDb {
 		return client.updateItem(request)
 	} // }}}
 
+	UpdateItemResponse removeAttributes (
+		String table,
+		KeyMatch key,
+		String... attributeNames
+	) { // {{{
+		log.debug (
+			String.join(", ",
+				"Removing attributes {} from item with key {}",
+				"on table {}"
+			),
+			attributeNames,
+			key,
+			table
+		)
+
+		DynamoMapper mapper = new DynamoMapper()
+		mapper.remove(attributeNames)
+
+		def builder = UpdateItemRequest
+			.builder()
+			.tableName(table)
+			.key(key.toMap())
+
+		UpdateItemRequest request = builder
+			.updateExpression (
+				mapper.updateExpression()
+			)
+			.expressionAttributeNames (
+				mapper.expressionNames()
+			)
+			.build()
+
+		return client.updateItem(request)
+	} // }}}
+
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
 		KeyMatch key,
