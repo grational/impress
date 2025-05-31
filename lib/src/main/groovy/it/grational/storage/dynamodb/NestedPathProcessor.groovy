@@ -15,7 +15,7 @@ class NestedPathProcessor {
 	static final String FILTER_ATTRIBUTE_PREFIX = "#attr_"
 
 	/**
-	 * Prefix used for attribute name placeholders in expression attribute names for KeyMatch
+	 * Prefix used for attribute name placeholders in expression attribute names for KeyFilter
 	 */
 	static final String KEY_ATTRIBUTE_PREFIX = "#"
 
@@ -45,7 +45,7 @@ class NestedPathProcessor {
 	}
 
 	/**
-	 * Processes a possibly nested field path using dot notation for KeyMatch
+	 * Processes a possibly nested field path using dot notation for KeyFilter
 	 * and returns the proper expression attribute name reference
 	 * along with the attribute name mappings
 	 *

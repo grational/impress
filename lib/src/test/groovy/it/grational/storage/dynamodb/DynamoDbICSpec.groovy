@@ -49,7 +49,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'test data'
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -111,7 +111,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'data1'
 			)
 		and:
-			KeyMatch firstKey = new KeyMatch (
+			KeyFilter firstKey = new KeyFilter (
 				firstItem.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -166,7 +166,7 @@ class DynamoDbICSpec extends Specification {
 				id: 'versioned',
 				data: 'initial data'
 			)
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -268,7 +268,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'data_index',
-				new KeyMatch('tagField', 'tag_a'),
+				new KeyFilter('tagField', 'tag_a'),
 				null,
 				TestItem
 			)
@@ -312,7 +312,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'data_index',
-				new KeyMatch('tagField', 'tag_a'),
+				new KeyFilter('tagField', 'tag_a'),
 				null,
 				TestItem
 			)
@@ -325,7 +325,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> specificResult = dynamoDb.query (
 				table,
 				'data_index',
-				new KeyMatch('tagField', 'tag_a', 'sortKey', 'sort2'),
+				new KeyFilter('tagField', 'tag_a', 'sortKey', 'sort2'),
 				null,
 				TestItem
 			)
@@ -386,7 +386,7 @@ class DynamoDbICSpec extends Specification {
 			List<ContractItem> objects = dynamoDb.query (
 				table,
 				'offer-index',
-				new KeyMatch('offer', sharedOffer),
+				new KeyFilter('offer', sharedOffer),
 				match('enabled', true),
 				ContractItem
 			)
@@ -460,7 +460,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'tag-data-index',
-				new KeyMatch (
+				new KeyFilter (
 					'tagField', 'category_a',
 					'data', 'high'
 				),
@@ -494,7 +494,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'to be deleted'
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -550,7 +550,7 @@ class DynamoDbICSpec extends Specification {
 			items.each { TestItem item ->
 				TestItem retrieved = dynamoDb.getItem (
 					table,
-					new KeyMatch('id', item.id),
+					new KeyFilter('id', item.id),
 					TestItem
 				)
 				assert retrieved         != null
@@ -586,7 +586,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			KeyMatch firstKey = new KeyMatch (
+			KeyFilter firstKey = new KeyFilter (
 				first.impress(new DynamoMapper()).key()
 			)
 
@@ -628,7 +628,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamoDb.query (
 				table,
 				'tagField-index',
-				new KeyMatch('tagField', 'tag1'),
+				new KeyFilter('tagField', 'tag1'),
 				null,
 				TestItem
 			)
@@ -651,7 +651,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> compositeResults = dynamoDb.query (
 				table,
 				'tagField-data-index',
-				new KeyMatch('tagField', 'tag1'),
+				new KeyFilter('tagField', 'tag1'),
 				null,
 				TestItem
 			)
@@ -664,7 +664,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> specificResults = dynamoDb.query (
 				table,
 				'tagField-data-index',
-				new KeyMatch('tagField', 'tag1', 'data', 'c1'),
+				new KeyFilter('tagField', 'tag1', 'data', 'c1'),
 				null,
 				TestItem
 			)
@@ -716,7 +716,7 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> results = dynamoDb.query (
 				table,
-				new KeyMatch('id', 'pk1'),
+				new KeyFilter('id', 'pk1'),
 				null,
 				TestItem
 			)
@@ -755,7 +755,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -932,7 +932,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Deleting items with partition key only'
 			int deletedCount = dynamoDb.deleteItems (
 				table,
-				new KeyMatch('id', 'del1')
+				new KeyFilter('id', 'del1')
 			)
 		then:
 			deletedCount == 1
@@ -940,7 +940,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Checking item was deleted'
 			TestItem shouldBeDeleted = dynamoDb.getItem (
 				table,
-				new KeyMatch('id', 'del1'),
+				new KeyFilter('id', 'del1'),
 				TestItem
 			)
 		then:
@@ -997,7 +997,7 @@ class DynamoDbICSpec extends Specification {
 			int deleteCount = dynamoDb.deleteItems (
 				table,
 				'tag_index',
-				new KeyMatch('tagField', 'tag_a'),
+				new KeyFilter('tagField', 'tag_a'),
 				null
 			)
 		then:
@@ -1017,7 +1017,7 @@ class DynamoDbICSpec extends Specification {
 			int filteredDeleteCount = dynamoDb.deleteItems (
 				table,
 				'tag_index',
-				new KeyMatch('tagField', 'tag_b'),
+				new KeyFilter('tagField', 'tag_b'),
 				match('enabled', true)
 			)
 		then:
@@ -1052,7 +1052,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> first = dynamoDb.query (
 				table,
 				null,
-				new KeyMatch('id', 'user1'),
+				new KeyFilter('id', 'user1'),
 				null,
 				TestItem.class,
 				pageSize
@@ -1066,7 +1066,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> second = dynamoDb.query (
 				table,
 				null,
-				new KeyMatch('id', 'user1'),
+				new KeyFilter('id', 'user1'),
 				null,
 				TestItem.class,
 				totalSize, // more than the rest
@@ -1100,7 +1100,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with forward order'
 			List<TestItem> ascending = dynamoDb.query (
 				table,
-				new KeyMatch('id', 'user1'),
+				new KeyFilter('id', 'user1'),
 				null,
 				TestItem,
 				true
@@ -1114,7 +1114,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with backward order'
 			List<TestItem> descending = dynamoDb.query(
 				table,
-				new KeyMatch('id', 'user1'),
+				new KeyFilter('id', 'user1'),
 				null,
 				TestItem,
 				false
@@ -1408,7 +1408,7 @@ class DynamoDbICSpec extends Specification {
 		then: 'Can query by primary key'
 			TestItem item = dynamoDb.getItem(
 				table,
-				new KeyMatch('id', 'user1', 'sortKey', 'record1'),
+				new KeyFilter('id', 'user1', 'sortKey', 'record1'),
 				TestItem
 			)
 			item != null
@@ -1420,7 +1420,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> userItems = dynamoDb.query(
 				table,
 				'email-index',
-				new KeyMatch('email', 'user1@example.com'),
+				new KeyFilter('email', 'user1@example.com'),
 				null,
 				TestItem
 			)
@@ -1433,7 +1433,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> activeItems = dynamoDb.query(
 				table,
 				'status-timestamp-index',
-				new KeyMatch('status', 'active'),
+				new KeyFilter('status', 'active'),
 				null,
 				TestItem
 			)
@@ -1555,7 +1555,7 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1607,7 +1607,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'some data'
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1656,7 +1656,7 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1703,7 +1703,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'test data'
 			)
 		and:
-			KeyMatch key = new KeyMatch (
+			KeyFilter key = new KeyFilter (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1729,6 +1729,402 @@ class DynamoDbICSpec extends Specification {
 			unchanged.id == 'test_id'
 			unchanged.sortKey == 'test_sort'
 			unchanged.data == 'test data'
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with sort key range conditions using greater than"() { // {{{
+		given:
+			String table = 'test_sort_range_gt'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000),
+				new TestItem(id: 'user1', sortKey: '2000', timestamp: 2000),
+				new TestItem(id: 'user1', sortKey: '3000', timestamp: 3000),
+				new TestItem(id: 'user1', sortKey: '4000', timestamp: 4000),
+				new TestItem(id: 'user2', sortKey: '1500', timestamp: 1500)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with timestamp > 2000'
+			KeyFilter rangeKey = KeyFilter.of (
+				'id', 'user1',
+				greater('sortKey', '2000')
+			)
+		and:
+			List<TestItem> results = dynamoDb.query (
+				table,
+				rangeKey,
+				null,
+				TestItem
+			)
+
+		then:
+			results.size() == 2
+			results.every { it.id == 'user1' }
+			results.every { it.timestamp > 2000 }
+			results*.timestamp.sort() == [3000, 4000]
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with sort key range conditions using between"() { // {{{
+		given:
+			String table = 'test_sort_range_between'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'game1', sortKey: '50', data: 'score50'),
+				new TestItem(id: 'game1', sortKey: '150', data: 'score150'),
+				new TestItem(id: 'game1', sortKey: '250', data: 'score250'),
+				new TestItem(id: 'game1', sortKey: '350', data: 'score350'),
+				new TestItem(id: 'game1', sortKey: '450', data: 'score450')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with score BETWEEN 100 AND 300'
+			KeyFilter rangeKey = KeyFilter.of(
+				'id', 'game1',
+				between('sortKey', '100', '300')
+			)
+			List<TestItem> results = dynamoDb.query(
+				table,
+				rangeKey,
+				null,
+				TestItem
+			)
+
+		then:
+			results.size() == 2
+			results.every { it.id == 'game1' }
+			results*.data.sort() == ['score150', 'score250']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with sort key begins_with condition"() { // {{{
+		given:
+			String table = 'test_sort_begins_with'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'user1', sortKey: 'ORDER_CREATED', data: 'order1'),
+				new TestItem(id: 'user1', sortKey: 'ORDER_CANCELLED', data: 'order2'),
+				new TestItem(id: 'user1', sortKey: 'LOGIN_SUCCESS', data: 'login1'),
+				new TestItem(id: 'user1', sortKey: 'ORDER_SHIPPED', data: 'order3'),
+				new TestItem(id: 'user1', sortKey: 'LOGOUT', data: 'logout1')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with eventType begins_with "ORDER"'
+			KeyFilter rangeKey = KeyFilter.of(
+				'id', 'user1',
+				beginsWith('sortKey', 'ORDER')
+			)
+			List<TestItem> results = dynamoDb.query(
+				table,
+				rangeKey,
+				null,
+				TestItem
+			)
+
+		then:
+			results.size() == 3
+			results.every { it.id == 'user1' }
+			results.every { it.sortKey.startsWith('ORDER') }
+			results*.data.sort() == ['order1', 'order2', 'order3']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with sort key range conditions and additional filters"() { // {{{
+		given:
+			String table = 'test_sort_range_with_filter'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000, status: 'ACTIVE', enabled: true),
+				new TestItem(id: 'user1', sortKey: '2000', timestamp: 2000, status: 'ACTIVE', enabled: false),
+				new TestItem(id: 'user1', sortKey: '3000', timestamp: 3000, status: 'INACTIVE', enabled: true),
+				new TestItem(id: 'user1', sortKey: '4000', timestamp: 4000, status: 'ACTIVE', enabled: true),
+				new TestItem(id: 'user1', sortKey: '5000', timestamp: 5000, status: 'ACTIVE', enabled: false)
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with timestamp >= 2000 AND status = ACTIVE AND enabled = true'
+			KeyFilter rangeKey = KeyFilter.of(
+				'id', 'user1',
+				greaterOrEqual('sortKey', '2000')
+			)
+			DynamoFilter additionalFilter = every(
+				match('status', 'ACTIVE'),
+				match('enabled', true)
+			)
+			List<TestItem> results = dynamoDb.query(
+				table,
+				rangeKey,
+				additionalFilter,
+				TestItem
+			)
+
+		then:
+			results.size() == 1
+			results.first().id == 'user1'
+			results.first().timestamp == 4000
+			results.first().status == 'ACTIVE'
+			results.first().enabled == true
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with complex sort key conditions using AND/OR"() { // {{{
+		given:
+			String table = 'test_sort_complex_conditions'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'store1', sortKey: 'ELECTRONICS', data: 'laptop', enabled: true),
+				new TestItem(id: 'store1', sortKey: 'BOOKS', data: 'novel', enabled: false),
+				new TestItem(id: 'store1', sortKey: 'CLOTHING', data: 'shirt', enabled: true),
+				new TestItem(id: 'store1', sortKey: 'ELECTRONICS2', data: 'phone', enabled: false),
+				new TestItem(id: 'store1', sortKey: 'FOOD', data: 'apple', enabled: true)
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with (category = ELECTRONICS AND enabled = true) OR (category = CLOTHING)'
+			DynamoFilter complexFilter = every(
+				match('id', 'store1'),
+				any(
+					every(match('sortKey', 'ELECTRONICS'), match('enabled', true)),
+					match('sortKey', 'CLOTHING')
+				)
+			)
+			List<TestItem> results = dynamoDb.scan(
+				table,
+				complexFilter,
+				TestItem
+			)
+
+		then:
+			results.size() == 2
+			results.every { it.id == 'store1' }
+			def resultData = results*.data.sort()
+			resultData == ['laptop', 'shirt']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with sort key range conditions on secondary index"() { // {{{
+		given:
+			String table = 'test_sort_range_index'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+			Index scoreIndex = Index.of('status', 'data', 'status-score-index')
+		and:
+			dynamoDb.createTable(
+				table,
+				Scalar.of(partKey),
+				Optional.of(Scalar.of(sortKey)),
+				scoreIndex
+			)
+		and:
+			def items = [
+				new TestItem(id: 'game1', sortKey: '1000', status: 'ACTIVE', timestamp: 1000, data: '100'),
+				new TestItem(id: 'game1', sortKey: '2000', status: 'ACTIVE', timestamp: 2000, data: '200'),
+				new TestItem(id: 'game1', sortKey: '3000', status: 'ACTIVE', timestamp: 3000, data: '300'),
+				new TestItem(id: 'game2', sortKey: '1500', status: 'ACTIVE', timestamp: 1500, data: '150'),
+				new TestItem(id: 'game3', sortKey: '2500', status: 'INACTIVE', timestamp: 2500, data: '250')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query index with status = ACTIVE AND score > 150'
+			KeyFilter indexKey = KeyFilter.of(
+				'status', 'ACTIVE',
+				greater('data', '150')
+			)
+			List<TestItem> results = dynamoDb.query(
+				table,
+				'status-score-index',
+				indexKey,
+				null,
+				TestItem
+			)
+
+		then:
+			results.size() == 2
+			results.every { it.status == 'ACTIVE' }
+			results*.data.sort() == ['200', '300']
+			results*.id.sort() == ['game1', 'game1']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should handle sort key less than and less than or equal conditions"() { // {{{
+		given:
+			String table = 'test_sort_less_than'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'tasks', sortKey: '1', data: 'urgent'),
+				new TestItem(id: 'tasks', sortKey: '3', data: 'high'),
+				new TestItem(id: 'tasks', sortKey: '5', data: 'medium'),
+				new TestItem(id: 'tasks', sortKey: '7', data: 'low'),
+				new TestItem(id: 'tasks', sortKey: '9', data: 'lowest')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with priority < 5'
+			KeyFilter lessThanKey = KeyFilter.of(
+				'id', 'tasks',
+				less('sortKey', '5')
+			)
+			List<TestItem> lessThanResults = dynamoDb.query(
+				table,
+				lessThanKey,
+				null,
+				TestItem
+			)
+
+		then:
+			lessThanResults.size() == 2
+			lessThanResults*.data.sort() == ['high', 'urgent']
+
+		when: 'Query with priority <= 5'
+			KeyFilter lessOrEqualKey = KeyFilter.of(
+				'id', 'tasks',
+				lessOrEqual('sortKey', '5')
+			)
+			List<TestItem> lessOrEqualResults = dynamoDb.query(
+				table,
+				lessOrEqualKey,
+				null,
+				TestItem
+			)
+
+		then:
+			lessOrEqualResults.size() == 3
+			lessOrEqualResults*.data.sort() == ['high', 'medium', 'urgent']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should maintain backward compatibility with exact sort key matching"() { // {{{
+		given:
+			String table = 'test_backward_compatibility'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000, data: 'first'),
+				new TestItem(id: 'user1', sortKey: '2000', timestamp: 2000, data: 'second'),
+				new TestItem(id: 'user1', sortKey: '3000', timestamp: 3000, data: 'third')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Traditional exact matching still works'
+			KeyFilter exactKey = new KeyFilter('id', 'user1', 'sortKey', '2000')
+			TestItem exactResult = dynamoDb.getItem(
+				table,
+				exactKey,
+				TestItem
+			)
+
+		then:
+			exactResult != null
+			exactResult.data == 'second'
+			exactResult.timestamp == 2000
+
+		when: 'Range-based exact matching (functionally equivalent)'
+			KeyFilter rangeExactKey = KeyFilter.of(
+				'id', 'user1',
+				match('sortKey', '2000')
+			)
+			List<TestItem> rangeExactResults = dynamoDb.query(
+				table,
+				rangeExactKey,
+				null,
+				TestItem
+			)
+
+		then:
+			rangeExactResults.size() == 1
+			rangeExactResults.first().data == 'second'
+			rangeExactResults.first().timestamp == 2000
+
+		and: 'Both approaches produce equivalent results'
+			exactResult.id == rangeExactResults.first().id
+			exactResult.sortKey == rangeExactResults.first().sortKey
+			exactResult.data == rangeExactResults.first().data
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with numeric sort key ranges"() { // {{{
+		given:
+			String table = 'test_numeric_sort_range'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			def items = [
+				new TestItem(id: 'game1', sortKey: '85', timestamp: 85, data: 'player1'),
+				new TestItem(id: 'game1', sortKey: '92', timestamp: 92, data: 'player2'),
+				new TestItem(id: 'game1', sortKey: '78', timestamp: 78, data: 'player3'),
+				new TestItem(id: 'game1', sortKey: '96', timestamp: 96, data: 'player4'),
+				new TestItem(id: 'game1', sortKey: '88', timestamp: 88, data: 'player5')
+			]
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with score between 80 and 95'
+			KeyFilter numericRangeKey = KeyFilter.of(
+				'id', 'game1',
+				between('sortKey', '80', '95')
+			)
+			List<TestItem> results = dynamoDb.query(
+				table,
+				numericRangeKey,
+				null,
+				TestItem
+			)
+
+		then:
+			results.size() == 3
+			results.every { it.id == 'game1' }
+			def scores = results*.timestamp.sort()
+			scores == [85, 88, 92]
+			results*.data.sort() == ['player1', 'player2', 'player5']
 
 		cleanup:
 			dynamoDb.dropTable(table)

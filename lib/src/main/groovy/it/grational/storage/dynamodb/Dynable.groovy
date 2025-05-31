@@ -55,5 +55,5 @@ abstract class Dynable
 		DynamoMapper mapper
 	)
 
-	abstract KeyMatch key()
+	abstract KeyFilter key()
 }

@@ -88,7 +88,7 @@ abstract class Dynable implements Storable<AttributeValue,Object> {
   protected Integer v = 0  // For versioning
 
   protected abstract DbMapper<AttributeValue,Object> inpress(DynamoMapper mapper)
-  abstract KeyMatch key()
+  abstract KeyFilter key()
 }
 ```
 
@@ -103,7 +103,7 @@ DynamoDb dynamo = new DynamoDb()
 // Save item
 dynamo.putItem('tableName', item)
 
-KeyMatch keyMatch = KeyMatch.of('key', 'value')
+KeyFilter keyMatch = KeyFilter.of('key', 'value')
 
 // Get item by key (specifying target class)
 Item item = dynamo.getItem (
@@ -120,6 +120,16 @@ List<DynamoMap> items = dynamo.query (
   'tableName',
   'indexName',
   keyMatch
+)
+
+// Query with sort key range conditions
+KeyFilter rangeKeyMatch = KeyFilter.of (
+  'userId', 'user123',
+  greater('timestamp', 1642681200)
+)
+List<DynamoMap> recentItems = dynamo.query (
+  'tableName',
+  rangeKeyMatch
 )
 
 DynamoFilter filters = match('otherField', 'value')
@@ -204,7 +214,7 @@ int count = dynamo.deleteItems('tableName', filter)
 dynamo.removeAttributes('tableName', keyMatch, 'attribute1', 'attribute2')
 ```
 
-### Keys and KeyMatch
+### Keys and KeyFilter
 
 These classes work together to define key structures for DynamoDB operations:
 
@@ -230,23 +240,46 @@ Optional<Scalar> sortKey = tableKeys.sort
 List<Scalar> keyAttributes = tableKeys.attributes()
 ```
 
-#### KeyMatch
+#### KeyFilter
 
-Create key conditions for DynamoDB operations:
+Create key conditions for DynamoDB operations with comprehensive type support:
 
 ```groovy
-// Partition key only
-KeyMatch key = KeyMatch.of('id', 'abc123')
+// Partition key only (various data types)
+KeyFilter stringKey = KeyFilter.of('id', 'abc123')
+KeyFilter numericKey = KeyFilter.of('id', 12345)
+KeyFilter binaryKey = KeyFilter.of('id', byteArray)
 
-// Partition and sort key
-KeyMatch compositeKey = KeyMatch.of ('userId', 'user1', 'timestamp', 1234567890)
+// Composite keys (partition + sort)
+KeyFilter compositeKey = KeyFilter.of('userId', 'user1', 'timestamp', 1234567890)
+KeyFilter mixedTypes = KeyFilter.of('userId', 'user1', 'score', 95.5)
+
+// Complex key conditions with range filters
+import static it.grational.storage.dynamodb.DynamoFilter.*
+
+// Partition key with sort key range condition
+KeyFilter rangeKey = KeyFilter.of (
+  'userId', 'user1',
+  greater('timestamp', 1642681200)  // Sort key > timestamp
+)
+
+// Partition key with sort key BETWEEN condition
+KeyFilter betweenKey = KeyFilter.of (
+  'userId', 'user1', 
+  between('timestamp', 1642681200, 1642767600)
+)
 
 // Access individual components
-KeyMatch partitionOnly = compositeKey.partition()
-Optional<KeyMatch> sortOnly = compositeKey.sort()
+KeyFilter partitionOnly = compositeKey.partition()
+Optional<KeyFilter> sortOnly = compositeKey.sort()
 
 // Convert to DynamoDB map format
 Map<String, AttributeValue> keyMap = compositeKey.toMap()
+
+// Build key condition expressions for queries
+String condition = rangeKey.condition()
+Map<String, String> names = rangeKey.conditionNames()
+Map<String, AttributeValue> values = rangeKey.conditionValues()
 ```
 
 ### DynamoFilter
@@ -335,8 +368,8 @@ class User extends Dynable {
   }
 
   @Override
-  KeyMatch key() {
-    return KeyMatch.of('id', id)
+  KeyFilter key() {
+    return KeyFilter.of('id', id)
   }
 }
 
@@ -384,10 +417,10 @@ def userWithProfile = new DynamoMap (
 dynamoDb.putItem('users', userWithProfile)
 
 // 5. Retrieve by key (specific class)
-User retrievedUser = dynamoDb.getItem('users', KeyMatch.of('id', 'user1'), User)
+User retrievedUser = dynamoDb.getItem('users', KeyFilter.of('id', 'user1'), User)
 
 // 5a. Retrieve by key (using DynamoMap)
-DynamoMap userMap = dynamoDb.getItem('users', KeyMatch.of('id', 'user1'))
+DynamoMap userMap = dynamoDb.getItem('users', KeyFilter.of('id', 'user1'))
 // Direct access to fields via @Delegate
 String username = userMap.username
 String email = userMap.email
@@ -397,7 +430,7 @@ def activeFilter = match('username', 'john')
 List<User> users = dynamoDb.query (
   'users',
   'email-index',
-  KeyMatch.of('email', 'example.com'),
+  KeyFilter.of('email', 'example.com'),
   activeFilter,
   User
 )
@@ -406,7 +439,7 @@ List<User> users = dynamoDb.query (
 List<DynamoMap> userMaps = dynamoDb.query (
   'users',
   'email-index',
-  KeyMatch.of('email', 'example.com'),
+  KeyFilter.of('email', 'example.com'),
   activeFilter
 )
 
@@ -474,7 +507,7 @@ DynamoMap now provides direct access to its internal data map through the use of
 
 ```groovy
 // Get item using default DynamoMap target class
-DynamoMap user = dynamoDb.getItem('users', KeyMatch.of('id', 'user1'))
+DynamoMap user = dynamoDb.getItem('users', KeyFilter.of('id', 'user1'))
 
 // Direct field access without using the 'data' property
 String username = user.username
@@ -596,7 +629,7 @@ Query tables using just the partition key:
 
 ```groovy
 // Create partition-only key
-KeyMatch partitionKey = key.partition()
+KeyFilter partitionKey = key.partition()
 
 // Query with partition key only
 List<Item> items = dynamoDb.query('tableName', partitionKey, Item.class)
@@ -655,13 +688,13 @@ Delete multiple items in a batch:
 // Delete items by partition key
 int deleted = dynamoDb.deleteItems (
   'users',
-  KeyMatch.of('status', 'inactive')
+  KeyFilter.of('status', 'inactive')
 )
 
 // Delete items by partition key with additional filter
 int deleted = dynamoDb.deleteItems (
   'users',
-  KeyMatch.of('status', 'inactive'), 
+  KeyFilter.of('status', 'inactive'), 
   match('lastLogin', '2022-01-01')
 )
 
@@ -669,7 +702,7 @@ int deleted = dynamoDb.deleteItems (
 int deleted = dynamoDb.deleteItems(
   'users',
   'email-index', 
-  KeyMatch.of('domain', 'example.com'), 
+  KeyFilter.of('domain', 'example.com'), 
   match('active', false)
 )
 
@@ -691,7 +724,7 @@ Query with pagination support using `PagedResult`:
 // Query with limit for pagination
 PagedResult<User> page1 = dynamoDb.query (
   'users',
-  KeyMatch.of('id', 'user1'),
+  KeyFilter.of('id', 'user1'),
   filters,
   User.class,
   5     // Limit to 5 items per page
@@ -707,7 +740,7 @@ page1.count    // Number of items in this page
 if (page1.more) {
   PagedResult<User> page2 = dynamoDb.query (
     'users',
-    KeyMatch.of('id', 'user1'),
+    KeyFilter.of('id', 'user1'),
     filters,
     User.class,
     5,          // Limit
@@ -724,7 +757,7 @@ Control the ordering of query results using the forward parameter:
 // Query with ascending order (default)
 List<Item> ascending = dynamoDb.query (
   'users',
-  KeyMatch.of('id', 'user1'),
+  KeyFilter.of('id', 'user1'),
   filters,
   Item.class,
   true     // Forward order (oldest to newest if sort key is timestamp)
@@ -733,7 +766,7 @@ List<Item> ascending = dynamoDb.query (
 // Query with descending order
 List<Item> descending = dynamoDb.query (
   'users',
-  KeyMatch.of('id', 'user1'),
+  KeyFilter.of('id', 'user1'),
   filters,
   Item.class,
   false        // Backward order (newest to oldest if sort key is timestamp)
@@ -743,7 +776,7 @@ List<Item> descending = dynamoDb.query (
 PagedResult<Item> result = dynamoDb.query (
   'users',               // Table name
   'email-index',         // Index name (optional)
-  KeyMatch.of (          // Key condition
+  KeyFilter.of (          // Key condition
     'email',
     'test@example.com'
   ),
@@ -763,21 +796,21 @@ Remove specific attributes from existing items without affecting other fields:
 // Remove single attribute
 dynamoDb.removeAttributes (
   'users',
-  KeyMatch.of('id', 'user123'),
+  KeyFilter.of('id', 'user123'),
   'temporaryField'
 )
 
 // Remove multiple attributes at once
 dynamoDb.removeAttributes (
   'users', 
-  KeyMatch.of('id', 'user123'),
+  KeyFilter.of('id', 'user123'),
   'oldField1', 'oldField2', 'deprecatedData'
 )
 
 // Works with composite keys
 dynamoDb.removeAttributes (
   'userEvents',
-  KeyMatch.of('userId', 'user123', 'timestamp', 1642681200),
+  KeyFilter.of('userId', 'user123', 'timestamp', 1642681200),
   'cachedData', 'processedFlag'
 )
 

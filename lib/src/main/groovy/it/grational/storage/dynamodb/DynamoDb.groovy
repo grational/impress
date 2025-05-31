@@ -156,7 +156,7 @@ class DynamoDb {
 
 	UpdateItemResponse removeAttributes (
 		String table,
-		KeyMatch key,
+		KeyFilter key,
 		String... attributeNames
 	) { // {{{
 		log.debug (
@@ -191,7 +191,7 @@ class DynamoDb {
 
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
-		KeyMatch key,
+		KeyFilter key,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
 		log.debug("Getting item with key: {}", key)
@@ -222,21 +222,21 @@ class DynamoDb {
 	 * of the provided composite key
 	 *
 	 * @param table The table name to query
-	 * @param key The KeyMatch representing the composite key condition
+	 * @param key The KeyFilter representing the composite key condition
 	 * @param targetClass The class to deserialize results into
 	 * @param forward Whether to sort in forward (true) or reverse (false) order
 	 * @return A list of objects of the specified target class
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
-		KeyMatch key,
+		KeyFilter key,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
 		query (
 			table,
 			null, // no index is needed
-			key.partition(),
+			key,
 			null,
 			targetClass,
 			forward
@@ -249,7 +249,7 @@ class DynamoDb {
 	 * This is a convenience method that uses the partition component of the provided key
 	 *
 	 * @param table The table name to query
-	 * @param key The KeyMatch representing the key condition
+	 * @param key The KeyFilter representing the key condition
 	 * @param filter Optional filter expression to apply to results
 	 * @param targetClass The class to deserialize results into
 	 * @param forward Whether to sort in forward (true) or reverse (false) order
@@ -257,7 +257,7 @@ class DynamoDb {
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
-		KeyMatch key,
+		KeyFilter key,
 		DynamoFilter filter,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
@@ -265,7 +265,7 @@ class DynamoDb {
 		query (
 			table,
 			null, // no index is needed
-			key.partition(),
+			key,
 			filter,
 			targetClass,
 			forward
@@ -278,7 +278,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		String index,
-		KeyMatch key,
+		KeyFilter key,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
@@ -301,7 +301,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
 		String index,
-		KeyMatch key,
+		KeyFilter key,
 		DynamoFilter filter,
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
@@ -325,7 +325,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
 		String index = null,
-		KeyMatch key,
+		KeyFilter key,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
 		int limit,
@@ -399,7 +399,7 @@ class DynamoDb {
 
 	DeleteItemResponse deleteItem (
 		String table,
-		KeyMatch key
+		KeyFilter key
 	) { // {{{
 		log.debug("Deleting item with key: {}", key)
 
@@ -633,7 +633,7 @@ class DynamoDb {
 	 */
 	int deleteItems (
 		String table,
-		KeyMatch key,
+		KeyFilter key,
 		DynamoFilter filter = null
 	) { // {{{
 		deleteItems(table, null, key, filter)
@@ -651,7 +651,7 @@ class DynamoDb {
 	int deleteItems (
 		String table,
 		String index,
-		KeyMatch key,
+		KeyFilter key,
 		DynamoFilter filter = null
 	) { // {{{
 		log.debug (
