@@ -71,8 +71,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		String k,
 		String... ls
 	) {
-		if (!ls) return this
-		List<AttributeValue> fromSs = ( 
+		List<AttributeValue> fromSs = (
 			ls?.findResults { String s -> if(s) fromS(s) } ?: []
 		) as List<AttributeValue>
 		map[k] = fromL(fromSs)
@@ -84,7 +83,6 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		String k,
 		Number... ln
 	) {
-		if (!ln) return this
 		List<AttributeValue> fromNs = (
 			ln?.findResults { Number n -> if(n) fromN(n.toString()) } ?: []
 		) as List<AttributeValue>
