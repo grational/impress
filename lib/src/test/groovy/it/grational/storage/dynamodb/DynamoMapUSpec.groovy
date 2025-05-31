@@ -138,7 +138,7 @@ class DynamoMapUSpec extends Specification {
 			listAttr.l()[1].m().get('value').n() == '20'
 	}
 
-	def "Should handle empty lists gracefully"() {
+	def "Should preserve empty lists as empty L attributes"() {
 		setup:
 			Map<String, Object> data = [
 				emptyList: []
@@ -149,7 +149,35 @@ class DynamoMapUSpec extends Specification {
 
 		then:
 			def storedMap = impressed.storer(false)
-			!storedMap.containsKey('emptyList')
+			storedMap.containsKey('emptyList')
+			storedMap.get('emptyList').type() == AttributeValue.Type.L
+			storedMap.get('emptyList').l().isEmpty()
+	}
+
+	def "Should preserve multiple empty lists like targetIndustries and targetRegions"() {
+		setup:
+			Map<String, Object> data = [
+				targetIndustries: [],
+				targetRegions: [],
+				name: 'Test Company'
+			]
+
+		when:
+			def impressed = new DynamoMap(data).impress()
+
+		then:
+			def storedMap = impressed.storer(false)
+			verifyAll(storedMap) {
+				containsKey('targetIndustries')
+				get('targetIndustries').type() == AttributeValue.Type.L
+				get('targetIndustries').l().isEmpty()
+				
+				containsKey('targetRegions')
+				get('targetRegions').type() == AttributeValue.Type.L
+				get('targetRegions').l().isEmpty()
+				
+				get('name').s() == 'Test Company'
+			}
 	}
 
 	def "Should handle mixed data types in the same map"() {

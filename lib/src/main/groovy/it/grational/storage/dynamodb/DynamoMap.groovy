@@ -69,8 +69,10 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					break
 				case List:
 					List lv = v as List<Object>
-					if (lv.isEmpty())
+					if (lv.isEmpty()) {
+						mapper.with(k, [] as String[])
 						break
+					}
 					switch (lv[0]) {
 						case String:
 							mapper.with(k, lv as String[])
@@ -80,7 +82,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 							break
 						case Map:
 							List<DbMapper<AttributeValue,Object>> mappers = lv.collect { Object item ->
-								new DynamoMap(item as Map<String,Object>).impress(
+								new DynamoMap(item as Map<String,Object>).impress (
 									new DynamoMapper(),
 									versioned
 								)
