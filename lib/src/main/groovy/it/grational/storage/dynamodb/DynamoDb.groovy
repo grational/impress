@@ -216,7 +216,7 @@ class DynamoDb {
 
 
 	/**
-	 * Query a table using just a partition key
+	 * Query a table using just a partition key - returns all results with automatic pagination
 	 *
 	 * Just a convenience method using the partition key 
 	 * of the provided composite key
@@ -233,7 +233,7 @@ class DynamoDb {
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		query (
+		return queryAll (
 			table,
 			null, // no index is needed
 			key,
@@ -244,7 +244,7 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Query a table using just a partition key
+	 * Query a table using just a partition key - returns all results with automatic pagination
 	 *
 	 * This is a convenience method that uses the partition component of the provided key
 	 *
@@ -262,7 +262,7 @@ class DynamoDb {
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		query (
+		return queryAll (
 			table,
 			null, // no index is needed
 			key,
@@ -273,7 +273,7 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Query objects using an index (no filters version)
+	 * Query objects using an index (no filters version) - returns all results with automatic pagination
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
@@ -282,21 +282,18 @@ class DynamoDb {
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		PagedResult<T> paged = query (
+		return queryAll (
 			table,
 			index,
 			key,
 			null,
 			targetClass,
-			0,
-			null,
 			forward
 		)
-		return paged.items
 	} // }}}
 
 	/**
-	 * Query objects using an index (with filters version)
+	 * Query objects using an index (with filters version) - returns all results with automatic pagination
 	 */
 	<T extends Storable<AttributeValue,Object>> List<T> query (
 		String table,
@@ -306,21 +303,110 @@ class DynamoDb {
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
-		PagedResult<T> paged = query (
+		return queryAll (
 			table,
 			index,
 			key,
 			filter,
 			targetClass,
-			0,
-			null,
 			forward
 		)
-		return paged.items
+	} // }}}
+
+
+	/**
+	 * Convenience methods for query with PagedResult return type
+	 */
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
+		String table,
+		KeyFilter key,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return query (
+			table,
+			null, // no index
+			key,
+			null, // no filter
+			targetClass,
+			limit,
+			null, // no last key
+			true  // forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
+		String table,
+		String index,
+		KeyFilter key,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return query (
+			table,
+			index,
+			key,
+			null, // no filter
+			targetClass,
+			limit,
+			null, // no last key
+			true  // forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
+		String table,
+		KeyFilter key,
+		DynamoFilter filter,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return query (
+			table,
+			null, // no index
+			key,
+			filter,
+			targetClass,
+			limit,
+			null, // no last key
+			true  // forward
+		)
 	} // }}}
 
 	/**
-	 * Complete version of query with all parameters
+	 * Helper method to retrieve all results by automatically handling pagination
+	 */
+	private <T extends Storable<AttributeValue,Object>> List<T> queryAll (
+		String table,
+		String index = null,
+		KeyFilter key,
+		DynamoFilter filter = null,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		List<T> results = []
+		Map<String, AttributeValue> lastEvaluatedKey = [:]
+		do {
+			PagedResult<T> paged = query (
+				table,
+				index,
+				key,
+				filter,
+				targetClass,
+				0,
+				lastEvaluatedKey,
+				forward
+			)
+			results.addAll(paged.items)
+			lastEvaluatedKey = paged.last
+		} while(lastEvaluatedKey)
+		
+		return results
+	} // }}}
+
+	/**
+	 * Complete version of query with all parameters - returns PagedResult for manual pagination control
+	 * Note: limit parameter is required to distinguish from List<T> query methods
 	 */
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,

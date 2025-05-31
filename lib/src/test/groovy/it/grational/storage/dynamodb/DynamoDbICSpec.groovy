@@ -1051,9 +1051,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using limit parameter'
 			PagedResult<TestItem> first = dynamoDb.query (
 				table,
-				null,
 				new KeyFilter('id', 'user1'),
-				null,
 				TestItem.class,
 				pageSize
 			)
@@ -1070,7 +1068,8 @@ class DynamoDbICSpec extends Specification {
 				null,
 				TestItem.class,
 				totalSize, // more than the rest
-				first.last
+				first.last,
+				true
 			)
 
 		then:
@@ -2125,6 +2124,190 @@ class DynamoDbICSpec extends Specification {
 			def scores = results*.timestamp.sort()
 			scores == [85, 88, 92]
 			results*.data.sort() == ['player1', 'player2', 'player5']
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should automatically retrieve all results with query method using pagination"() { // {{{
+		given:
+			String table = 'test_auto_pagination'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and: 'Create enough items to require multiple pages'
+			List<TestItem> items = (1..15).collect { int i ->
+				new TestItem(
+					id: 'user1',
+					sortKey: String.format('%03d', i),
+					data: "data${i}"
+				)
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Use query method (which should automatically paginate)'
+			List<TestItem> allResults = dynamoDb.query(
+				table,
+				new KeyFilter('id', 'user1'),
+				null,
+				TestItem
+			)
+
+		then: 'All items should be retrieved'
+			allResults.size() == 15
+			allResults.every { it.id == 'user1' }
+			allResults*.sortKey.sort() == (1..15).collect { String.format('%03d', it) }
+
+		when: 'Use query method for manual pagination control'
+			PagedResult<TestItem> firstPage = dynamoDb.query(
+				table,
+				new KeyFilter('id', 'user1'),
+				TestItem,
+				5  // limit
+			)
+
+		then: 'Only first page should be returned'
+			firstPage.items.size() == 5
+			firstPage.more == true
+			firstPage.last != null
+
+		when: 'Get second page'
+			PagedResult<TestItem> secondPage = dynamoDb.query(
+				table,
+				null, // no index
+				new KeyFilter('id', 'user1'),
+				null, // no filter
+				TestItem,
+				5,  // limit
+				firstPage.last,
+				true // forward
+			)
+
+		then: 'Second page should have items and continue pagination'
+			secondPage.items.size() == 5
+			secondPage.more == true
+			secondPage.last != null
+
+		when: 'Get remaining items'
+			PagedResult<TestItem> thirdPage = dynamoDb.query(
+				table,
+				null, // no index
+				new KeyFilter('id', 'user1'),
+				null, // no filter
+				TestItem,
+				10,  // limit (more than remaining)
+				secondPage.last,
+				true // forward
+			)
+
+		then: 'Last page should have remaining items'
+			thirdPage.items.size() == 5
+			thirdPage.more == false
+			thirdPage.last == null || thirdPage.last.isEmpty()
+
+		and: 'Combined pages should equal auto-paginated results'
+			def manualResults = firstPage.items + secondPage.items + thirdPage.items
+			manualResults.size() == allResults.size()
+			manualResults*.sortKey.sort() == allResults*.sortKey.sort()
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should automatically retrieve all results with query using index and pagination"() { // {{{
+		given:
+			String table = 'test_auto_pagination_index'
+			String partKey = 'id'
+			Map<String, String> indexes = [
+				'status_index': 'status'
+			]
+		and:
+			dynamoDb.createTable(table, partKey, null, indexes)
+		and: 'Create enough items to require multiple pages'
+			List<TestItem> items = (1..12).collect { int i ->
+				new TestItem(
+					id: "item${i}",
+					status: 'ACTIVE',
+					data: "data${i}"
+				)
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Use query method with index (should automatically paginate)'
+			List<TestItem> allResults = dynamoDb.query(
+				table,
+				'status_index',
+				new KeyFilter('status', 'ACTIVE'),
+				null,
+				TestItem
+			)
+
+		then: 'All items should be retrieved'
+			allResults.size() == 12
+			allResults.every { it.status == 'ACTIVE' }
+
+		when: 'Use query method with index for manual pagination'
+			PagedResult<TestItem> pagedResult = dynamoDb.query(
+				table,
+				'status_index',
+				new KeyFilter('status', 'ACTIVE'),
+				TestItem,
+				5  // limit
+			)
+
+		then: 'Only limited items should be returned'
+			pagedResult.items.size() == 5
+			pagedResult.more == true
+			pagedResult.last != null
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should automatically retrieve all results with filters and pagination"() { // {{{
+		given:
+			String table = 'test_auto_pagination_filter'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and: 'Create items with mixed enabled status'
+			List<TestItem> items = (1..20).collect { int i ->
+				new TestItem(
+					id: 'user1',
+					sortKey: String.format('%03d', i),
+					data: "data${i}",
+					enabled: (i % 2 == 0)  // every other item enabled
+				)
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Use query method with filter (should automatically paginate)'
+			List<TestItem> enabledResults = dynamoDb.query(
+				table,
+				new KeyFilter('id', 'user1'),
+				match('enabled', true),
+				TestItem
+			)
+
+		then: 'Only enabled items should be retrieved'
+			enabledResults.size() == 10  // half the items
+			enabledResults.every { it.enabled == true }
+			enabledResults.every { it.id == 'user1' }
+
+		when: 'Use query method with filter for manual pagination'
+			PagedResult<TestItem> pagedFiltered = dynamoDb.query(
+				table,
+				new KeyFilter('id', 'user1'),
+				match('enabled', true),
+				TestItem,
+				3  // small limit
+			)
+
+		then: 'Only limited filtered items should be returned'
+			pagedFiltered.items.size() <= 3
+			pagedFiltered.items.every { it.enabled == true }
 
 		cleanup:
 			dynamoDb.dropTable(table)

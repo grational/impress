@@ -8,6 +8,16 @@ A Groovy library leveraging the impression pattern for object persistence with a
 
 Impress provides a way to store objects in various storage backends using the impression pattern. The current implementation is focused on the NoSQL AWS DynamoDB, offering a clean mapping system that converts domain objects to storage formats and back.
 
+## Recent Changes
+
+### Pagination Enhancement
+The `query()` methods now offer two distinct approaches for handling pagination, distinguished by their return type:
+
+- **Automatic Pagination**: `query()` methods returning `List<T>` automatically retrieve **all** results by handling pagination internally. You no longer need to manually manage `lastEvaluatedKey` for most use cases.
+- **Manual Pagination Control**: `query()` methods returning `PagedResult<T>` provide fine-grained control over pagination when you specify a `limit` parameter. These are perfect for managing large datasets or implementing UI pagination.
+
+This elegant approach maintains backward compatibility while providing the flexibility to choose the right pagination strategy simply based on how you call the method.
+
 ## Stability
 Every version of the library has been thouroughly tested but the API interface could be subject to changes due to the active devlopment following the integration of missing features.
 
@@ -115,11 +125,21 @@ Item item = dynamo.getItem (
 // Get item by key (using DynamoMap as default)
 DynamoMap map = dynamo.getItem('tableName', keyMatch)
 
-// Query by index (no filters nor target class)
+// Query by index - automatic pagination (gets ALL results)
 List<DynamoMap> items = dynamo.query (
   'tableName',
   'indexName',
   keyMatch
+)
+
+// Query by index - manual pagination control (requires limit parameter)
+PagedResult<DynamoMap> pagedItems = dynamo.query (
+  'tableName',
+  'indexName',
+  keyMatch,
+  null,      // no filter
+  DynamoMap.class,
+  10         // limit to 10 items per page
 )
 
 // Query with sort key range conditions
@@ -159,7 +179,16 @@ List<Item> items = dynamo.query (
   Item.class
 )
 
-// Query with paged results (new feature!)
+// Query with automatic pagination - retrieves ALL results
+List<Item> allItems = dynamo.query (
+  'tableName',
+  'indexName',
+  keyMatch,
+  filters,
+  Item.class
+)
+
+// Query with manual pagination control (specify limit for PagedResult)
 PagedResult<Item> paged = dynamo.query (
   'tableName',
   'indexName',
@@ -168,7 +197,7 @@ PagedResult<Item> paged = dynamo.query (
   Item.class,
   limit
 )
-paged.items    // List of items
+paged.items    // List of items in this page
 paged.more     // Are there more results?
 paged.last     // Last evaluated key for next page
 paged.count    // Number of items in current page
@@ -716,37 +745,151 @@ int deleted = dynamoDb.deleteItems (
 )
 ```
 
-### Paginated Queries
+### Pagination Support
 
-Query with pagination support using `PagedResult`:
+The library offers two pagination approaches using the same `query()` method name, distinguished by return type and parameters:
+
+#### Automatic Pagination (Returns List<T>)
+
+Use `query()` methods without a `limit` parameter to automatically retrieve **all** results. The library handles pagination internally by calling DynamoDB multiple times until all data is retrieved:
 
 ```groovy
-// Query with limit for pagination
+// Automatically retrieves ALL results - no pagination handling needed
+List<User> allUsers = dynamoDb.query (
+  'users',
+  KeyFilter.of('status', 'active'),
+  filters,
+  User.class
+)
+
+// Works with indexes too - gets ALL matching results
+List<User> allActiveUsers = dynamoDb.query (
+  'users',
+  'status-index',
+  KeyFilter.of('status', 'active'),
+  filters,
+  User.class
+)
+
+// Perfect for small to medium result sets where you need all data
+List<User> recentUsers = dynamoDb.query (
+  'users',
+  KeyFilter.of (
+    'userId', 'user123',
+    greater('timestamp', yesterdayTimestamp)
+  ),
+  User.class
+)
+```
+
+#### Manual Pagination Control (Returns PagedResult<T>)
+
+Use `query()` methods with a `limit` parameter when you need fine-grained pagination control:
+
+```groovy
+// Query with limit for manual pagination
 PagedResult<User> page1 = dynamoDb.query (
   'users',
-  KeyFilter.of('id', 'user1'),
+  KeyFilter.of('userId', 'user123'),
   filters,
   User.class,
   5     // Limit to 5 items per page
 )
 
 // Access results
-page1.items    // List of User objects
+page1.items    // List of User objects in this page
 page1.more     // true if more results available
 page1.last     // Last evaluated key for next page
-page1.count    // Number of items in this page
+page1.count    // Number of items in this page (5 or fewer)
 
 // Get next page if more results exist
 if (page1.more) {
   PagedResult<User> page2 = dynamoDb.query (
     'users',
-    KeyFilter.of('id', 'user1'),
+    KeyFilter.of('userId', 'user123'),
     filters,
     User.class,
     5,          // Limit
     page1.last  // Last evaluated key from previous page
   )
 }
+
+// Continue until no more pages
+def allPages = []
+PagedResult<User> currentPage = page1
+while (currentPage != null) {
+  allPages.addAll(currentPage.items)
+  if (currentPage.more) {
+    currentPage = dynamoDb.query (
+      'users',
+      KeyFilter.of('userId', 'user123'),
+      filters,
+      User.class,
+      5,
+      currentPage.last
+    )
+  } else {
+    currentPage = null
+  }
+}
+```
+
+#### When to Use Each Approach
+
+**Use Automatic Pagination (`query()` returning `List<T>`) when:**
+- You need all results from a query
+- Working with small to medium result sets (up to a few thousand items)
+- Simplicity is preferred over performance optimization
+- You don't need to display results incrementally
+
+**Use Manual Pagination (`query()` with `limit` returning `PagedResult<T>`) when:**
+- Working with large result sets that might cause memory issues
+- Implementing UI pagination (showing page 1, 2, 3, etc.)
+- You need to process results in chunks
+- Performance optimization is critical
+- You want to limit the number of DynamoDB requests
+
+#### Common Pagination Patterns
+
+```groovy
+// The key difference: presence of limit parameter determines return type
+// No limit = List<T> (automatic pagination, gets all results)
+// With limit = PagedResult<T> (manual pagination, controlled chunks)
+
+// Pattern 1: Load all for dropdown/selection lists
+List<Category> allCategories = dynamoDb.query(
+  'categories',
+  KeyFilter.of('type', 'active'),
+  Category.class  // No limit = gets ALL categories automatically
+)
+
+// Pattern 2: UI pagination for large datasets  
+PagedResult<Order> ordersPage = dynamoDb.query(
+  'orders',
+  'customer-index',
+  KeyFilter.of('customerId', customerId),
+  Order.class,
+  pageSize  // With limit = gets PagedResult for manual control
+)
+
+// Pattern 3: Processing large datasets in chunks
+PagedResult<Transaction> transactions = null
+Map<String, AttributeValue> lastKey = null
+do {
+  transactions = dynamoDb.query(
+    'transactions',
+    KeyFilter.of('accountId', accountId),
+    null,
+    Transaction.class, 
+    100,  // Process 100 at a time
+    lastKey
+  )
+  
+  // Process this batch
+  processTransactions(transactions.items)
+  lastKey = transactions.last
+  
+} while (transactions.more)
 ```
 
 ### Query Ordering
