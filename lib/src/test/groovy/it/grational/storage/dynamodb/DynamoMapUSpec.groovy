@@ -180,6 +180,42 @@ class DynamoMapUSpec extends Specification {
 			}
 	}
 
+	def "Should handle list of maps with scalar values"() {
+		setup:
+			Map<String, Object> data = [
+				monthInfos: [
+					[monthName: 'MAY'],
+					[monthName: 'JUNE'],
+					[monthName: 'JULY'],
+					[monthName: 'AUGUST']
+				]
+			]
+		and:
+			def expected = new DynamoMapper().tap {
+				def monthMappers = [
+					new DynamoMapper().tap { with('monthName', 'MAY') },
+					new DynamoMapper().tap { with('monthName', 'JUNE') },
+					new DynamoMapper().tap { with('monthName', 'JULY') },
+					new DynamoMapper().tap { with('monthName', 'AUGUST') }
+				]
+				with('monthInfos', false, monthMappers as DynamoMapper[])
+			}
+
+		when:
+			def impressed = new DynamoMap(data).impress()
+
+		then:
+			def storedMap = impressed.storer(false)
+		and:
+			def listAttr = storedMap.get('monthInfos')
+			listAttr.type() == AttributeValue.Type.L
+			listAttr.l().size() == 4
+			listAttr.l()[0].m().get('monthName').s() == 'MAY'
+			listAttr.l()[1].m().get('monthName').s() == 'JUNE'
+			listAttr.l()[2].m().get('monthName').s() == 'JULY'
+			listAttr.l()[3].m().get('monthName').s() == 'AUGUST'
+	}
+
 	def "Should handle versioning correctly"() {
 		setup:
 			def nestedStorable = new DynamoMap([field: 'value'])

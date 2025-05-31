@@ -78,6 +78,15 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 						case Number:
 							mapper.with(k, lv as Number[])
 							break
+						case Map:
+							List<DbMapper<AttributeValue,Object>> mappers = lv.collect { Object item ->
+								new DynamoMap(item as Map<String,Object>).impress(
+									new DynamoMapper(),
+									versioned
+								)
+							}
+							mapper.with(k, versioned, mappers as DbMapper[])
+							break
 						case DbMapper:
 							mapper.with (
 								k,
