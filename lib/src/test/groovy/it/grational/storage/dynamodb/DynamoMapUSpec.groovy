@@ -174,8 +174,8 @@ class DynamoMapUSpec extends Specification {
 				get('string').s() == 'text'
 				get('number').n() == '42'
 				get('boolean').bool() == true
-				get('stringList').ss() == ['a', 'b', 'c']
-				get('numberList').ns() == ['1', '2', '3']
+				get('stringList').l()*.s() == ['a', 'b', 'c']
+				get('numberList').l()*.n() == ['1', '2', '3']
 				get('nested').m() == nestedMapper.storer(false)
 			}
 	}

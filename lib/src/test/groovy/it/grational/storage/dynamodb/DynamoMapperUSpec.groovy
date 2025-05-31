@@ -22,8 +22,8 @@ class DynamoMapperUSpec extends Specification {
 				string:    fromS('value'),
 				number:    fromN('1'),
 				boolean:   fromBool(true),
-				stringSet: fromSs(['value1', 'value2']),
-				numberSet: fromNs(['1', '2']),
+				stringSet: fromL([fromS('value1'), fromS('value2')]),
+				numberSet: fromL([fromN('1'), fromN('2')]),
 				nullValue: fromNul(true)
 			]
 	} // }}}
@@ -49,8 +49,8 @@ class DynamoMapperUSpec extends Specification {
 					string:    fromS('value'),
 					number:    fromN('1'),
 					boolean:   fromBool(true),
-					stringSet: fromSs(['value1', 'value2']),
-					numberSet: fromNs(['1', '2'])
+					stringSet: fromL([fromS('value1'), fromS('value2')]),
+					numberSet: fromL([fromN('1'), fromN('2')])
 				])
 			]
 	} // }}}
@@ -61,8 +61,8 @@ class DynamoMapperUSpec extends Specification {
 				string:    fromS('value'),
 				number:    fromN('1'),
 				boolean:   fromBool(true),
-				stringSet: fromSs(['value1', 'value2']),
-				numberSet: fromNs(['1', '2'])
+				stringSet: fromL([fromS('value1'), fromS('value2')]),
+				numberSet: fromL([fromN('1'), fromN('2')])
 			]
 
 		when:
@@ -85,8 +85,8 @@ class DynamoMapperUSpec extends Specification {
 					string:    fromS('value'),
 					number:    fromN('1'),
 					boolean:   fromBool(true),
-					stringSet: fromSs(['value1', 'value2']),
-					numberSet: fromNs(['1', '2'])
+					stringSet: fromL([fromS('value1'), fromS('value2')]),
+					numberSet: fromL([fromN('1'), fromN('2')])
 				])
 			]
 
