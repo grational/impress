@@ -194,14 +194,26 @@ class DynamoDb {
 		KeyFilter key,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
-		log.debug("Getting item with key: {}", key)
+		getItem(table, key, null, targetClass)
+	} // }}}
 
-		def getItemRequest = GetItemRequest
+	<T extends Storable<AttributeValue,Object>> T getItem (
+		String table,
+		KeyFilter key,
+		List<String> fields,
+		Class<T> targetClass = DynamoMap.class
+	) { // {{{
+		log.debug("Getting item with key: {} and projection: {}", key, fields)
+
+		def getItemRequestBuilder = GetItemRequest
 			.builder()
 			.tableName(table)
 			.key(key.toMap())
-			.build()
 
+		if ( fields )
+			getItemRequestBuilder.projectionExpression(fields.join(', '))
+
+		def getItemRequest = getItemRequestBuilder.build()
 		def response = client.getItem(getItemRequest)
 
 		if (!response.hasItem()) {
@@ -238,6 +250,25 @@ class DynamoDb {
 			null, // no index is needed
 			key,
 			null,
+			null, // no projection
+			targetClass,
+			forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		KeyFilter key,
+		List<String> fields,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		return queryAll (
+			table,
+			null, // no index is needed
+			key,
+			null, // no filter
+			fields,
 			targetClass,
 			forward
 		)
@@ -267,6 +298,26 @@ class DynamoDb {
 			null, // no index is needed
 			key,
 			filter,
+			null, // no projection
+			targetClass,
+			forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		KeyFilter key,
+		List<String> fields,
+		DynamoFilter filter,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		return queryAll (
+			table,
+			null, // no index is needed
+			key,
+			filter,
+			fields,
 			targetClass,
 			forward
 		)
@@ -287,6 +338,26 @@ class DynamoDb {
 			index,
 			key,
 			null,
+			null, // no projection
+			targetClass,
+			forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		String index,
+		KeyFilter key,
+		List<String> fields,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		return queryAll (
+			table,
+			index,
+			key,
+			null, // no filter
+			fields,
 			targetClass,
 			forward
 		)
@@ -308,6 +379,27 @@ class DynamoDb {
 			index,
 			key,
 			filter,
+			null, // no projection
+			targetClass,
+			forward
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> query (
+		String table,
+		String index,
+		KeyFilter key,
+		List<String> fields,
+		DynamoFilter filter,
+		Class<T> targetClass = DynamoMap.class,
+		boolean forward = true
+	) { // {{{
+		return queryAll (
+			table,
+			index,
+			key,
+			filter,
+			fields,
 			targetClass,
 			forward
 		)
@@ -328,6 +420,7 @@ class DynamoDb {
 			null, // no index
 			key,
 			null, // no filter
+			null, // no projection
 			targetClass,
 			limit,
 			null, // no last key
@@ -347,6 +440,7 @@ class DynamoDb {
 			index,
 			key,
 			null, // no filter
+			null, // no projection
 			targetClass,
 			limit,
 			null, // no last key
@@ -366,6 +460,7 @@ class DynamoDb {
 			null, // no index
 			key,
 			filter,
+			null, // no projection
 			targetClass,
 			limit,
 			null, // no last key
@@ -381,6 +476,7 @@ class DynamoDb {
 		String index = null,
 		KeyFilter key,
 		DynamoFilter filter = null,
+		List<String> fields = [],
 		Class<T> targetClass = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
@@ -392,6 +488,7 @@ class DynamoDb {
 				index,
 				key,
 				filter,
+				fields,
 				targetClass,
 				0,
 				lastEvaluatedKey,
@@ -410,13 +507,27 @@ class DynamoDb {
 	 */
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
-		String index = null,
+		String index,
 		KeyFilter key,
-		DynamoFilter filter = null,
-		Class<T> targetClass = DynamoMap.class,
+		DynamoFilter filter,
+		Class<T> targetClass,
 		int limit,
-		Map<String, AttributeValue> last = null,
-		boolean forward = true
+		Map<String, AttributeValue> last,
+		boolean forward
+	) { // {{{
+		return query(table, index, key, filter, null, targetClass, limit, last, forward)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
+		String table,
+		String index,
+		KeyFilter key,
+		DynamoFilter filter,
+		List<String> fields,
+		Class<T> targetClass,
+		int limit,
+		Map<String, AttributeValue> last,
+		boolean forward
 	) { // {{{
 		log.debug (
 			String.join(", ",
@@ -424,6 +535,7 @@ class DynamoDb {
 				"index: {}",
 				"key: {}",
 				"filter: {}",
+				"projection: {}",
 				"limit: {}",
 				"last: {}",
 				"forward: {}"
@@ -432,6 +544,7 @@ class DynamoDb {
 			index,
 			key,
 			filter,
+			fields,
 			limit,
 			last,
 			forward
@@ -458,6 +571,9 @@ class DynamoDb {
 
 		if ( filter )
 			queryBuilder.filterExpression(filter.expression)
+
+		if ( fields )
+			queryBuilder.projectionExpression(fields.join(', '))
 
 		if ( limit > 0 )
 			queryBuilder.limit(limit)

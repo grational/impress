@@ -2313,6 +2313,181 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should retrieve item with projection to select specific fields"() { // {{{
+		given:
+			String table = 'test_projection_get'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			TestItem item = new TestItem (
+				id: 'proj1',
+				data: 'sensitive data',
+				tagField: 'public tag',
+				enabled: true
+			)
+		and:
+			KeyFilter key = new KeyFilter (
+				item.impress(new DynamoMapper()).key()
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		when: 'Retrieve item with projection for specific fields'
+			DynamoMap projectedItem = dynamoDb.getItem (
+				table,
+				key,
+				['id', 'tagField'],
+				DynamoMap
+			)
+
+		then: 'Only projected fields should be returned'
+			projectedItem != null
+			projectedItem.id == 'proj1'
+			projectedItem.tagField == 'public tag'
+			projectedItem.data == null
+			projectedItem.enabled == null   // not projected, so null
+			projectedItem.version == null   // not projected
+
+		when: 'Retrieve item without projection'
+			TestItem fullItem = dynamoDb.getItem (
+				table,
+				key,
+				TestItem
+			)
+
+		then: 'All fields should be returned'
+			fullItem != null
+			fullItem.id == 'proj1'
+			fullItem.data == 'sensitive data'
+			fullItem.tagField == 'public tag'
+			fullItem.enabled == true
+			fullItem.version == 1
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with projection to select specific fields"() { // {{{
+		given:
+			String table = 'test_projection_query'
+			String partKey = 'id'
+			String sortKey = 'sortKey'
+		and:
+			dynamoDb.createTable(table, partKey, sortKey)
+		and:
+			List<TestItem> items = [
+				new TestItem (
+					id: 'user1',
+					sortKey: 'rec1',
+					data: 'secret info',
+					tagField: 'public',
+					enabled: true
+				),
+				new TestItem (
+					id: 'user1',
+					sortKey: 'rec2',
+					data: 'confidential',
+					tagField: 'open',
+					enabled: false
+				)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Query with projection for specific fields'
+			List<DynamoMap> projectedItems = dynamoDb.query (
+				table,
+				new KeyFilter('id', 'user1'),
+				['id', 'sortKey', 'tagField'],
+				null,
+				DynamoMap
+			)
+
+		then: 'Only projected fields should be returned'
+			projectedItems.size() == 2
+			projectedItems.every { item ->
+				item.id == 'user1' &&
+				item.sortKey in ['rec1', 'rec2'] &&
+				item.tagField in ['public', 'open'] &&
+				item.data == null &&
+				item.enabled == null &&
+				item.version == null
+			}
+
+		when: 'Query without projection'
+			List<TestItem> fullItems = dynamoDb.query (
+				table,
+				new KeyFilter('id', 'user1'),
+				null,
+				TestItem
+			)
+
+		then: 'All fields should be returned'
+			fullItems.size() == 2
+			fullItems.every { item ->
+				item.id == 'user1' &&
+				item.sortKey in ['rec1', 'rec2'] &&
+				item.data in ['secret info', 'confidential'] &&
+				item.tagField in ['public', 'open'] &&
+				item.version == 1
+			}
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should query with projection using index"() { // {{{
+		given:
+			String table = 'test_projection_query_index'
+			String partKey = 'id'
+			Map<String, String> indexes = [
+				'tag_index': 'tagField'
+			]
+		and:
+			dynamoDb.createTable(table, partKey, null, indexes)
+		and:
+			List<TestItem> items = [
+				new TestItem (
+					id: 'item1',
+					tagField: 'category_a',
+					data: 'private data',
+					enabled: true
+				),
+				new TestItem (
+					id: 'item2',
+					tagField: 'category_a',
+					data: 'more private',
+					enabled: false
+				)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Query index with projection'
+			List<DynamoMap> projectedResults = dynamoDb.query (
+				table,
+				'tag_index',
+				new KeyFilter('tagField', 'category_a'),
+				['id', 'tagField'],
+				null,
+				DynamoMap
+			)
+
+		then: 'Only projected fields should be returned'
+			projectedResults.size() == 2
+			projectedResults.every { item ->
+				item.tagField == 'category_a' &&
+				item.id in ['item1', 'item2'] &&
+				item.data == null &&
+				item.enabled == null &&
+				item.version == null
+			}
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	static class TestItem // {{{
 		implements Storable<AttributeValue,String> {
 		String id

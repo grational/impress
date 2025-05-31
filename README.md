@@ -10,6 +10,16 @@ Impress provides a way to store objects in various storage backends using the im
 
 ## Recent Changes
 
+### Field Projection Support
+Both `getItem()` and `query()` methods now support field projection to retrieve only specific fields from DynamoDB:
+
+- **Reduced Data Transfer**: Specify exactly which fields to retrieve using projection parameters
+- **Cost Optimization**: Lower read capacity consumption when projecting smaller field sets
+- **Performance Improvement**: Faster response times with smaller payloads
+- **Security**: Exclude sensitive fields from query results
+
+The projection feature maintains full backward compatibility - existing code continues to work without changes.
+
 ### Pagination Enhancement
 The `query()` methods now offer two distinct approaches for handling pagination, distinguished by their return type:
 
@@ -124,6 +134,13 @@ Item item = dynamo.getItem (
 
 // Get item by key (using DynamoMap as default)
 DynamoMap map = dynamo.getItem('tableName', keyMatch)
+
+// Get item with field projection (only specific fields)
+DynamoMap partialMap = dynamo.getItem (
+  'tableName',
+  keyMatch,
+  ['id', 'name', 'email']  // Only retrieve these fields
+)
 
 // Query by index - automatic pagination (gets ALL results)
 List<DynamoMap> items = dynamo.query (
@@ -930,6 +947,111 @@ PagedResult<Item> result = dynamoDb.query (
   false                  // Backward order (newest first)
 )
 ```
+
+### Field Projection
+
+Control which fields are retrieved from DynamoDB to reduce data transfer and improve performance:
+
+```groovy
+// GetItem with projection - retrieve only specific fields
+DynamoMap user = dynamoDb.getItem (
+  'users',
+  KeyFilter.of('id', 'user123'),
+  ['id', 'email', 'username'],  // Only retrieve these fields
+  DynamoMap
+)
+
+// Fields not in projection will be null
+assert user.id != null
+assert user.email != null
+assert user.username != null
+assert user.address == null  // Not projected, so null
+
+// GetItem with projection - custom target class
+User partialUser = dynamoDb.getItem (
+  'users',
+  KeyFilter.of('id', 'user123'),
+  ['id', 'email'],  // Minimal field set
+  User
+)
+
+// Query with projection - automatic pagination
+List<DynamoMap> users = dynamoDb.query (
+  'users',
+  KeyFilter.of('status', 'active'),
+  ['id', 'email', 'lastLogin'],  // Project specific fields
+  null,  // No additional filter
+  DynamoMap
+)
+
+// Query with projection and filters
+List<DynamoMap> recentUsers = dynamoDb.query (
+  'users',
+  KeyFilter.of('department', 'engineering'),
+  ['id', 'name', 'role'],  // Projection fields
+  greater('lastLogin', yesterdayTimestamp),  // Additional filter
+  DynamoMap
+)
+
+// Query index with projection
+List<DynamoMap> emailUsers = dynamoDb.query (
+  'users',
+  'email-index',
+  KeyFilter.of('domain', 'company.com'),
+  ['id', 'email', 'department'],  // Only these fields
+  null,  // No filter
+  DynamoMap
+)
+
+// Query with projection and manual pagination
+PagedResult<DynamoMap> pagedUsers = dynamoDb.query (
+  'users',
+  'status-index',
+  KeyFilter.of('status', 'active'),
+  ['id', 'username', 'lastSeen'],  // Projected fields
+  null,      // No filter
+  DynamoMap,
+  10,        // Page size
+  null,      // Start from beginning
+  true       // Forward order
+)
+
+// Complex query with projection, index, filter, and pagination
+PagedResult<DynamoMap> complexQuery = dynamoDb.query (
+  'users',
+  'department-index',
+  KeyFilter.of('department', 'sales'),
+  ['id', 'name', 'email', 'performance'],  // Projection
+  every (
+    greater('lastLogin', cutoffDate),
+    match('active', true)
+  ),         // Filter
+  DynamoMap,
+  20,        // Limit
+  lastKey,   // Continue from previous page
+  false      // Reverse order
+)
+```
+
+**Projection Benefits:**
+- **Reduced Data Transfer**: Only requested fields are returned, reducing network traffic
+- **Lower Costs**: Fewer consumed read capacity units when projecting smaller field sets
+- **Improved Performance**: Smaller payloads mean faster response times
+- **Security**: Sensitive fields can be excluded from queries
+
+**Important Notes:**
+- Projection works with both `getItem()` and all `query()` method variants
+- Non-projected fields will be `null` in the returned objects
+- Key fields (partition key, sort key) are always included regardless of projection
+- All existing method signatures remain unchanged for backward compatibility
+- Projection is optional - omit the projection parameter to retrieve all fields
+
+**Use Cases:**
+- **List Views**: Retrieve only display fields for user lists (`['id', 'name', 'email']`)
+- **Search Results**: Show minimal info in search results (`['id', 'title', 'summary']`)
+- **API Responses**: Control which fields are exposed in different API endpoints
+- **Performance Optimization**: Reduce payload size for frequently accessed queries
+- **Security**: Exclude sensitive fields from certain operations
 
 ### Removing Attributes
 
