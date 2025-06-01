@@ -39,8 +39,6 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					break
 				case Map:
 					Map<String,Object> mv = v as Map
-					if (mv.isEmpty())
-						break
 					mapper.with (
 						k,
 						new DynamoMap(mv).impress (

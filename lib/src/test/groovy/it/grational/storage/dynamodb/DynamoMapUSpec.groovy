@@ -191,7 +191,8 @@ class DynamoMapUSpec extends Specification {
 				boolean: true,
 				stringList: ['a', 'b', 'c'],
 				numberList: [1, 2, 3],
-				nested: nestedMapper
+				nested: nestedMapper,
+				nestedEmptyMap: [:]
 			]
 
 		when:
@@ -205,6 +206,7 @@ class DynamoMapUSpec extends Specification {
 				get('stringList').l()*.s() == ['a', 'b', 'c']
 				get('numberList').l()*.n() == ['1', '2', '3']
 				get('nested').m() == nestedMapper.storer(false)
+				get('nestedEmptyMap').m() == [:]
 			}
 	}
 
