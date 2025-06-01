@@ -2739,6 +2739,195 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should return PagedResult when scan pagination parameters are used"() { // {{{
+		given:
+			String table = 'test_scan_paged'
+			dynamoDb.createTable(table, 'id')
+			Integer totalSize = 15
+			Integer pageSize = 5
+		and:
+			List<TestItem> items = (1..totalSize).collect {
+				new TestItem(id: "scan_item${it}", data: "data${it}")
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Using limit parameter for scan'
+			PagedResult<TestItem> first = dynamoDb.scan (
+				table,
+				null, // no filter
+				null, // no projection
+				TestItem.class,
+				pageSize,
+				null  // no last key
+			)
+
+		then:
+			first.count <= pageSize
+			first.more == true
+			first.last != null
+
+		when: 'Using last parameter for next page'
+			PagedResult<TestItem> second = dynamoDb.scan (
+				table,
+				null, // no filter
+				null, // no projection
+				TestItem.class,
+				pageSize,
+				first.last
+			)
+
+		then:
+			second.count <= pageSize
+			second.last != null
+
+		when: 'Get remaining items'
+			PagedResult<TestItem> third = dynamoDb.scan (
+				table,
+				null, // no filter
+				null, // no projection
+				TestItem.class,
+				totalSize, // more than remaining
+				second.last
+			)
+
+		then:
+			third.more == false
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with PagedResult and filter"() { // {{{
+		given:
+			String table = 'test_scan_paged_filter'
+			dynamoDb.createTable(table, 'id')
+		and:
+			List<TestItem> items = (1..10).collect {
+				new TestItem(id: "filter_item${it}", enabled: (it % 2 == 0))
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Scan with filter and pagination'
+			PagedResult<TestItem> filtered = dynamoDb.scan (
+				table,
+				match('enabled', true),
+				null, // no projection
+				TestItem.class,
+				3,
+				null  // no last key
+			)
+
+		then:
+			filtered.items.every { it.enabled == true }
+			filtered.count <= 3
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with PagedResult, filter and projection"() { // {{{
+		given:
+			String table = 'test_scan_paged_filter_projection'
+			dynamoDb.createTable(table, 'id')
+		and:
+			List<TestItem> items = (1..8).collect {
+				new TestItem(
+					id: "proj_item${it}", 
+					data: "secret${it}",
+					tagField: "public${it}",
+					enabled: (it % 2 == 0)
+				)
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Scan with filter, projection and pagination'
+			PagedResult<DynamoMap> result = dynamoDb.scan (
+				table,
+				match('enabled', true),
+				['id', 'tagField'],
+				DynamoMap.class,
+				2,
+				null  // no last key
+			)
+
+		then:
+			result.items.every { item ->
+				item.id != null &&
+				item.tagField != null &&
+				item.data == null &&
+				item.enabled == null
+			}
+			result.count <= 2
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with PagedResult using various convenience method signatures"() { // {{{
+		given:
+			String table = 'test_scan_convenience'
+			dynamoDb.createTable(table, 'id')
+		and:
+			List<TestItem> items = (1..6).collect {
+				new TestItem(
+					id: "conv_item${it}", 
+					data: "secret${it}",
+					tagField: "public${it}",
+					enabled: (it % 2 == 0)
+				)
+			}
+			dynamoDb.putItems(table, items)
+
+		when: 'Simple scan with limit only'
+			PagedResult<TestItem> simple = dynamoDb.scan (
+				table,
+				null, // no filter
+				null, // no projection
+				TestItem.class,
+				3,
+				null  // no last key
+			)
+
+		then:
+			simple.count <= 3
+			simple.items.every { it instanceof TestItem }
+
+		when: 'Scan with filter and limit'
+			PagedResult<TestItem> filtered = dynamoDb.scan (
+				table,
+				match('enabled', true),
+				null, // no projection
+				TestItem.class,
+				2,
+				null  // no last key
+			)
+
+		then:
+			filtered.items.every { it.enabled == true }
+			filtered.count <= 2
+
+		when: 'Scan with projection, filter and limit'
+			PagedResult<DynamoMap> projected = dynamoDb.scan (
+				table,
+				match('enabled', true),
+				['id', 'tagField'],
+				DynamoMap.class,
+				2,
+				null  // no last key
+			)
+
+		then:
+			projected.items.every { item ->
+				item.id != null &&
+				item.tagField != null &&
+				item.data == null &&
+				item.enabled == null
+			}
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	static class TestItem // {{{
 		implements Storable<AttributeValue,String> {
 		String id

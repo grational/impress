@@ -1020,6 +1020,154 @@ class DynamoDb {
 	} // }}}
 
 	/**
+	 * Convenience methods for scan with PagedResult return type
+	 */
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return scan (
+			table,
+			null, // no filter
+			null, // no projection
+			targetClass,
+			limit,
+			null  // no last key
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		DynamoFilter filter,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			null, // no projection
+			targetClass,
+			limit,
+			null  // no last key
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		List<String> fields,
+		DynamoFilter filter,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			fields,
+			targetClass,
+			limit,
+			null  // no last key
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		DynamoFilter filter,
+		Class<T> targetClass,
+		int limit,
+		Map<String, AttributeValue> last
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			null, // no projection
+			targetClass,
+			limit,
+			last
+		)
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		DynamoFilter filter,
+		List<String> projection,
+		Class<T> targetClass,
+		int limit
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			projection,
+			targetClass,
+			limit,
+			null  // no last key
+		)
+	} // }}}
+
+	/**
+	 * Complete version of scan with all parameters - returns PagedResult for manual pagination control
+	 * Note: limit parameter is required to distinguish from List<T> scan methods
+	 */
+	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
+		String table,
+		DynamoFilter filter,
+		List<String> projection,
+		Class<T> targetClass,
+		int limit,
+		Map<String, AttributeValue> last
+	) { // {{{
+		log.debug (
+			String.join(', ',
+				'Executing paged scan on table {}',
+				'with filter: {}',
+				'projection: {}',
+				'limit: {}',
+				'last: {}'
+			),
+			table,
+			filter,
+			projection,
+			limit,
+			last
+		)
+
+		def scanBuilder = ScanRequest.builder()
+			.tableName(table)
+
+		if ( filter )
+			scanBuilder
+			.filterExpression(filter.expression)
+			.expressionAttributeNames(filter.expressionNames)
+			.expressionAttributeValues(filter.expressionValues)
+
+		if ( projection )
+			scanBuilder.projectionExpression(projection.join(', '))
+
+		if ( limit > 0 )
+			scanBuilder.limit(limit)
+
+		if ( last )
+			scanBuilder.exclusiveStartKey(last)
+
+		ScanRequest request = scanBuilder.build()
+		log.debug("Executing scan request: {}", request)
+		
+		def response = client.scan(request)
+
+		log.debug("Found {} items", response.count())
+		
+		List<T> items = response.items().collect { item ->
+			Map<String,Object> builder = new DynamoMapper(item).builder()
+			targetClass.newInstance(builder)
+		}
+
+		return new PagedResult<T> (
+			items,
+			response.lastEvaluatedKey()
+		)
+	} // }}}
+
+	/**
 	 * Simplified scan interface with projection
 	 *
 	 * @param table The name of the table to scan
@@ -1034,7 +1182,7 @@ class DynamoDb {
 		List<String> projection,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
-		return scan (
+		return scanAll (
 			table,
 			filter,
 			targetClass,
@@ -1058,7 +1206,7 @@ class DynamoDb {
 		List<String> projection,
 		Class<T> targetClass = DynamoMap.class
 	) { // {{{
-		return scan (
+		return scanAll (
 			table,
 			null,
 			targetClass,
@@ -1090,7 +1238,7 @@ class DynamoDb {
 		Integer segment = null,
 		Integer totalSegments = null
 	) { // {{{
-		return scan (
+		return scanAll (
 			table,
 			filter,
 			targetClass,
@@ -1120,7 +1268,7 @@ class DynamoDb {
 		Integer segment = null,
 		Integer totalSegments = null
 	) { // {{{
-		return scan (
+		return scanAll (
 			table,
 			filter,
 			targetClass,
@@ -1132,25 +1280,16 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Internal scan implementation with projection support
-	 *
-	 * @param table The name of the table to scan
-	 * @param filter Optional DynamoFilter to filter the scan results
-	 * @param targetClass The class of objects to create from the scan results
-	 * @param limit Optional maximum number of items to evaluate
-	 * @param segment Optional segment number (for parallel scans)
-	 * @param totalSegments Optional total number of segments (for parallel scans)
-	 * @param projection Optional list of field names to project
-	 * @return A list of objects of type T created from the scan results
+	 * Helper method to retrieve all results by automatically handling pagination
 	 */
-	<T extends Storable<AttributeValue,Object>> List<T> scan (
+	private <T extends Storable<AttributeValue,Object>> List<T> scanAll (
 		String table,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		Integer limit,
-		Integer segment,
-		Integer totalSegments,
-		List<String> projection
+		DynamoFilter filter = null,
+		Class<T> targetClass = DynamoMap.class,
+		Integer limit = null,
+		Integer segment = null,
+		Integer totalSegments = null,
+		List<String> projection = null
 	) { // {{{
 		log.debug (
 			String.join(', ',
