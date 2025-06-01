@@ -1020,11 +1020,93 @@ class DynamoDb {
 	} // }}}
 
 	/**
+	 * Simplified scan interface with projection
+	 *
+	 * @param table The name of the table to scan
+	 * @param filter Optional DynamoFilter to filter the scan results
+	 * @param projection List of field names to project
+	 * @param targetClass The class of objects to create from the scan results
+	 * @return A list of objects of type T created from the scan results
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> scan (
+		String table,
+		DynamoFilter filter,
+		List<String> projection,
+		Class<T> targetClass = DynamoMap.class
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			targetClass,
+			null,
+			null,
+			null,
+			projection
+		)
+	} // }}}
+
+	/**
+	 * Scan interface with projection only (no filter)
+	 *
+	 * @param table The name of the table to scan
+	 * @param projection List of field names to project
+	 * @param targetClass The class of objects to create from the scan results
+	 * @return A list of objects of type T created from the scan results
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> scan (
+		String table,
+		List<String> projection,
+		Class<T> targetClass = DynamoMap.class
+	) { // {{{
+		return scan (
+			table,
+			null,
+			targetClass,
+			null,
+			null,
+			null,
+			projection
+		)
+	} // }}}
+
+	/**
+	 * Full-featured scan with filter, projection, limit, and other options
+	 *
+	 * @param table The name of the table to scan
+	 * @param filter Optional DynamoFilter to filter the scan results
+	 * @param projection List of field names to project
+	 * @param targetClass The class of objects to create from the scan results
+	 * @param limit Optional maximum number of items to evaluate
+	 * @param segment Optional segment number (for parallel scans)
+	 * @param totalSegments Optional total number of segments (for parallel scans)
+	 * @return A list of objects of type T created from the scan results
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> scan (
+		String table,
+		DynamoFilter filter,
+		List<String> projection,
+		Class<T> targetClass,
+		Integer limit,
+		Integer segment = null,
+		Integer totalSegments = null
+	) { // {{{
+		return scan (
+			table,
+			filter,
+			targetClass,
+			limit,
+			segment,
+			totalSegments,
+			projection
+		)
+	} // }}}
+
+	/**
 	 * Scans the entire table and returns items that match the optional filter expression
 	 *
 	 * @param table The name of the table to scan
-	 * @param targetClass The class of objects to create from the scan results
 	 * @param filter Optional DynamoFilter to filter the scan results
+	 * @param targetClass The class of objects to create from the scan results
 	 * @param limit Optional maximum number of items to evaluate
 	 * @param segment Optional segment number (for parallel scans)
 	 * @param totalSegments Optional total number of segments (for parallel scans)
@@ -1038,15 +1120,49 @@ class DynamoDb {
 		Integer segment = null,
 		Integer totalSegments = null
 	) { // {{{
+		return scan (
+			table,
+			filter,
+			targetClass,
+			limit,
+			segment,
+			totalSegments,
+			null
+		)
+	} // }}}
+
+	/**
+	 * Internal scan implementation with projection support
+	 *
+	 * @param table The name of the table to scan
+	 * @param filter Optional DynamoFilter to filter the scan results
+	 * @param targetClass The class of objects to create from the scan results
+	 * @param limit Optional maximum number of items to evaluate
+	 * @param segment Optional segment number (for parallel scans)
+	 * @param totalSegments Optional total number of segments (for parallel scans)
+	 * @param projection Optional list of field names to project
+	 * @return A list of objects of type T created from the scan results
+	 */
+	<T extends Storable<AttributeValue,Object>> List<T> scan (
+		String table,
+		DynamoFilter filter,
+		Class<T> targetClass,
+		Integer limit,
+		Integer segment,
+		Integer totalSegments,
+		List<String> projection
+	) { // {{{
 		log.debug (
 			String.join(', ',
 				'Scanning table {}',
 				'with filter: {}',
+				'projection: {}',
 				'limit: {}',
 				'segment: {}/{}'
 			),
 			table,
 			filter,
+			projection,
 			limit,
 			segment,
 			totalSegments
@@ -1060,6 +1176,9 @@ class DynamoDb {
 			.filterExpression(filter.expression)
 			.expressionAttributeNames(filter.expressionNames)
 			.expressionAttributeValues(filter.expressionValues)
+
+		if ( projection )
+			scanBuilder.projectionExpression(projection.join(', '))
 
 		if ( limit )
 			scanBuilder.limit(limit)

@@ -2488,6 +2488,257 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
+	def "Should scan with projection to select specific fields"() { // {{{
+		given:
+			String table = 'test_scan_projection'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			List<TestItem> items = [
+				new TestItem (
+					id: 'scan_proj1',
+					data: 'sensitive info',
+					tagField: 'public_tag',
+					enabled: true
+				),
+				new TestItem (
+					id: 'scan_proj2',
+					data: 'confidential',
+					tagField: 'open_tag',
+					enabled: false
+				),
+				new TestItem (
+					id: 'scan_proj3',
+					data: 'secret',
+					tagField: 'visible_tag',
+					enabled: true
+				)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Scan with projection for specific fields'
+			List<DynamoMap> projectedItems = dynamoDb.scan (
+				table,
+				['id', 'tagField'],
+				DynamoMap
+			)
+
+		then: 'Only projected fields should be returned'
+			projectedItems.size() == 3
+			projectedItems.every { item ->
+				item.id in ['scan_proj1', 'scan_proj2', 'scan_proj3'] &&
+				item.tagField in ['public_tag', 'open_tag', 'visible_tag'] &&
+				item.data == null &&
+				item.enabled == null &&
+				item.version == null
+			}
+
+		when: 'Scan without projection'
+			List<TestItem> fullItems = dynamoDb.scan (
+				table,
+				null,
+				TestItem
+			)
+
+		then: 'All fields should be returned'
+			fullItems.size() == 3
+			fullItems.every { item ->
+				item.id in ['scan_proj1', 'scan_proj2', 'scan_proj3'] &&
+				item.data in ['sensitive info', 'confidential', 'secret'] &&
+				item.tagField in ['public_tag', 'open_tag', 'visible_tag'] &&
+				item.version == 1
+			}
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with filter and projection combined"() { // {{{
+		given:
+			String table = 'test_scan_filter_projection'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			List<TestItem> items = [
+				new TestItem (
+					id: 'user1',
+					data: 'private data 1',
+					tagField: 'category_a',
+					enabled: true
+				),
+				new TestItem (
+					id: 'user2',
+					data: 'private data 2',
+					tagField: 'category_a',
+					enabled: false
+				),
+				new TestItem (
+					id: 'user3',
+					data: 'private data 3',
+					tagField: 'category_b',
+					enabled: true
+				)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Scan with filter and projection'
+			List<DynamoMap> filteredProjectedItems = dynamoDb.scan (
+				table,
+				every (
+					match('tagField', 'category_a'),
+					match('enabled', true)
+				),
+				['id', 'tagField', 'enabled'],
+				DynamoMap
+			)
+
+		then: 'Only filtered items with projected fields should be returned'
+			filteredProjectedItems.size() == 1
+			def item = filteredProjectedItems.first()
+			item.id == 'user1'
+			item.tagField == 'category_a'
+			item.enabled == true
+			item.data == null
+			item.version == null
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with simplified interface - table name and projection only"() { // {{{
+		given:
+			String table = 'test_scan_simple'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			TestItem item = new TestItem (
+				id: 'simple1',
+				data: 'some data',
+				tagField: 'tag_value',
+				enabled: true
+			)
+		and:
+			dynamoDb.putItem(table, item)
+
+		when: 'Use simplest scan interface'
+			List<DynamoMap> allItems = dynamoDb.scan(table)
+
+		then: 'All items with all fields should be returned'
+			allItems.size() == 1
+			allItems.first().id == 'simple1'
+			allItems.first().data == 'some data'
+			allItems.first().tagField == 'tag_value'
+			allItems.first().enabled == true
+
+		when: 'Use scan with only projection'
+			List<DynamoMap> projectedOnly = dynamoDb.scan (
+				table,
+				['id', 'tagField']
+			)
+
+		then: 'Only projected fields should be returned'
+			projectedOnly.size() == 1
+			def projItem = projectedOnly.first()
+			projItem.id == 'simple1'
+			projItem.tagField == 'tag_value'
+			projItem.data == null
+			projItem.enabled == null
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should scan with projection using full signature including limit and segments"() { // {{{
+		given:
+			String table = 'test_scan_full_signature'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			List<TestItem> items = (1..10).collect { int i ->
+				new TestItem (
+					id: "full_sig${i}",
+					data: "data${i}",
+					tagField: "tag${i}",
+					enabled: (i % 2 == 0)
+				)
+			}
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Use full signature with projection and limit'
+			List<DynamoMap> limitedProjected = dynamoDb.scan (
+				table,
+				match('enabled', true),    // filter
+				['id', 'enabled'],         // projection
+				DynamoMap,                 // targetClass
+				3                          // limit
+			)
+
+		then: 'Projected results with filter should be returned'
+			limitedProjected.every { item ->
+				item.enabled == true &&
+				item.id != null &&
+				item.data == null &&
+				item.tagField == null &&
+				item.version == null
+			}
+			// Note: DynamoDB limit controls items examined, not returned.
+			// With filtering, the number of returned items may vary.
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
+	def "Should maintain backward compatibility for existing scan calls"() { // {{{
+		given:
+			String table = 'test_scan_backward_compat'
+			String partKey = 'id'
+		and:
+			dynamoDb.createTable(table, partKey)
+		and:
+			List<TestItem> items = [
+				new TestItem(id: 'compat1', data: 'data1', enabled: true),
+				new TestItem(id: 'compat2', data: 'data2', enabled: false)
+			]
+		and:
+			dynamoDb.putItems(table, items)
+
+		when: 'Use old scan signature - scan(table, filter, targetClass)'
+			List<TestItem> oldSigResults = dynamoDb.scan (
+				table,
+				match('enabled', true),
+				TestItem
+			)
+
+		then: 'Should work as before'
+			oldSigResults.size() == 1
+			oldSigResults.first().id == 'compat1'
+			oldSigResults.first().data == 'data1'
+			oldSigResults.first().enabled == true
+			oldSigResults.first().version == 1
+
+		when: 'Use old scan signature - scan(table, filter, targetClass, limit)'
+			List<TestItem> limitedResults = dynamoDb.scan (
+				table,
+				null,               // no filter
+				TestItem,           // targetClass
+				1                   // limit
+			)
+
+		then: 'Should work as before'
+			limitedResults.every { it.version == 1 }
+			// Note: DynamoDB limit controls items examined, not returned
+
+		cleanup:
+			dynamoDb.dropTable(table)
+	} // }}}
+
 	static class TestItem // {{{
 		implements Storable<AttributeValue,String> {
 		String id

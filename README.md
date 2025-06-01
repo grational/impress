@@ -11,7 +11,7 @@ Impress provides a way to store objects in various storage backends using the im
 ## Recent Changes
 
 ### Field Projection Support
-Both `getItem()` and `query()` methods now support field projection to retrieve only specific fields from DynamoDB:
+The `getItem()`, `query()`, and `scan()` methods now support field projection to retrieve only specific fields from DynamoDB:
 
 - **Reduced Data Transfer**: Specify exactly which fields to retrieve using projection parameters
 - **Cost Optimization**: Lower read capacity consumption when projecting smaller field sets
@@ -243,6 +243,29 @@ List<DynamoMap> allItems = dynamo.scan('tableName', filters)
 
 // with filters and target class
 List<Item> allMaps = dynamo.scan('tableName', filters, Item.class)
+
+// Scan with projection - retrieve only specific fields
+List<DynamoMap> projectedItems = dynamo.scan (
+  'tableName',
+  ['id', 'name', 'status']  // Only retrieve these fields
+)
+
+// Scan with filter and projection combined
+List<DynamoMap> filteredProjected = dynamo.scan (
+  'tableName',
+  match('active', true),      // Filter condition
+  ['id', 'name', 'email'],    // Projected fields
+  DynamoMap                   // Target class
+)
+
+// Full-featured scan with projection and advanced options
+List<DynamoMap> advancedScan = dynamo.scan (
+  'tableName',
+  match('department', 'engineering'),  // Filter
+  ['id', 'name', 'role'],              // Projection
+  DynamoMap,                           // Target class  
+  50                                   // Evaluation limit
+)
 
 // Delete single item
 dynamo.deleteItem('tableName', key)
@@ -1031,6 +1054,35 @@ PagedResult<DynamoMap> complexQuery = dynamoDb.query (
   lastKey,   // Continue from previous page
   false      // Reverse order
 )
+
+// Scan with projection - retrieve only specific fields
+List<DynamoMap> allUsers = dynamoDb.scan (
+  'users',
+  ['id', 'email', 'lastLogin']  // Only these fields
+)
+
+// Scan with filter and projection
+List<DynamoMap> activeUsers = dynamoDb.scan (
+  'users',
+  match('status', 'active'),     // Filter condition
+  ['id', 'username', 'department'],  // Projected fields
+  DynamoMap
+)
+
+// Scan with projection using simplified interface  
+List<DynamoMap> userList = dynamoDb.scan (
+  'users',
+  ['id', 'name']  // Minimal projection for lists
+)
+
+// Full-featured scan with projection and advanced options
+List<DynamoMap> departmentScan = dynamoDb.scan (
+  'users',
+  match('department', 'engineering'),  // Filter
+  ['id', 'name', 'role', 'level'],     // Projection
+  DynamoMap,                           // Target class
+  100                                  // Evaluation limit
+)
 ```
 
 **Projection Benefits:**
@@ -1040,7 +1092,7 @@ PagedResult<DynamoMap> complexQuery = dynamoDb.query (
 - **Security**: Sensitive fields can be excluded from queries
 
 **Important Notes:**
-- Projection works with both `getItem()` and all `query()` method variants
+- Projection works with `getItem()`, all `query()` method variants, and all `scan()` method variants
 - Non-projected fields will be `null` in the returned objects
 - Key fields (partition key, sort key) are always included regardless of projection
 - All existing method signatures remain unchanged for backward compatibility
