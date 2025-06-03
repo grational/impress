@@ -21,13 +21,13 @@ class DynamoDbICSpec extends Specification {
 
 	// fields {{{
 	@Shared
-	DynamoDb dynamoDb
+	DynamoDb dynamo
 	@Shared
 	URI endpoint = 'http://localhost:8888'.toURI()
 	// }}}
 
 	def setupSpec() { // {{{
-		dynamoDb = new DynamoDb (
+		dynamo = new DynamoDb (
 			DynamoDbClient.builder()
 			.endpointOverride(endpoint)
 			.build()
@@ -39,7 +39,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_items_pk'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -54,13 +54,13 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		when:
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				item
 			)
 
 		then:
-			TestItem inserted = dynamoDb.getItem (
+			TestItem inserted = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -73,12 +73,12 @@ class DynamoDbICSpec extends Specification {
 
 		when: 'with another put the version is updated even with the same data'
 
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				inserted
 			)
 		then:
-			TestItem versionUpdate = dynamoDb.getItem (
+			TestItem versionUpdate = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -90,7 +90,7 @@ class DynamoDbICSpec extends Specification {
 			versionUpdate.version == 2
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should insert and retrieve items with partition key and sort key"() { // {{{
@@ -99,7 +99,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey
@@ -130,13 +130,13 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems (
+			dynamo.putItems (
 				table,
 				items
 			)
 
 		then:
-			TestItem retrieved = dynamoDb.getItem (
+			TestItem retrieved = dynamo.getItem (
 				table,
 				firstKey,
 				TestItem
@@ -149,7 +149,7 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version == 1
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should handle versioning correctly during item puts and updates"() { // {{{
@@ -157,7 +157,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_versioning'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -171,13 +171,13 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		when: 'first insertion'
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				item
 			)
 
 		then:
-			def retrieved = dynamoDb.getItem (
+			def retrieved = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -189,13 +189,13 @@ class DynamoDbICSpec extends Specification {
 		when: 'update it'
 			retrieved.data = 'updated data'
 		and:
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				retrieved
 			)
 
 		then: 'data and version should be updated'
-			def updated = dynamoDb.getItem (
+			def updated = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -206,7 +206,7 @@ class DynamoDbICSpec extends Specification {
 
 		when: 'simulate an outdated put'
 			retrieved.data = 'conflict data'
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				retrieved
 			)
@@ -220,14 +220,14 @@ class DynamoDbICSpec extends Specification {
 
 		when: 'disabling the versioning allows overwriting'
 			retrieved.data = 'forced data'
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				retrieved,
 				false
 			)
 
 		then: 'data should be forcefully updated'
-			def forced = dynamoDb.getItem (
+			def forced = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -237,7 +237,7 @@ class DynamoDbICSpec extends Specification {
 			forced.version == 1
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should retrieve objects through secondary index"() { // {{{
@@ -248,7 +248,7 @@ class DynamoDbICSpec extends Specification {
 				'data_index': 'tagField'
 			]
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				null, // sortKey
@@ -262,10 +262,10 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then:
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				'data_index',
 				new KeyFilter('tagField', 'tag_a'),
@@ -278,7 +278,7 @@ class DynamoDbICSpec extends Specification {
 			results.last().id  == 'idx2'
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should retrieve objects through secondary index with sort key"() { // {{{
@@ -291,7 +291,7 @@ class DynamoDbICSpec extends Specification {
 				'data_index'
 			)
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				Optional.empty(), // primary table sortKey
@@ -306,10 +306,10 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then: "Can query by partition key only"
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				'data_index',
 				new KeyFilter('tagField', 'tag_a'),
@@ -322,7 +322,7 @@ class DynamoDbICSpec extends Specification {
 			results*.sortKey.sort() == ['sort1', 'sort2', 'sort3']
 
 		and: "Can query by partition and sort key"
-			List<TestItem> specificResult = dynamoDb.query (
+			List<TestItem> specificResult = dynamo.query (
 				table,
 				'data_index',
 				new KeyFilter('tagField', 'tag_a', 'sortKey', 'sort2'),
@@ -335,7 +335,7 @@ class DynamoDbICSpec extends Specification {
 			specificResult.first().sortKey == 'sort2'
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should retrieve objects through secondary index and filters"() { // {{{
@@ -348,7 +348,7 @@ class DynamoDbICSpec extends Specification {
 				'offer-index': 'offer'
 			]
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey,
@@ -380,10 +380,10 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then:
-			List<ContractItem> objects = dynamoDb.query (
+			List<ContractItem> objects = dynamo.query (
 				table,
 				'offer-index',
 				new KeyFilter('offer', sharedOffer),
@@ -401,7 +401,7 @@ class DynamoDbICSpec extends Specification {
 			first.enabled == true
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should retrieve objects through secondary index with sort key and filter"() { // {{{
@@ -415,7 +415,7 @@ class DynamoDbICSpec extends Specification {
 				'tag-data-index'
 			)
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				Optional.of(sortKey),
@@ -454,10 +454,10 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then: "Can query with composite index and filter"
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				'tag-data-index',
 				new KeyFilter (
@@ -476,7 +476,7 @@ class DynamoDbICSpec extends Specification {
 			results.first().enabled == true
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should delete items correctly"() { // {{{
@@ -484,7 +484,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_delete'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -499,10 +499,10 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		when:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		then:
-			TestItem exists = dynamoDb.getItem (
+			TestItem exists = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -511,10 +511,10 @@ class DynamoDbICSpec extends Specification {
 			exists != null
 
 		when:
-			dynamoDb.deleteItem(table, key)
+			dynamo.deleteItem(table, key)
 
 		then:
-			TestItem deleted = dynamoDb.getItem (
+			TestItem deleted = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -523,7 +523,7 @@ class DynamoDbICSpec extends Specification {
 			deleted == null
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should insert a large number of items (batch test)"() { // {{{
@@ -531,7 +531,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_batch'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -544,11 +544,11 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then:
 			items.each { TestItem item ->
-				TestItem retrieved = dynamoDb.getItem (
+				TestItem retrieved = dynamo.getItem (
 					table,
 					new KeyFilter('id', item.id),
 					TestItem
@@ -560,7 +560,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should handle tables with composite keys and composite indexes correctly"() { // {{{{
@@ -571,7 +571,7 @@ class DynamoDbICSpec extends Specification {
 			Index simpleIdx = Index.of('tagField')
 			Index compositeIdx = Index.of('tagField', 'data')
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey,
@@ -608,13 +608,13 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.putItems (
+			dynamo.putItems (
 				table,
 				items
 			)
 
 		then:
-			TestItem retrieved = dynamoDb.getItem (
+			TestItem retrieved = dynamo.getItem (
 				table,
 				firstKey,
 				TestItem
@@ -625,7 +625,7 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version  == 1
 
 		when: "Query using simple index"
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				'tagField-index',
 				new KeyFilter('tagField', 'tag1'),
@@ -648,7 +648,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: "Query using composite index with partition key only"
-			List<TestItem> compositeResults = dynamoDb.query (
+			List<TestItem> compositeResults = dynamo.query (
 				table,
 				'tagField-data-index',
 				new KeyFilter('tagField', 'tag1'),
@@ -661,7 +661,7 @@ class DynamoDbICSpec extends Specification {
 			compositeResults*.data.sort() == ['c1', 'c3']
 
 		when: "Query using composite index with both partition and sort keys"
-			List<TestItem> specificResults = dynamoDb.query (
+			List<TestItem> specificResults = dynamo.query (
 				table,
 				'tagField-data-index',
 				new KeyFilter('tagField', 'tag1', 'data', 'c1'),
@@ -675,7 +675,7 @@ class DynamoDbICSpec extends Specification {
 			specificResults.first().data == 'c1'
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should be capable of querying objects only by their partition key"() { // {{{{
@@ -684,7 +684,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey
@@ -708,13 +708,13 @@ class DynamoDbICSpec extends Specification {
 				)
 			]
 		and:
-			dynamoDb.putItems (
+			dynamo.putItems (
 				table,
 				items
 			)
 
 		when:
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				new KeyFilter('id', 'pk1'),
 				null,
@@ -736,7 +736,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should be able to update an item"() { // {{{
@@ -744,7 +744,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_update'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 			)
@@ -759,13 +759,13 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem (
+			dynamo.putItem (
 				table,
 				item
 			)
 
 		expect:
-			TestItem unmodified = dynamoDb.getItem (
+			TestItem unmodified = dynamo.getItem (
 				table, key, TestItem
 			)
 			unmodified          != null
@@ -778,14 +778,14 @@ class DynamoDbICSpec extends Specification {
 				.with('id', 'pk1', FieldType.PARTITION_KEY)
 				.with('data', 'updated')
 		and:
-			dynamoDb.updateItem (
+			dynamo.updateItem (
 				table,
 				mapper
 			)
 		then:
 			noExceptionThrown()
 		and:
-			TestItem updated = dynamoDb.getItem (
+			TestItem updated = dynamo.getItem (
 				table, key, TestItem
 			)
 			updated          != null
@@ -799,7 +799,7 @@ class DynamoDbICSpec extends Specification {
 				.with('data', 'not to be written')
 				.with('version', 54, FieldType.VERSION)
 		and:
-			dynamoDb.updateItem (
+			dynamo.updateItem (
 				table,
 				mapper
 			)
@@ -807,7 +807,7 @@ class DynamoDbICSpec extends Specification {
 			def exception = thrown(ConditionalCheckFailedException)
 			exception.message.startsWith('The conditional request failed')
 		and:
-			TestItem untouched = dynamoDb.getItem (
+			TestItem untouched = dynamo.getItem (
 				table, key, TestItem
 			)
 			untouched          != null
@@ -821,12 +821,12 @@ class DynamoDbICSpec extends Specification {
 				.with('data', 'these are ok!')
 				.with('version', 1, FieldType.VERSION)
 		and:
-			dynamoDb.updateItem (
+			dynamo.updateItem (
 				table,
 				mapper
 			)
 		then:
-			TestItem versioned = dynamoDb.getItem (
+			TestItem versioned = dynamo.getItem (
 				table, key, TestItem
 			)
 			versioned          != null
@@ -836,7 +836,7 @@ class DynamoDbICSpec extends Specification {
 
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan table and return filtered results"() { // {{{
@@ -844,7 +844,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -857,10 +857,10 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'scan5', tagField: 'category_c', data: 'data5', enabled: true)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when:
-			List<TestItem> allResults = dynamoDb.scan (
+			List<TestItem> allResults = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -870,7 +870,7 @@ class DynamoDbICSpec extends Specification {
 			allResults.collect { it.id } ==~ ['scan1', 'scan2', 'scan3', 'scan4', 'scan5']
 
 		when:
-			List<TestItem> enabledResults = dynamoDb.scan (
+			List<TestItem> enabledResults = dynamo.scan (
 				table,
 				match('enabled', true),
 				TestItem
@@ -881,7 +881,7 @@ class DynamoDbICSpec extends Specification {
 			enabledResults.collect { it.id } ==~ ['scan1', 'scan3', 'scan5']
 
 		when:
-			List<TestItem> complexResults = dynamoDb.scan (
+			List<TestItem> complexResults = dynamo.scan (
 				table,
 				every (
 					match('tagField', 'category_a'),
@@ -896,7 +896,7 @@ class DynamoDbICSpec extends Specification {
 			complexResults.first().enabled == true
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should delete multiple items by key and filter"() { // {{{
@@ -904,7 +904,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_bulk_delete'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -918,10 +918,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			}
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Verifying items were inserted'
-			List<TestItem> allItems = dynamoDb.scan (
+			List<TestItem> allItems = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -930,7 +930,7 @@ class DynamoDbICSpec extends Specification {
 			allItems.size() == 15
 
 		when: 'Deleting items with partition key only'
-			int deletedCount = dynamoDb.deleteItems (
+			int deletedCount = dynamo.deleteItems (
 				table,
 				new KeyFilter('id', 'del1')
 			)
@@ -938,7 +938,7 @@ class DynamoDbICSpec extends Specification {
 			deletedCount == 1
 
 		when: 'Checking item was deleted'
-			TestItem shouldBeDeleted = dynamoDb.getItem (
+			TestItem shouldBeDeleted = dynamo.getItem (
 				table,
 				new KeyFilter('id', 'del1'),
 				TestItem
@@ -947,7 +947,7 @@ class DynamoDbICSpec extends Specification {
 			shouldBeDeleted == null
 
 		when: 'Mass deleting items with a filter'
-			int filterDeleteCount = dynamoDb.deleteItems (
+			int filterDeleteCount = dynamo.deleteItems (
 				table,
 				match('tagField', 'cat_2')
 			)
@@ -955,7 +955,7 @@ class DynamoDbICSpec extends Specification {
 			filterDeleteCount == 4  // 5 items with tagField='cat_1' but one was already deleted
 
 		when: 'Verifying remaining items'
-			List<TestItem> remaining = dynamoDb.scan (
+			List<TestItem> remaining = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -965,7 +965,7 @@ class DynamoDbICSpec extends Specification {
 			remaining.every { it.tagField != 'cat_2' }
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should delete multiple items by index and filter"() { // {{{
@@ -976,7 +976,7 @@ class DynamoDbICSpec extends Specification {
 				'tag_index': 'tagField'
 			]
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				null,  // no sort key
@@ -991,10 +991,10 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'idx5', tagField: 'tag_c', data: 'data5', enabled: true)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Deleting items using an index'
-			int deleteCount = dynamoDb.deleteItems (
+			int deleteCount = dynamo.deleteItems (
 				table,
 				'tag_index',
 				new KeyFilter('tagField', 'tag_a'),
@@ -1004,7 +1004,7 @@ class DynamoDbICSpec extends Specification {
 			deleteCount == 2
 
 		when: 'Verifying remaining items'
-			List<TestItem> remaining = dynamoDb.scan (
+			List<TestItem> remaining = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -1014,7 +1014,7 @@ class DynamoDbICSpec extends Specification {
 			remaining.every { it.tagField != 'tag_a' }
 
 		when: 'Deleting with index and additional filter'
-			int filteredDeleteCount = dynamoDb.deleteItems (
+			int filteredDeleteCount = dynamo.deleteItems (
 				table,
 				'tag_index',
 				new KeyFilter('tagField', 'tag_b'),
@@ -1024,7 +1024,7 @@ class DynamoDbICSpec extends Specification {
 			filteredDeleteCount == 1
 
 		when: 'Verifying final remaining items'
-			List<TestItem> finalRemaining = dynamoDb.scan (
+			List<TestItem> finalRemaining = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -1033,23 +1033,23 @@ class DynamoDbICSpec extends Specification {
 			finalRemaining ==~ items.findAll { it.id in [ 'idx4', 'idx5' ] }
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should return PagedResult when pagination parameters are used"() { // {{{
 		given:
 			String table = 'test_paged'
-			dynamoDb.createTable(table, 'id', 'sortKey')
+			dynamo.createTable(table, 'id', 'sortKey')
 			Integer totalSize = 20
 			Integer pageSize = 5
 		and:
 			List<TestItem> items = (1..totalSize).collect {
 				new TestItem(id: "user1", sortKey: "key${it}")
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Using limit parameter'
-			PagedResult<TestItem> first = dynamoDb.query (
+			PagedResult<TestItem> first = dynamo.query (
 				table,
 				new KeyFilter('id', 'user1'),
 				TestItem.class,
@@ -1061,7 +1061,7 @@ class DynamoDbICSpec extends Specification {
 			first.more == true
 
 		when: 'Using last parameter'
-			PagedResult<TestItem> second = dynamoDb.query (
+			PagedResult<TestItem> second = dynamo.query (
 				table,
 				null,
 				new KeyFilter('id', 'user1'),
@@ -1077,7 +1077,7 @@ class DynamoDbICSpec extends Specification {
 			second.more == false
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should handle scanIndexForward for query ordering"() { // {{{
@@ -1086,7 +1086,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 
 			List<TestItem> items = [
 				new TestItem(id: 'user1', sortKey: '2025-01-01'),
@@ -1094,10 +1094,10 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'user1', sortKey: '2025-01-03')
 			]
 
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with forward order'
-			List<TestItem> ascending = dynamoDb.query (
+			List<TestItem> ascending = dynamo.query (
 				table,
 				new KeyFilter('id', 'user1'),
 				null,
@@ -1111,7 +1111,7 @@ class DynamoDbICSpec extends Specification {
 			ascending[2].sortKey == '2025-01-03'
 
 		when: 'Query with backward order'
-			List<TestItem> descending = dynamoDb.query(
+			List<TestItem> descending = dynamo.query(
 				table,
 				new KeyFilter('id', 'user1'),
 				null,
@@ -1125,7 +1125,7 @@ class DynamoDbICSpec extends Specification {
 			descending[2].sortKey == '2025-01-01'
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should create table with partition key and array of Index objects"() { // {{{
@@ -1138,14 +1138,14 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				indexes
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable (
+			def description = dynamo.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1176,7 +1176,7 @@ class DynamoDbICSpec extends Specification {
 			statusIndex.keySchema()[1].keyType() == KeyType.RANGE
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should create table with partition key, sort key and array of Index objects"() { // {{{
@@ -1190,7 +1190,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey,
@@ -1198,7 +1198,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable (
+			def description = dynamo.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1228,7 +1228,7 @@ class DynamoDbICSpec extends Specification {
 			statusIndex.keySchema()[0].keyType() == KeyType.HASH
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should create table with Scalar partition key and array of Index objects"() { // {{{
@@ -1245,7 +1245,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				Optional.empty(),
@@ -1253,7 +1253,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable (
+			def description = dynamo.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1281,7 +1281,7 @@ class DynamoDbICSpec extends Specification {
 			description.globalSecondaryIndexes().size() == 2
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should create table with Scalar partition key, sort key and array of Index objects"() { // {{{
@@ -1302,7 +1302,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable(
+			dynamo.createTable(
 				table,
 				partKey,
 				Optional.of(sortKey),
@@ -1310,7 +1310,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable(
+			def description = dynamo.client.describeTable(
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1352,7 +1352,7 @@ class DynamoDbICSpec extends Specification {
 			statusIndex.keySchema()[1].keyType() == KeyType.RANGE
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should verify table functionality after creation with different key types"() { // {{{
@@ -1371,7 +1371,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				Optional.of(sortKey),
@@ -1402,10 +1402,10 @@ class DynamoDbICSpec extends Specification {
 					timestamp: 3000
 				)
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		then: 'Can query by primary key'
-			TestItem item = dynamoDb.getItem(
+			TestItem item = dynamo.getItem(
 				table,
 				new KeyFilter('id', 'user1', 'sortKey', 'record1'),
 				TestItem
@@ -1416,7 +1416,7 @@ class DynamoDbICSpec extends Specification {
 			item.email == 'user1@example.com'
 
 		and: 'Can query using the email index'
-			List<TestItem> userItems = dynamoDb.query(
+			List<TestItem> userItems = dynamo.query(
 				table,
 				'email-index',
 				new KeyFilter('email', 'user1@example.com'),
@@ -1429,7 +1429,7 @@ class DynamoDbICSpec extends Specification {
 			userItems.collect { it.sortKey }.sort() == ['record1', 'record2']
 
 		and: 'Can query using the status-timestamp index'
-			List<TestItem> activeItems = dynamoDb.query(
+			List<TestItem> activeItems = dynamo.query(
 				table,
 				'status-timestamp-index',
 				new KeyFilter('status', 'active'),
@@ -1442,7 +1442,7 @@ class DynamoDbICSpec extends Specification {
 			activeItems.find { it.timestamp == 3000 && it.id == 'user1' && it.sortKey == 'record2' }
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	@Ignore
@@ -1453,7 +1453,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_less_common_scan'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -1467,10 +1467,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			}
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Performing a parallel scan with 2 segments'
-			List<TestItem> segment0Results = dynamoDb.scan (
+			List<TestItem> segment0Results = dynamo.scan (
 				table,
 				null,   // No filter
 				TestItem,
@@ -1479,7 +1479,7 @@ class DynamoDbICSpec extends Specification {
 				2       // Total of 2 segments
 			)
 
-			List<TestItem> segment1Results = dynamoDb.scan (
+			List<TestItem> segment1Results = dynamo.scan (
 				table,
 				null,   // No filter
 				TestItem,
@@ -1499,7 +1499,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Performing a filtered parallel scan'
 			DynamoFilter enabledFilter = match('enabled', true)
 
-			List<TestItem> filteredSegment0 = dynamoDb.scan (
+			List<TestItem> filteredSegment0 = dynamo.scan (
 				table,
 				enabledFilter,
 				TestItem,
@@ -1508,7 +1508,7 @@ class DynamoDbICSpec extends Specification {
 				2       // Total of 2 segments
 			)
 
-			List<TestItem> filteredSegment1 = dynamoDb.scan (
+			List<TestItem> filteredSegment1 = dynamo.scan (
 				table,
 				enabledFilter,
 				TestItem,
@@ -1523,7 +1523,7 @@ class DynamoDbICSpec extends Specification {
 			combinedFiltered.size() == items.count { it.enabled }
 
 		when: 'scanning with a limit'
-			List<TestItem> limitedResults = dynamoDb.scan (
+			List<TestItem> limitedResults = dynamo.scan (
 				table,
 				null,
 				TestItem,
@@ -1534,7 +1534,7 @@ class DynamoDbICSpec extends Specification {
 			limitedResults.size() <= 2
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should remove attributes from existing items"() { // {{{
@@ -1542,7 +1542,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_remove_attributes'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -1558,10 +1558,10 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		expect: 'Item has all initial attributes'
-			TestItem initial = dynamoDb.getItem (
+			TestItem initial = dynamo.getItem (
 				table, key, TestItem
 			)
 			initial != null
@@ -1570,14 +1570,14 @@ class DynamoDbICSpec extends Specification {
 			initial.enabled == true
 
 		when: 'Remove some attributes'
-			dynamoDb.removeAttributes (
+			dynamo.removeAttributes (
 				table,
 				key,
 				'data', 'tagField'
 			)
 
 		then: 'Specified attributes should be removed'
-			TestItem updated = dynamoDb.getItem (
+			TestItem updated = dynamo.getItem (
 				table, key, TestItem
 			)
 			updated != null
@@ -1588,7 +1588,7 @@ class DynamoDbICSpec extends Specification {
 			updated.version == 1     // Version should remain
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should handle removing non-existent attributes gracefully"() { // {{{
@@ -1596,7 +1596,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_remove_nonexistent'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey
 			)
@@ -1610,10 +1610,10 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		when: 'Remove non-existent attributes'
-			dynamoDb.removeAttributes (
+			dynamo.removeAttributes (
 				table,
 				key,
 				'nonExistentField1', 'nonExistentField2'
@@ -1623,7 +1623,7 @@ class DynamoDbICSpec extends Specification {
 			noExceptionThrown()
 
 		and: 'Existing data should remain unchanged'
-			TestItem unchanged = dynamoDb.getItem (
+			TestItem unchanged = dynamo.getItem (
 				table, key, TestItem
 			)
 			unchanged != null
@@ -1632,7 +1632,7 @@ class DynamoDbICSpec extends Specification {
 			unchanged.version == 1
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should remove attributes from items with composite keys"() { // {{{
@@ -1641,7 +1641,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey
@@ -1659,17 +1659,17 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		when: 'Remove attributes from composite key item'
-			dynamoDb.removeAttributes (
+			dynamo.removeAttributes (
 				table,
 				key,
 				'data', 'enabled'
 			)
 
 		then: 'Specified attributes should be removed'
-			TestItem updated = dynamoDb.getItem (
+			TestItem updated = dynamo.getItem (
 				table, key, TestItem
 			)
 			updated != null
@@ -1681,7 +1681,7 @@ class DynamoDbICSpec extends Specification {
 			updated.version == 1
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should prevent removing key attributes"() { // {{{
@@ -1690,7 +1690,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable (
+			dynamo.createTable (
 				table,
 				partKey,
 				sortKey
@@ -1706,10 +1706,10 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		when: 'Try to remove key attributes'
-			dynamoDb.removeAttributes (
+			dynamo.removeAttributes (
 				table,
 				key,
 				'id', 'sortKey'  // Key attributes only
@@ -1721,7 +1721,7 @@ class DynamoDbICSpec extends Specification {
 			exception.message.contains('This attribute is part of the key')
 
 		and: 'Item should remain unchanged'
-			TestItem unchanged = dynamoDb.getItem (
+			TestItem unchanged = dynamo.getItem (
 				table, key, TestItem
 			)
 			unchanged != null
@@ -1730,7 +1730,7 @@ class DynamoDbICSpec extends Specification {
 			unchanged.data == 'test data'
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with sort key range conditions using greater than"() { // {{{
@@ -1739,7 +1739,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000),
@@ -1749,7 +1749,7 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'user2', sortKey: '1500', timestamp: 1500)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with timestamp > 2000'
 			KeyFilter rangeKey = KeyFilter.of (
@@ -1757,7 +1757,7 @@ class DynamoDbICSpec extends Specification {
 				greater('sortKey', '2000')
 			)
 		and:
-			List<TestItem> results = dynamoDb.query (
+			List<TestItem> results = dynamo.query (
 				table,
 				rangeKey,
 				null,
@@ -1771,7 +1771,7 @@ class DynamoDbICSpec extends Specification {
 			results*.timestamp.sort() == [3000, 4000]
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with sort key range conditions using between"() { // {{{
@@ -1780,7 +1780,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'game1', sortKey: '50', data: 'score50'),
@@ -1789,14 +1789,14 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'game1', sortKey: '350', data: 'score350'),
 				new TestItem(id: 'game1', sortKey: '450', data: 'score450')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with score BETWEEN 100 AND 300'
 			KeyFilter rangeKey = KeyFilter.of(
 				'id', 'game1',
 				between('sortKey', '100', '300')
 			)
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamo.query(
 				table,
 				rangeKey,
 				null,
@@ -1809,7 +1809,7 @@ class DynamoDbICSpec extends Specification {
 			results*.data.sort() == ['score150', 'score250']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with sort key begins_with condition"() { // {{{
@@ -1818,7 +1818,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'user1', sortKey: 'ORDER_CREATED', data: 'order1'),
@@ -1827,14 +1827,14 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'user1', sortKey: 'ORDER_SHIPPED', data: 'order3'),
 				new TestItem(id: 'user1', sortKey: 'LOGOUT', data: 'logout1')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with eventType begins_with "ORDER"'
 			KeyFilter rangeKey = KeyFilter.of(
 				'id', 'user1',
 				beginsWith('sortKey', 'ORDER')
 			)
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamo.query(
 				table,
 				rangeKey,
 				null,
@@ -1848,7 +1848,7 @@ class DynamoDbICSpec extends Specification {
 			results*.data.sort() == ['order1', 'order2', 'order3']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with sort key range conditions and additional filters"() { // {{{
@@ -1857,7 +1857,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000, status: 'ACTIVE', enabled: true),
@@ -1866,7 +1866,7 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'user1', sortKey: '4000', timestamp: 4000, status: 'ACTIVE', enabled: true),
 				new TestItem(id: 'user1', sortKey: '5000', timestamp: 5000, status: 'ACTIVE', enabled: false)
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with timestamp >= 2000 AND status = ACTIVE AND enabled = true'
 			KeyFilter rangeKey = KeyFilter.of(
@@ -1877,7 +1877,7 @@ class DynamoDbICSpec extends Specification {
 				match('status', 'ACTIVE'),
 				match('enabled', true)
 			)
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamo.query(
 				table,
 				rangeKey,
 				additionalFilter,
@@ -1892,7 +1892,7 @@ class DynamoDbICSpec extends Specification {
 			results.first().enabled == true
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with complex sort key conditions using AND/OR"() { // {{{
@@ -1901,7 +1901,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'store1', sortKey: 'ELECTRONICS', data: 'laptop', enabled: true),
@@ -1910,7 +1910,7 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'store1', sortKey: 'ELECTRONICS2', data: 'phone', enabled: false),
 				new TestItem(id: 'store1', sortKey: 'FOOD', data: 'apple', enabled: true)
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with (category = ELECTRONICS AND enabled = true) OR (category = CLOTHING)'
 			DynamoFilter complexFilter = every(
@@ -1920,7 +1920,7 @@ class DynamoDbICSpec extends Specification {
 					match('sortKey', 'CLOTHING')
 				)
 			)
-			List<TestItem> results = dynamoDb.scan(
+			List<TestItem> results = dynamo.scan(
 				table,
 				complexFilter,
 				TestItem
@@ -1933,7 +1933,7 @@ class DynamoDbICSpec extends Specification {
 			resultData == ['laptop', 'shirt']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with sort key range conditions on secondary index"() { // {{{
@@ -1943,7 +1943,7 @@ class DynamoDbICSpec extends Specification {
 			String sortKey = 'sortKey'
 			Index scoreIndex = Index.of('status', 'data', 'status-score-index')
 		and:
-			dynamoDb.createTable(
+			dynamo.createTable(
 				table,
 				Scalar.of(partKey),
 				Optional.of(Scalar.of(sortKey)),
@@ -1957,14 +1957,14 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'game2', sortKey: '1500', status: 'ACTIVE', timestamp: 1500, data: '150'),
 				new TestItem(id: 'game3', sortKey: '2500', status: 'INACTIVE', timestamp: 2500, data: '250')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query index with status = ACTIVE AND score > 150'
 			KeyFilter indexKey = KeyFilter.of(
 				'status', 'ACTIVE',
 				greater('data', '150')
 			)
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamo.query(
 				table,
 				'status-score-index',
 				indexKey,
@@ -1979,7 +1979,7 @@ class DynamoDbICSpec extends Specification {
 			results*.id.sort() == ['game1', 'game1']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should handle sort key less than and less than or equal conditions"() { // {{{
@@ -1988,7 +1988,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'tasks', sortKey: '1', data: 'urgent'),
@@ -1997,14 +1997,14 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'tasks', sortKey: '7', data: 'low'),
 				new TestItem(id: 'tasks', sortKey: '9', data: 'lowest')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with priority < 5'
 			KeyFilter lessThanKey = KeyFilter.of(
 				'id', 'tasks',
 				less('sortKey', '5')
 			)
-			List<TestItem> lessThanResults = dynamoDb.query(
+			List<TestItem> lessThanResults = dynamo.query(
 				table,
 				lessThanKey,
 				null,
@@ -2020,7 +2020,7 @@ class DynamoDbICSpec extends Specification {
 				'id', 'tasks',
 				lessOrEqual('sortKey', '5')
 			)
-			List<TestItem> lessOrEqualResults = dynamoDb.query(
+			List<TestItem> lessOrEqualResults = dynamo.query(
 				table,
 				lessOrEqualKey,
 				null,
@@ -2032,7 +2032,7 @@ class DynamoDbICSpec extends Specification {
 			lessOrEqualResults*.data.sort() == ['high', 'medium', 'urgent']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should maintain backward compatibility with exact sort key matching"() { // {{{
@@ -2041,18 +2041,18 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'user1', sortKey: '1000', timestamp: 1000, data: 'first'),
 				new TestItem(id: 'user1', sortKey: '2000', timestamp: 2000, data: 'second'),
 				new TestItem(id: 'user1', sortKey: '3000', timestamp: 3000, data: 'third')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Traditional exact matching still works'
 			KeyFilter exactKey = new KeyFilter('id', 'user1', 'sortKey', '2000')
-			TestItem exactResult = dynamoDb.getItem(
+			TestItem exactResult = dynamo.getItem(
 				table,
 				exactKey,
 				TestItem
@@ -2068,7 +2068,7 @@ class DynamoDbICSpec extends Specification {
 				'id', 'user1',
 				match('sortKey', '2000')
 			)
-			List<TestItem> rangeExactResults = dynamoDb.query(
+			List<TestItem> rangeExactResults = dynamo.query(
 				table,
 				rangeExactKey,
 				null,
@@ -2086,7 +2086,7 @@ class DynamoDbICSpec extends Specification {
 			exactResult.data == rangeExactResults.first().data
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with numeric sort key ranges"() { // {{{
@@ -2095,7 +2095,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			def items = [
 				new TestItem(id: 'game1', sortKey: '85', timestamp: 85, data: 'player1'),
@@ -2104,14 +2104,14 @@ class DynamoDbICSpec extends Specification {
 				new TestItem(id: 'game1', sortKey: '96', timestamp: 96, data: 'player4'),
 				new TestItem(id: 'game1', sortKey: '88', timestamp: 88, data: 'player5')
 			]
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with score between 80 and 95'
 			KeyFilter numericRangeKey = KeyFilter.of(
 				'id', 'game1',
 				between('sortKey', '80', '95')
 			)
-			List<TestItem> results = dynamoDb.query(
+			List<TestItem> results = dynamo.query(
 				table,
 				numericRangeKey,
 				null,
@@ -2126,7 +2126,7 @@ class DynamoDbICSpec extends Specification {
 			results*.data.sort() == ['player1', 'player2', 'player5']
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should automatically retrieve all results with query method using pagination"() { // {{{
@@ -2135,7 +2135,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and: 'Create enough items to require multiple pages'
 			List<TestItem> items = (1..15).collect { int i ->
 				new TestItem(
@@ -2144,10 +2144,10 @@ class DynamoDbICSpec extends Specification {
 					data: "data${i}"
 				)
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Use query method (which should automatically paginate)'
-			List<TestItem> allResults = dynamoDb.query(
+			List<TestItem> allResults = dynamo.query(
 				table,
 				new KeyFilter('id', 'user1'),
 				null,
@@ -2160,7 +2160,7 @@ class DynamoDbICSpec extends Specification {
 			allResults*.sortKey.sort() == (1..15).collect { String.format('%03d', it) }
 
 		when: 'Use query method for manual pagination control'
-			PagedResult<TestItem> firstPage = dynamoDb.query(
+			PagedResult<TestItem> firstPage = dynamo.query(
 				table,
 				new KeyFilter('id', 'user1'),
 				TestItem,
@@ -2173,7 +2173,7 @@ class DynamoDbICSpec extends Specification {
 			firstPage.last != null
 
 		when: 'Get second page'
-			PagedResult<TestItem> secondPage = dynamoDb.query(
+			PagedResult<TestItem> secondPage = dynamo.query(
 				table,
 				null, // no index
 				new KeyFilter('id', 'user1'),
@@ -2190,7 +2190,7 @@ class DynamoDbICSpec extends Specification {
 			secondPage.last != null
 
 		when: 'Get remaining items'
-			PagedResult<TestItem> thirdPage = dynamoDb.query(
+			PagedResult<TestItem> thirdPage = dynamo.query(
 				table,
 				null, // no index
 				new KeyFilter('id', 'user1'),
@@ -2212,7 +2212,7 @@ class DynamoDbICSpec extends Specification {
 			manualResults*.sortKey.sort() == allResults*.sortKey.sort()
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should automatically retrieve all results with query using index and pagination"() { // {{{
@@ -2223,7 +2223,7 @@ class DynamoDbICSpec extends Specification {
 				'status_index': 'status'
 			]
 		and:
-			dynamoDb.createTable(table, partKey, null, indexes)
+			dynamo.createTable(table, partKey, null, indexes)
 		and: 'Create enough items to require multiple pages'
 			List<TestItem> items = (1..12).collect { int i ->
 				new TestItem(
@@ -2232,10 +2232,10 @@ class DynamoDbICSpec extends Specification {
 					data: "data${i}"
 				)
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Use query method with index (should automatically paginate)'
-			List<TestItem> allResults = dynamoDb.query(
+			List<TestItem> allResults = dynamo.query(
 				table,
 				'status_index',
 				new KeyFilter('status', 'ACTIVE'),
@@ -2248,7 +2248,7 @@ class DynamoDbICSpec extends Specification {
 			allResults.every { it.status == 'ACTIVE' }
 
 		when: 'Use query method with index for manual pagination'
-			PagedResult<TestItem> pagedResult = dynamoDb.query(
+			PagedResult<TestItem> pagedResult = dynamo.query(
 				table,
 				'status_index',
 				new KeyFilter('status', 'ACTIVE'),
@@ -2262,7 +2262,7 @@ class DynamoDbICSpec extends Specification {
 			pagedResult.last != null
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should automatically retrieve all results with filters and pagination"() { // {{{
@@ -2271,7 +2271,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and: 'Create items with mixed enabled status'
 			List<TestItem> items = (1..20).collect { int i ->
 				new TestItem(
@@ -2281,10 +2281,10 @@ class DynamoDbICSpec extends Specification {
 					enabled: (i % 2 == 0)  // every other item enabled
 				)
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Use query method with filter (should automatically paginate)'
-			List<TestItem> enabledResults = dynamoDb.query(
+			List<TestItem> enabledResults = dynamo.query(
 				table,
 				new KeyFilter('id', 'user1'),
 				match('enabled', true),
@@ -2297,7 +2297,7 @@ class DynamoDbICSpec extends Specification {
 			enabledResults.every { it.id == 'user1' }
 
 		when: 'Use query method with filter for manual pagination'
-			PagedResult<TestItem> pagedFiltered = dynamoDb.query(
+			PagedResult<TestItem> pagedFiltered = dynamo.query(
 				table,
 				new KeyFilter('id', 'user1'),
 				match('enabled', true),
@@ -2310,7 +2310,7 @@ class DynamoDbICSpec extends Specification {
 			pagedFiltered.items.every { it.enabled == true }
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should retrieve item with projection to select specific fields"() { // {{{
@@ -2318,7 +2318,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_projection_get'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			TestItem item = new TestItem (
 				id: 'proj1',
@@ -2331,10 +2331,10 @@ class DynamoDbICSpec extends Specification {
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		when: 'Retrieve item with projection for specific fields'
-			DynamoMap projectedItem = dynamoDb.getItem (
+			DynamoMap projectedItem = dynamo.getItem (
 				table,
 				key,
 				['id', 'tagField'],
@@ -2350,7 +2350,7 @@ class DynamoDbICSpec extends Specification {
 			projectedItem.version == null   // not projected
 
 		when: 'Retrieve item without projection'
-			TestItem fullItem = dynamoDb.getItem (
+			TestItem fullItem = dynamo.getItem (
 				table,
 				key,
 				TestItem
@@ -2365,7 +2365,7 @@ class DynamoDbICSpec extends Specification {
 			fullItem.version == 1
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with projection to select specific fields"() { // {{{
@@ -2374,7 +2374,7 @@ class DynamoDbICSpec extends Specification {
 			String partKey = 'id'
 			String sortKey = 'sortKey'
 		and:
-			dynamoDb.createTable(table, partKey, sortKey)
+			dynamo.createTable(table, partKey, sortKey)
 		and:
 			List<TestItem> items = [
 				new TestItem (
@@ -2393,10 +2393,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query with projection for specific fields'
-			List<DynamoMap> projectedItems = dynamoDb.query (
+			List<DynamoMap> projectedItems = dynamo.query (
 				table,
 				new KeyFilter('id', 'user1'),
 				['id', 'sortKey', 'tagField'],
@@ -2416,7 +2416,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: 'Query without projection'
-			List<TestItem> fullItems = dynamoDb.query (
+			List<TestItem> fullItems = dynamo.query (
 				table,
 				new KeyFilter('id', 'user1'),
 				null,
@@ -2434,7 +2434,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should query with projection using index"() { // {{{
@@ -2445,7 +2445,7 @@ class DynamoDbICSpec extends Specification {
 				'tag_index': 'tagField'
 			]
 		and:
-			dynamoDb.createTable(table, partKey, null, indexes)
+			dynamo.createTable(table, partKey, null, indexes)
 		and:
 			List<TestItem> items = [
 				new TestItem (
@@ -2462,10 +2462,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Query index with projection'
-			List<DynamoMap> projectedResults = dynamoDb.query (
+			List<DynamoMap> projectedResults = dynamo.query (
 				table,
 				'tag_index',
 				new KeyFilter('tagField', 'category_a'),
@@ -2485,7 +2485,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with projection to select specific fields"() { // {{{
@@ -2493,7 +2493,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_projection'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			List<TestItem> items = [
 				new TestItem (
@@ -2516,10 +2516,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Scan with projection for specific fields'
-			List<DynamoMap> projectedItems = dynamoDb.scan (
+			List<DynamoMap> projectedItems = dynamo.scan (
 				table,
 				['id', 'tagField'],
 				DynamoMap
@@ -2536,7 +2536,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: 'Scan without projection'
-			List<TestItem> fullItems = dynamoDb.scan (
+			List<TestItem> fullItems = dynamo.scan (
 				table,
 				null,
 				TestItem
@@ -2552,7 +2552,7 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with filter and projection combined"() { // {{{
@@ -2560,7 +2560,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_filter_projection'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			List<TestItem> items = [
 				new TestItem (
@@ -2583,10 +2583,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Scan with filter and projection'
-			List<DynamoMap> filteredProjectedItems = dynamoDb.scan (
+			List<DynamoMap> filteredProjectedItems = dynamo.scan (
 				table,
 				every (
 					match('tagField', 'category_a'),
@@ -2606,7 +2606,7 @@ class DynamoDbICSpec extends Specification {
 			item.version == null
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with simplified interface - table name and projection only"() { // {{{
@@ -2614,7 +2614,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_simple'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			TestItem item = new TestItem (
 				id: 'simple1',
@@ -2623,10 +2623,10 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			dynamoDb.putItem(table, item)
+			dynamo.putItem(table, item)
 
 		when: 'Use simplest scan interface'
-			List<DynamoMap> allItems = dynamoDb.scan(table)
+			List<DynamoMap> allItems = dynamo.scan(table)
 
 		then: 'All items with all fields should be returned'
 			allItems.size() == 1
@@ -2636,7 +2636,7 @@ class DynamoDbICSpec extends Specification {
 			allItems.first().enabled == true
 
 		when: 'Use scan with only projection'
-			List<DynamoMap> projectedOnly = dynamoDb.scan (
+			List<DynamoMap> projectedOnly = dynamo.scan (
 				table,
 				['id', 'tagField']
 			)
@@ -2650,7 +2650,7 @@ class DynamoDbICSpec extends Specification {
 			projItem.enabled == null
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with projection using full signature including limit and segments"() { // {{{
@@ -2658,7 +2658,7 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_full_signature'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			List<TestItem> items = (1..10).collect { int i ->
 				new TestItem (
@@ -2669,10 +2669,10 @@ class DynamoDbICSpec extends Specification {
 				)
 			}
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Use full signature with projection and limit'
-			List<DynamoMap> limitedProjected = dynamoDb.scan (
+			List<DynamoMap> limitedProjected = dynamo.scan (
 				table,
 				match('enabled', true),    // filter
 				['id', 'enabled'],         // projection
@@ -2692,7 +2692,7 @@ class DynamoDbICSpec extends Specification {
 			// With filtering, the number of returned items may vary.
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should maintain backward compatibility for existing scan calls"() { // {{{
@@ -2700,17 +2700,17 @@ class DynamoDbICSpec extends Specification {
 			String table = 'test_scan_backward_compat'
 			String partKey = 'id'
 		and:
-			dynamoDb.createTable(table, partKey)
+			dynamo.createTable(table, partKey)
 		and:
 			List<TestItem> items = [
 				new TestItem(id: 'compat1', data: 'data1', enabled: true),
 				new TestItem(id: 'compat2', data: 'data2', enabled: false)
 			]
 		and:
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Use old scan signature - scan(table, filter, targetClass)'
-			List<TestItem> oldSigResults = dynamoDb.scan (
+			List<TestItem> oldSigResults = dynamo.scan (
 				table,
 				match('enabled', true),
 				TestItem
@@ -2724,7 +2724,7 @@ class DynamoDbICSpec extends Specification {
 			oldSigResults.first().version == 1
 
 		when: 'Use old scan signature - scan(table, filter, targetClass, limit)'
-			List<TestItem> limitedResults = dynamoDb.scan (
+			List<TestItem> limitedResults = dynamo.scan (
 				table,
 				null,               // no filter
 				TestItem,           // targetClass
@@ -2736,23 +2736,23 @@ class DynamoDbICSpec extends Specification {
 			// Note: DynamoDB limit controls items examined, not returned
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should return PagedResult when scan pagination parameters are used"() { // {{{
 		given:
 			String table = 'test_scan_paged'
-			dynamoDb.createTable(table, 'id')
+			dynamo.createTable(table, 'id')
 			Integer totalSize = 15
 			Integer pageSize = 5
 		and:
 			List<TestItem> items = (1..totalSize).collect {
 				new TestItem(id: "scan_item${it}", data: "data${it}")
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Using limit parameter for scan'
-			PagedResult<TestItem> first = dynamoDb.scan (
+			PagedResult<TestItem> first = dynamo.scan (
 				table,
 				null, // no filter
 				null, // no projection
@@ -2767,7 +2767,7 @@ class DynamoDbICSpec extends Specification {
 			first.last != null
 
 		when: 'Using last parameter for next page'
-			PagedResult<TestItem> second = dynamoDb.scan (
+			PagedResult<TestItem> second = dynamo.scan (
 				table,
 				null, // no filter
 				null, // no projection
@@ -2781,7 +2781,7 @@ class DynamoDbICSpec extends Specification {
 			second.last != null
 
 		when: 'Get remaining items'
-			PagedResult<TestItem> third = dynamoDb.scan (
+			PagedResult<TestItem> third = dynamo.scan (
 				table,
 				null, // no filter
 				null, // no projection
@@ -2794,21 +2794,21 @@ class DynamoDbICSpec extends Specification {
 			third.more == false
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with PagedResult and filter"() { // {{{
 		given:
 			String table = 'test_scan_paged_filter'
-			dynamoDb.createTable(table, 'id')
+			dynamo.createTable(table, 'id')
 		and:
 			List<TestItem> items = (1..10).collect {
 				new TestItem(id: "filter_item${it}", enabled: (it % 2 == 0))
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Scan with filter and pagination'
-			PagedResult<TestItem> filtered = dynamoDb.scan (
+			PagedResult<TestItem> filtered = dynamo.scan (
 				table,
 				match('enabled', true),
 				null, // no projection
@@ -2822,13 +2822,13 @@ class DynamoDbICSpec extends Specification {
 			filtered.count <= 3
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with PagedResult, filter and projection"() { // {{{
 		given:
 			String table = 'test_scan_paged_filter_projection'
-			dynamoDb.createTable(table, 'id')
+			dynamo.createTable(table, 'id')
 		and:
 			List<TestItem> items = (1..8).collect {
 				new TestItem(
@@ -2838,10 +2838,10 @@ class DynamoDbICSpec extends Specification {
 					enabled: (it % 2 == 0)
 				)
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Scan with filter, projection and pagination'
-			PagedResult<DynamoMap> result = dynamoDb.scan (
+			PagedResult<DynamoMap> result = dynamo.scan (
 				table,
 				match('enabled', true),
 				['id', 'tagField'],
@@ -2860,13 +2860,13 @@ class DynamoDbICSpec extends Specification {
 			result.count <= 2
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
 
 	def "Should scan with PagedResult using various convenience method signatures"() { // {{{
 		given:
 			String table = 'test_scan_convenience'
-			dynamoDb.createTable(table, 'id')
+			dynamo.createTable(table, 'id')
 		and:
 			List<TestItem> items = (1..6).collect {
 				new TestItem(
@@ -2876,10 +2876,10 @@ class DynamoDbICSpec extends Specification {
 					enabled: (it % 2 == 0)
 				)
 			}
-			dynamoDb.putItems(table, items)
+			dynamo.putItems(table, items)
 
 		when: 'Simple scan with limit only'
-			PagedResult<TestItem> simple = dynamoDb.scan (
+			PagedResult<TestItem> simple = dynamo.scan (
 				table,
 				null, // no filter
 				null, // no projection
@@ -2893,7 +2893,7 @@ class DynamoDbICSpec extends Specification {
 			simple.items.every { it instanceof TestItem }
 
 		when: 'Scan with filter and limit'
-			PagedResult<TestItem> filtered = dynamoDb.scan (
+			PagedResult<TestItem> filtered = dynamo.scan (
 				table,
 				match('enabled', true),
 				null, // no projection
@@ -2907,7 +2907,7 @@ class DynamoDbICSpec extends Specification {
 			filtered.count <= 2
 
 		when: 'Scan with projection, filter and limit'
-			PagedResult<DynamoMap> projected = dynamoDb.scan (
+			PagedResult<DynamoMap> projected = dynamo.scan (
 				table,
 				match('enabled', true),
 				['id', 'tagField'],
@@ -2925,8 +2925,145 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		cleanup:
-			dynamoDb.dropTable(table)
+			dynamo.dropTable(table)
 	} // }}}
+
+	def "Should auto-extract keys for getItem operation"() { // {{{
+		given:
+			String table = 'auto_key_get_test'
+			String partKey = 'id'
+		and:
+			dynamo.createTable (
+				table,
+				partKey
+			)
+		and:
+			DynamoMap original = new DynamoMap (
+				id: 'test123',
+				payload: 'original',
+				v: 1
+			)
+
+		when: 'put item using traditional method'
+			dynamo.putItem(table, original)
+		and:
+			dynamo.updateItem (
+				table,
+				original.tap { payload = 'updated'; v = 2 }
+			)
+
+		then: 'auto-extract keys and retrieve the item'
+			DynamoMap refreshed = dynamo.refreshItem (
+				table,
+				original
+			)
+		and:
+			verifyAll(refreshed) {
+				id == 'test123'
+				payload == 'updated'
+				v == 2
+			}
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should auto-extract composite keys for getItem operation"() { // {{{
+		given:
+			String table = 'auto_key_composite_test'
+		and:
+			dynamo.createTable (
+				table,
+				'contract',
+				'sheet'
+			)
+		and:
+			DynamoMap original = new DynamoMap (
+				contract: 'contract123',
+				sheet: 'sheet456',
+				offer: 'special offer',
+				payload: 'important data'
+			)
+
+		when: 'put item using traditional method'
+			dynamo.putItem(table, original)
+		and:
+			dynamo.updateItem (
+				table,
+				original.tap { payload = 'updated' }
+			)
+
+		then: 'auto-extract keys and retrieve the item'
+			DynamoMap refreshed = dynamo.refreshItem (
+				table,
+				original
+			)
+		and:
+			verifyAll(refreshed) {
+				contract == 'contract123'
+				sheet == 'sheet456'
+				offer == 'special offer'
+				payload == 'updated'
+			}
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should auto-extract keys for deleteItem operation"() { // {{{
+		given:
+			String table = 'auto_key_delete_test'
+			KeyFilter key = KeyFilter.of('id', 'delete_me')
+		and:
+			dynamo.createTable (
+				table,
+				'id'
+			)
+		and:
+			DynamoMap item = new DynamoMap (
+				id: 'delete_me',
+				payload: 'to be deleted'
+			)
+
+		when: 'put item'
+			dynamo.putItem(table, item)
+
+		then: 'verify item exists'
+			dynamo.getItem(table, key) != null
+
+		when: 'delete using auto-key-extraction'
+			dynamo.deleteItem(table, item)
+
+		then: 'verify item is deleted'
+			dynamo.getItem(table, key) == null
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should handle missing key attributes gracefully"() { // {{{
+		given:
+			String table = 'missing_key_test'
+		and:
+			dynamo.createTable (
+				table,
+				'id'
+			)
+		and:
+			DynamoMap item = new DynamoMap (
+				field: 'no key data'
+			)
+
+		when: 'try to extract keys from item without key data'
+			dynamo.extractKey(table, item, false)
+
+		then: 'should throw appropriate exception'
+			thrown(IllegalStateException)
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
 
 	static class TestItem // {{{
 		implements Storable<AttributeValue,String> {

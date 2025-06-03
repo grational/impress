@@ -481,5 +481,140 @@ class DynamoMapperUSpec extends Specification {
 				'#fieldwithdots': 'field.with.dots'
 			]
 	} // }}}
+
+	def "Should provide markAsPartitionKey method"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('data', 'value')
+				with('pk', 'key123')
+			}
+		
+		when:
+			mapper.markAsPartitionKey('pk')
+			
+		then:
+			mapper.hasKey() == true
+			mapper.key() == [pk: fromS('key123')]
+			mapper.storer() == [
+				pk: fromS('key123'),
+				data: fromS('value')
+			]
+	} // }}}
+
+	def "Should provide markAsSortKey method"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('data', 'value')
+				with('pk', 'key123')
+				with('sk', 'sort456')
+			}
+		
+		when:
+			mapper.markAsPartitionKey('pk')
+			mapper.markAsSortKey('sk')
+			
+		then:
+			mapper.hasKey() == true
+			mapper.key() == [pk: fromS('key123'), sk: fromS('sort456')]
+			mapper.storer() == [
+				pk: fromS('key123'),
+				sk: fromS('sort456'),
+				data: fromS('value')
+			]
+	} // }}}
+
+	def "Should provide markAsVersionField method"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('data', 'value')
+				with('version', 1)
+			}
+		
+		when:
+			mapper.markAsVersionField('version')
+			
+		then:
+			mapper.hasVersion() == true
+			mapper.version() == [version: fromN('1')]
+			mapper.storer() == [
+				data: fromS('value'),
+				version: fromN('1')
+			]
+	} // }}}
+
+	def "Should move fields from map to Tuple2 properties when marked as keys"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('data', 'value')
+				with('pk', 'key123')
+				with('sk', 'sort456')
+				with('version', 1)
+			}
+		
+		when:
+			def beforeMarking = mapper.storer()
+			mapper.markAsPartitionKey('pk')
+			mapper.markAsSortKey('sk')
+			mapper.markAsVersionField('version')
+			def afterMarking = mapper.storer()
+			
+		then:
+			beforeMarking == [
+				data: fromS('value'),
+				pk: fromS('key123'),
+				sk: fromS('sort456'),
+				version: fromN('1')
+			]
+			afterMarking == [
+				pk: fromS('key123'),
+				sk: fromS('sort456'),
+				data: fromS('value'),
+				version: fromN('1')
+			]
+			mapper.key() == [pk: fromS('key123'), sk: fromS('sort456')]
+			mapper.version() == [version: fromN('1')]
+	} // }}}
+
+	def "Should handle marking non-existent fields gracefully"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('data', 'value')
+			}
+		
+		when:
+			mapper.markAsPartitionKey('nonExistent')
+			mapper.markAsSortKey('alsoNonExistent')
+			mapper.markAsVersionField('stillNonExistent')
+			
+		then:
+			mapper.hasKey() == false
+			mapper.hasVersion() == false
+			mapper.storer() == [data: fromS('value')]
+	} // }}}
+
+	def "Should handle marking fields with different data types"() { // {{{
+		given:
+			def mapper = new DynamoMapper().tap {
+				with('stringPk', 'keyString')
+				with('numberSk', 123)
+				with('numberVersion', 5)
+			}
+		
+		when:
+			mapper.markAsPartitionKey('stringPk')
+			mapper.markAsSortKey('numberSk')
+			mapper.markAsVersionField('numberVersion')
+			
+		then:
+			mapper.hasKey() == true
+			mapper.hasVersion() == true
+			mapper.key() == [stringPk: fromS('keyString'), numberSk: fromN('123')]
+			mapper.version() == [numberVersion: fromN('5')]
+			mapper.storer() == [
+				stringPk: fromS('keyString'),
+				numberSk: fromN('123'),
+				numberVersion: fromN('5')
+			]
+	} // }}}
 }
 // vim: fdm=marker

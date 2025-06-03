@@ -110,6 +110,31 @@ class DynamoDb {
 		}
 	} // }}}
 
+
+	/**
+	 * Updates an item by extracting key attributes from a Storable object
+	 *
+	 * @param table The table name
+	 * @param item The Storable object containing both key and update data (keys will be auto-extracted)
+	 * @param versioned Whether to use versioning
+	 * @return UpdateItemResponse from DynamoDB
+	 */
+	UpdateItemResponse updateItem (
+		String table,
+		Storable<AttributeValue, Object> item,
+		boolean versioned = true
+	) { // {{{
+		DynamoMapper mapper = item.impress (
+			new DynamoMapper(),
+			versioned
+		) as DynamoMapper
+
+		updateItem (
+			table,
+			mapper
+		)
+	} // }}}
+
 	UpdateItemResponse updateItem (
 		String table,
 		DynamoMapper mapper
@@ -126,7 +151,11 @@ class DynamoDb {
 		def builder = UpdateItemRequest
 			.builder()
 			.tableName(table)
-			.key(mapper.key())
+
+		if ( !mapper.hasKey() )
+			markKeys(table, mapper)
+
+		builder.key( mapper.key() )
 
 		if ( mapper.hasVersion() ) {
 			builder.conditionExpression (
@@ -226,6 +255,49 @@ class DynamoDb {
 		return targetClass.newInstance(builder)
 	} // }}}
 
+	/**
+	 * Gets an item by extracting key attributes from a sample object
+	 *
+	 * @param table The table name
+	 * @param sampleItem The sample object containing key values (keys will be auto-extracted)
+	 * @param targetClass The class to deserialize the result into
+	 * @return The item if found, null otherwise
+	 */
+	<T extends Storable<AttributeValue,Object>> T refreshItem (
+		String table,
+		Storable<AttributeValue, Object> item,
+		List<String> fields = null,
+		Class<T> targetClass = DynamoMap.class
+	) { // {{{
+		Map<String, AttributeValue> key = extractKey (
+			table,
+			item
+		)
+		
+		log.debug (
+			"Getting item with auto-extracted keys: {}",
+			key
+		)
+
+		def getBuilder = GetItemRequest
+			.builder()
+			.tableName(table)
+			.key(key)
+
+		if ( fields )
+			getBuilder.projectionExpression(fields.join(', '))
+
+		def response = client.getItem(getBuilder.build())
+
+		if (!response.hasItem()) {
+			log.debug("No item found for auto-extracted keys: {}", key)
+			return null
+		}
+
+		Map<String, AttributeValue> fresh = response.item()
+		Map<String, Object> builder = new DynamoMapper(fresh).builder()
+		return targetClass.newInstance(builder)
+	} // }}}
 
 	/**
 	 * Query a table using just a partition key - returns all results with automatic pagination
@@ -613,6 +685,35 @@ class DynamoDb {
 		return client.deleteItem(request)
 	} // }}}
 
+	/**
+	 * Deletes an item by extracting key attributes from a Storable object
+	 *
+	 * @param table The table name
+	 * @param item The Storable object containing the item data (keys will be auto-extracted)
+	 * @return DeleteItemResponse from DynamoDB
+	 */
+	DeleteItemResponse deleteItem (
+		String table,
+		Storable<AttributeValue, Object> item
+	) { // {{{
+		Map<String, AttributeValue> key = extractKey (
+			table,
+			item
+		)
+		
+		log.debug (
+			"Deleting item with auto-extracted keys: {}",
+			key
+		)
+
+		def request = DeleteItemRequest.builder()
+			.tableName(table)
+			.key(key)
+			.build()
+
+		return client.deleteItem(request)
+	} // }}}
+
 	void createTable (
 		String table,
 		String partition,
@@ -949,12 +1050,15 @@ class DynamoDb {
 			List<TransactWriteItem> transactItems = batch
 			.collect { Map<String, AttributeValue> item ->
 				// Extract only the key attributes from the item
-				Map<String, AttributeValue> keyAttributes = extractKeyAttributes(table, item)
+				Map<String, AttributeValue> key = extractKey (
+					table,
+					item
+				)
 
 				TransactWriteItem.builder().delete (
 					Delete.builder()
 						.tableName(table)
-						.key(keyAttributes)
+						.key(key)
 						.build()
 				).build()
 			}
@@ -977,45 +1081,87 @@ class DynamoDb {
 	} // }}}
 
 	/**
+	 * Gets the key schema for a table
+	 *
+	 * @param table The table name
+	 * @return The list of key schema elements
+	 */
+	private List<KeySchemaElement> tableKeySchema(String table) { // {{{
+		try {
+			DescribeTableResponse tableInfo = client.describeTable (
+				DescribeTableRequest.builder()
+					.tableName(table)
+					.build()
+			)
+			return tableInfo.table().keySchema()
+		} catch (Exception e) {
+			log.error("Error getting table key schema for {}: {}", table, e.message)
+			throw e
+		}
+	} // }}}
+
+	/**
 	 * Extracts the key attributes from a DynamoDB item
 	 *
 	 * @param table The table name to identify the key schema
 	 * @param item The full item map
 	 * @return A map containing only the key attributes
 	 */
-	private Map<String, AttributeValue> extractKeyAttributes (
+	Map<String, AttributeValue> extractKey (
 		String table,
 		Map<String, AttributeValue> item
 	) { // {{{
-		try {
-			// Describe the table to get the key schema
-			DescribeTableResponse tableInfo = client.describeTable (
-				DescribeTableRequest.builder()
-					.tableName(table)
-					.build()
-			)
+		List<KeySchemaElement> keySchema = tableKeySchema(table)
 
-			List<KeySchemaElement> keySchema = tableInfo.table().keySchema()
+		// Extract key attributes based on the key schema
+		Map<String, AttributeValue> key = [:]
 
-			// Extract key attributes based on the key schema
-			Map<String, AttributeValue> keyAttributes = [:]
-
-			keySchema.each { KeySchemaElement element ->
-				String keyName = element.attributeName()
-				if (item.containsKey(keyName)) {
-					keyAttributes[keyName] = item[keyName]
-				} else {
-					throw new IllegalStateException (
-						"Key attribute ${keyName} not found in item"
-					)
-				}
+		keySchema.each { KeySchemaElement element ->
+			String keyName = element.attributeName()
+			if (item.containsKey(keyName)) {
+				key[keyName] = item[keyName]
+			} else {
+				throw new IllegalStateException (
+					"Key attribute ${keyName} not found in item"
+				)
 			}
+		}
 
-			return keyAttributes
-		} catch (Exception e) {
-			log.error("Error extracting key attributes: {}", e.message)
-			// Fallback: return the entire item, though this may fail
-			return item
+		return key
+	} // }}}
+
+	/**
+	 * Extracts key attributes from a Storable object
+	 *
+	 * @param table The table name to identify the key schema
+	 * @param storable The storable object
+	 * @return A map containing only the key attributes
+	 */
+	Map<String, AttributeValue> extractKey (
+		String table,
+		Storable<AttributeValue, Object> storable,
+		boolean versioned = false
+	) { // {{{
+		return extractKey (
+			table,
+			storable.impress (
+				new DynamoMapper(),
+				versioned
+			).storer(versioned)
+		)
+	} // }}}
+
+	/**
+	 * Extracts key attributes from a DynamoMapper object
+	 *
+	 * @param table The table name to identify the key schema
+	 * @param mapper The DynamoMapper object containing the full item
+	 * @return A map containing only the key attributes
+	 */
+	void markKeys(String table, DynamoMapper mapper) { // {{{
+		tableKeySchema(table)
+		.each { KeySchemaElement element ->
+			mapper.markAsKey(element)
 		}
 	} // }}}
 

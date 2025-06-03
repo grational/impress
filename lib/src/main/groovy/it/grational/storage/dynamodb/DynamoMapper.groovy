@@ -6,6 +6,8 @@ import groovy.transform.CompileStatic
 import it.grational.storage.DbMapper
 import it.grational.storage.Storable
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement
+import software.amazon.awssdk.services.dynamodb.model.KeyType
 import static software.amazon.awssdk.services.dynamodb.model.AttributeValue.*
 import static it.grational.storage.dynamodb.FieldType.*
 // }}}
@@ -242,12 +244,14 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		with(k, dm, versioned)
 	} // }}}
 
-	DbMapper<AttributeValue,Object> withNull(String k) {
+	DbMapper<AttributeValue,Object> withNull(String k) { // {{{
 		map[k] = AttributeValue.builder().nul(true).build()
 		return this
-	}
+	} // }}}
 
-	DbMapper<AttributeValue,Object> remove(String... attributeNames) { // {{{
+	DbMapper<AttributeValue,Object> remove ( // {{{
+		String... attributeNames
+	) {
 		attributeNames.each { String name ->
 			if (name != null && !name.trim().isEmpty()) {
 				removeAttributes.add(name)
@@ -339,6 +343,51 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 
 	private String safe(String name) { // {{{
 		name.replaceAll(/[^a-zA-Z0-9_]/,'')
+	} // }}}
+
+	DbMapper<AttributeValue,Object> markAsKey ( // {{{
+		KeySchemaElement kse
+	) {
+		switch(kse.keyType()) {
+			case KeyType.HASH:
+				return markAsPartitionKey(kse.attributeName())
+			case KeyType.RANGE:
+				return markAsSortKey(kse.attributeName())
+			default:
+				throw new IllegalArgumentException (
+					"Unsupported KeyType: ${kse.keyType()}"
+				)
+		}
+	} // }}}
+
+	DbMapper<AttributeValue,Object> markAsPartitionKey ( // {{{
+		String fieldName
+	) {
+		if (fieldName && map.containsKey(fieldName)) {
+			AttributeValue value = map.remove(fieldName)
+			pk = new Tuple2(fieldName, value)
+		}
+		return this
+	} // }}}
+
+	DbMapper<AttributeValue,Object> markAsSortKey ( // {{{
+		String fieldName
+	) {
+		if (fieldName && map.containsKey(fieldName)) {
+			AttributeValue value = map.remove(fieldName)
+			sk = new Tuple2(fieldName, value)
+		}
+		return this
+	} // }}}
+
+	DbMapper<AttributeValue,Object> markAsVersionField ( // {{{
+		String fieldName
+	) {
+		if (fieldName && map.containsKey(fieldName)) {
+			AttributeValue value = map.remove(fieldName)
+			vf = new Tuple2(fieldName, value)
+		}
+		return this
 	} // }}}
 
 	// }}}
