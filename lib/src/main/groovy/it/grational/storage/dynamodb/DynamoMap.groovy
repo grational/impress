@@ -5,6 +5,7 @@ import groovy.transform.CompileStatic
 import it.grational.storage.DbMapper
 import it.grational.storage.Storable
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import static it.grational.storage.dynamodb.FieldType.*
 
 @ToString (
 	includePackage = false,
@@ -16,9 +17,36 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 
 	@Delegate
 	Map<String, Object> data
+	private String pk
+	private String sk
 
-	DynamoMap(Map<String, Object> data = [:]) {
+	DynamoMap (
+		Map<String, Object> data = [:],
+		String pk = null,
+		String sk = null
+	) {
 		this.data = data
+		this.pk = pk
+		this.sk = sk
+	}
+
+	DynamoMap withPartitionKey(String k) {
+		this.pk = k
+		return this
+	}
+
+	DynamoMap withSortKey(String k) {
+		this.sk = k
+		return this
+	}
+
+	DynamoMap withKeys (
+		String pk,
+		String sk = null
+	) {
+		this.pk = pk
+		this.sk = sk
+		return this
 	}
 
 	@Override
@@ -26,20 +54,22 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		DbMapper<AttributeValue,Object> mapper = new DynamoMapper(),
 		boolean versioned = false
 	) {
+		DynamoMapper dm = mapper as DynamoMapper
 		data.each { String k, Object v ->
+			FieldType ftype = fieldType(k)
 			switch (v) {
 				case String:
-					mapper.with(k, v as String)
+					dm.with(k, v as String, ftype)
 					break
 				case Number:
-					mapper.with(k, v as Number)
+					dm.with(k, v as Number, ftype)
 					break
 				case Boolean:
-					mapper.with(k, v as Boolean)
+					dm.with(k, v as Boolean)
 					break
 				case Map:
 					Map<String,Object> mv = v as Map
-					mapper.with (
+					dm.with (
 						k,
 						new DynamoMap(mv).impress (
 							new DynamoMapper(),
@@ -49,14 +79,14 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					)
 					break
 				case DbMapper:
-					mapper.with (
+					dm.with (
 						k,
 						(v as DbMapper<AttributeValue,Object>),
 						versioned
 					)
 					break
 				case Storable:
-					mapper.with (
+					dm.with (
 						k,
 						(v as Storable<AttributeValue,Object>).impress (
 							new DynamoMapper(),
@@ -68,15 +98,15 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 				case List:
 					List lv = v as List<Object>
 					if (lv.isEmpty()) {
-						mapper.with(k, [] as String[])
+						dm.with(k, [] as String[])
 						break
 					}
 					switch (lv[0]) {
 						case String:
-							mapper.with(k, lv as String[])
+							dm.with(k, lv as String[])
 							break
 						case Number:
-							mapper.with(k, lv as Number[])
+							dm.with(k, lv as Number[])
 							break
 						case Map:
 							List<DbMapper<AttributeValue,Object>> mappers = lv.collect { Object item ->
@@ -85,17 +115,17 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 									versioned
 								)
 							}
-							mapper.with(k, versioned, mappers as DbMapper[])
+							dm.with(k, versioned, mappers as DbMapper[])
 							break
 						case DbMapper:
-							mapper.with (
+							dm.with (
 								k,
 								versioned,
 								lv as DbMapper[]
 							)
 							break
 						case Storable:
-							mapper.with (
+							dm.with (
 								k,
 								versioned,
 								lv as Storable[]
@@ -103,7 +133,15 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					}
 			}
 		}
-		return mapper
+		return dm
+	}
+
+	private FieldType fieldType(String k) {
+		return (k == pk)
+			? PARTITION_KEY
+			: (k == sk)
+				? SORT_KEY
+				: STANDARD
 	}
 
 }

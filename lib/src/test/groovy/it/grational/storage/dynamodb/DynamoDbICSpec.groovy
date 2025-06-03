@@ -1128,7 +1128,7 @@ class DynamoDbICSpec extends Specification {
 			dynamoDb.dropTable(table)
 	} // }}}
 
-	def "Should create table with partition key and array of Index objects"() {
+	def "Should create table with partition key and array of Index objects"() { // {{{
 		given:
 			String table = 'test_index_array'
 			String partKey = 'id'
@@ -1138,14 +1138,14 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable(
+			dynamoDb.createTable (
 				table,
 				partKey,
 				indexes
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable(
+			def description = dynamoDb.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1177,9 +1177,9 @@ class DynamoDbICSpec extends Specification {
 
 		cleanup:
 			dynamoDb.dropTable(table)
-	}
+	} // }}}
 
-	def "Should create table with partition key, sort key and array of Index objects"() {
+	def "Should create table with partition key, sort key and array of Index objects"() { // {{{
 		given:
 			String table = 'test_index_array_with_sort'
 			String partKey = 'id'
@@ -1190,7 +1190,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable(
+			dynamoDb.createTable (
 				table,
 				partKey,
 				sortKey,
@@ -1198,7 +1198,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable(
+			def description = dynamoDb.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
@@ -1229,7 +1229,7 @@ class DynamoDbICSpec extends Specification {
 
 		cleanup:
 			dynamoDb.dropTable(table)
-	}
+	} // }}}
 
 	def "Should create table with Scalar partition key and array of Index objects"() { // {{{
 		given:
@@ -1245,7 +1245,7 @@ class DynamoDbICSpec extends Specification {
 			]
 
 		when:
-			dynamoDb.createTable(
+			dynamoDb.createTable (
 				table,
 				partKey,
 				Optional.empty(),
@@ -1253,7 +1253,7 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		then:
-			def description = dynamoDb.client.describeTable(
+			def description = dynamoDb.client.describeTable (
 				DescribeTableRequest.builder()
 					.tableName(table)
 					.build()
