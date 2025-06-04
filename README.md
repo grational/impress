@@ -111,10 +111,9 @@ Revolutionary fluent API using builder pattern for constructing queries and scan
 List<User> users = dynamo.scan('users', filter, fields, User, limit)
 
 // Now: Fluent builder pattern - readable and flexible
-List<User> users = dynamo.scan('users')
+List<User> users = dynamo.scan('users', User)
   .filter(match('status', 'active'))
   .fields('id', 'name', 'email')
-  .type(User)
   .limit(100)
   .list()
 
@@ -122,7 +121,8 @@ List<User> users = dynamo.scan('users')
 PagedResult<Order> orders = dynamo.query (
     'orders',
     'status-index',
-    keyFilter
+    keyFilter,
+    Order
   )
   .filter(match('status', 'shipped'))
   .paged(50)
@@ -150,15 +150,13 @@ Two pagination approaches - automatic for simplicity, manual for control:
 List<DynamoMap> allUsers = dynamo.query (
     'users',
     KeyFilter.of('status', 'active')
-  )
-  .list()
+  ).list()
 
 // Manual: Fine-grained control (perfect for UI pagination)
 PagedResult<DynamoMap> page = dynamo.query (
     'users',
     KeyFilter.of('status', 'active')
-  )
-  .paged(10)
+  ).paged(10)
 ```
 
 ## 🏗️ Core Architecture
@@ -344,9 +342,9 @@ Map<String, AttributeValue> lastKey = null
 do {
   orders = dynamo.query (
     'orders',
-    KeyFilter.of('customerId', customerId)
+    KeyFilter.of('customerId', customerId),
+    Order
   )
-  .type(Order)
   .paged(100, lastKey)  // page size and continuation
 
   processOrders(orders.items)  // Process 100 items at a time
@@ -504,14 +502,16 @@ def featured = dynamo.scan('products')
   ))
   .list()
 
-def recentOrders = dynamo.query('orders',
+def recentOrders = dynamo.query (
+  'orders',
   KeyFilter.of(
     'customerId', 'cust123',
     greater('timestamp', lastWeek)
-  ))
-  .filter(match('status', 'completed'))
-  .type(Order)
-  .list()
+  ),
+  Order
+)
+.filter(match('status', 'completed'))
+.list()
 ```
 
 ### User Analytics
@@ -636,11 +636,12 @@ class UserRepository {
   }
 
   PagedResult<User> findActiveUsersPaged(int limit, Map<String, AttributeValue> lastKey = null) {
-    return dynamo.query(tableName,
+    return dynamo.query (
+      tableName,
       'status-index',
-      KeyFilter.of('status', 'active')
+      KeyFilter.of('status', 'active'),
+      User
     )
-    .type(User)
     .paged(limit, lastKey)
   }
 
@@ -759,8 +760,8 @@ Impress is open source software released under the MIT License.
 | Class | Purpose | Key Methods |
 |-------|---------|-------------|
 | `DynamoDb` | Main API | `getItem()`, `putItem()`, `query()`, `scan()` (returns builders) |
-| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `type()`, `list()`, `paged()` |
-| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `type()`, `limit()`, `list()`, `paged()` |
+| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `list()`, `paged()` |
+| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `limit()`, `list()`, `paged()` |
 | `KeyFilter` | Key conditions | `of()`, `partition()`, `sort()` |
 | `DynamoFilter` | Query filters | `match()`, `greater()`, `contains()`, `every()`, `any()` |
 | `DynamoMap` | Flexible data container | Direct field access via `@Delegate` |
