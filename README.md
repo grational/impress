@@ -60,25 +60,33 @@ import static it.grational.storage.dynamodb.DynamoFilter.*
 def dynamo = new DynamoDb()
 
 // 2. Create a table instantly
-dynamo.createTable('users', 'id', ['email-index': 'email'])
+dynamo.createTable('users', // table name
+  'id',                     // table S partition key
+  Index.of('email')         // index on email field called email-index
+                            // alternative: [ 'email-index': 'email' ]
+)
 
 // 3. Save data - works with any Map or custom object
-dynamo.putItem('users', [
-  id: 'user123',
-  name: 'Alice Johnson',
-  email: 'alice@example.com',
-  profile: [
-    department: 'Engineering',
-    skills: ['Groovy', 'DynamoDB', 'AWS']
-  ]
-])
+dynamo.putItem('users',
+  new DynamoMap ( // object with native impression support
+    id: 'user123',
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
+    profile: [
+      department: 'Engineering',
+      skills: ['Groovy', 'DynamoDB', 'AWS']
+    ]
+  )
+)
 
 // 4. Retrieve with type safety
-DynamoMap user = dynamo.getItem('users', KeyFilter.of('id', 'user123'))
+DynamoMap user = dynamo.getItem('users',
+  KeyFilter.of('id', 'user123')
+)
 println "Welcome ${user.name}!" // Direct field access
 
 // 5. Query with powerful filters
-List<DynamoMap> engineers = dynamo.scan('users', 
+List<DynamoMap> engineers = dynamo.scan('users',
   match('profile.department', 'Engineering')
 )
 
@@ -103,8 +111,8 @@ Reduce bandwidth and costs by retrieving only the fields you need:
 
 ```groovy
 // Get only essential fields
-DynamoMap user = dynamo.getItem('users', 
-  KeyFilter.of('id', 'user123'), 
+DynamoMap user = dynamo.getItem('users',
+  KeyFilter.of('id', 'user123'),
   ['id', 'name', 'email']  // 70% less data transfer!
 )
 ```
@@ -117,7 +125,7 @@ Two pagination approaches - automatic for simplicity, manual for control:
 List<DynamoMap> allUsers = dynamo.query('users', KeyFilter.of('status', 'active'))
 
 // Manual: Fine-grained control (perfect for UI pagination)
-PagedResult<DynamoMap> page = dynamo.query('users', 
+PagedResult<DynamoMap> page = dynamo.query('users',
   KeyFilter.of('status', 'active'), null, DynamoMap, 10)
 ```
 
@@ -135,7 +143,7 @@ interface Storable<S,B> {
 
 This elegant pattern provides:
 - **Automatic serialization** to DynamoDB format
-- **Type safety** with compile-time checking  
+- **Type safety** with compile-time checking
 - **Version management** for optimistic locking
 - **Flexible mapping** for complex nested objects
 
@@ -247,7 +255,7 @@ Reduce costs and improve performance by retrieving only necessary fields:
 
 ```groovy
 // Get minimal user info for listings
-List<DynamoMap> userList = dynamo.scan('users', 
+List<DynamoMap> userList = dynamo.scan('users',
   ['id', 'name', 'avatar'],  // 90% smaller payload
   null,  // no filter
   DynamoMap
@@ -300,10 +308,10 @@ do {
     100,     // page size
     lastKey  // continuation
   )
-  
+
   processOrders(orders.items)  // Process 100 items at a time
   lastKey = orders.last
-  
+
 } while (orders.more)
 ```
 
@@ -360,8 +368,8 @@ String email = user.email
 Long timestamp = user.timestamp
 
 // Map operations
-user.each { key, value -> 
-  println "$key: $value" 
+user.each { key, value ->
+  println "$key: $value"
 }
 
 // Nested access
@@ -394,25 +402,25 @@ def dynamo = new DynamoDb(localClient)
 ```groovy
 // Clean setup for each test
 class UserServiceSpec extends Specification {
-  
+
   def dynamo = new DynamoDb()
-  
+
   def setup() {
     dynamo.createTable('users', 'id', ['email-index': 'email'])
   }
-  
+
   def cleanup() {
     dynamo.dropTable('users')
   }
-  
+
   def "should find users by department"() {
     given:
     dynamo.putItem('users', [id: '1', department: 'Engineering'])
     dynamo.putItem('users', [id: '2', department: 'Sales'])
-    
+
     when:
     def engineers = dynamo.scan('users', match('department', 'Engineering'))
-    
+
     then:
     engineers.size() == 1
     engineers[0].department == 'Engineering'
@@ -569,22 +577,22 @@ dynamo.putItems('large_table', items, 25)  // Max batch size
 class UserRepository {
   private final DynamoDb dynamo
   private final String tableName = 'users'
-  
+
   UserRepository(DynamoDb dynamo) {
     this.dynamo = dynamo
   }
-  
+
   User findById(String id) {
     return dynamo.getItem(tableName, KeyFilter.of('id', id), User)
   }
-  
+
   List<User> findByDepartment(String department) {
-    return dynamo.scan(tableName, 
-      match('department', department), 
+    return dynamo.scan(tableName,
+      match('department', department),
       User
     )
   }
-  
+
   PagedResult<User> findActiveUsersPaged(int limit, Map<String, AttributeValue> lastKey = null) {
     return dynamo.query(tableName,
       'status-index',
@@ -595,7 +603,7 @@ class UserRepository {
       lastKey
     )
   }
-  
+
   void save(User user) {
     dynamo.putItem(tableName, user)
   }
@@ -607,7 +615,7 @@ class UserRepository {
 ```groovy
 class EventStore {
   private final DynamoDb dynamo
-  
+
   void appendEvent(String streamId, Object event) {
     def eventRecord = new DynamoMap(
       streamId: streamId,
@@ -616,15 +624,15 @@ class EventStore {
       data: objectToMap(event),
       version: getNextVersion(streamId)
     )
-    
+
     dynamo.putItem('events', eventRecord)
   }
-  
+
   List<DynamoMap> getEventStream(String streamId, Long fromTimestamp = null) {
-    def keyCondition = fromTimestamp ? 
+    def keyCondition = fromTimestamp ?
       KeyFilter.of('streamId', streamId, greater('timestamp', fromTimestamp)) :
       KeyFilter.of('streamId', streamId)
-      
+
     return dynamo.query('events', keyCondition)
   }
 }
@@ -653,9 +661,9 @@ try {
 **Performance Optimization:**
 ```groovy
 // Use projection for large objects
-def lightweightData = dynamo.scan('heavy_table', 
+def lightweightData = dynamo.scan('heavy_table',
   ['id', 'name'],  // Only essential fields
-  null, 
+  null,
   DynamoMap
 )
 
@@ -669,7 +677,7 @@ dynamo.putItems('bulk_table', largeDataset.collate(25))
 def processLargeTable() {
   PagedResult<DynamoMap> page = null
   Map<String, AttributeValue> lastKey = null
-  
+
   do {
     page = dynamo.scan('large_table', [], null, DynamoMap, 100, lastKey)
     processPage(page.items)
