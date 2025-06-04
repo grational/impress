@@ -49,7 +49,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'test data'
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -111,7 +111,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'data1'
 			)
 		and:
-			KeyFilter firstKey = new KeyFilter (
+			KeyFilter firstKey = KeyFilter.of (
 				firstItem.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -166,7 +166,7 @@ class DynamoDbICSpec extends Specification {
 				id: 'versioned',
 				data: 'initial data'
 			)
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -265,13 +265,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then:
-			List<TestItem> results = dynamo.query (
-				table,
-				'data_index',
-				new KeyFilter('tagField', 'tag_a'),
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag_a'))
+				.index('data_index')
+				.targetClass(TestItem)
+				.list()
 		and:
 			results.size()     == 2
 			results.first().id == 'idx1'
@@ -309,26 +307,22 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then: "Can query by partition key only"
-			List<TestItem> results = dynamo.query (
-				table,
-				'data_index',
-				new KeyFilter('tagField', 'tag_a'),
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag_a'))
+				.index('data_index')
+				.targetClass(TestItem)
+				.list()
 		and:
 			results.size() == 3
 			results*.id ==~ ['idx1', 'idx2', 'idx3']
 			results*.sortKey.sort() == ['sort1', 'sort2', 'sort3']
 
 		and: "Can query by partition and sort key"
-			List<TestItem> specificResult = dynamo.query (
-				table,
-				'data_index',
-				new KeyFilter('tagField', 'tag_a', 'sortKey', 'sort2'),
-				null,
-				TestItem
-			)
+			List<TestItem> specificResult = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag_a', 'sortKey', 'sort2'))
+				.index('data_index')
+				.targetClass(TestItem)
+				.list()
 		and:
 			specificResult.size() == 1
 			specificResult.first().id == 'idx2'
@@ -383,13 +377,12 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then:
-			List<ContractItem> objects = dynamo.query (
-				table,
-				'offer-index',
-				new KeyFilter('offer', sharedOffer),
-				match('enabled', true),
-				ContractItem
-			)
+			List<ContractItem> objects = dynamo
+				.query(table, KeyFilter.of('offer', sharedOffer))
+				.index('offer-index')
+				.filter(match('enabled', true))
+				.targetClass(ContractItem)
+				.list()
 		and:
 			objects.size() == 1
 			def first = objects.first()
@@ -458,15 +451,16 @@ class DynamoDbICSpec extends Specification {
 
 		then: "Can query with composite index and filter"
 			List<TestItem> results = dynamo.query (
-				table,
-				'tag-data-index',
-				new KeyFilter (
-					'tagField', 'category_a',
-					'data', 'high'
-				),
-				match('enabled', true),
-				TestItem
-			)
+					table,
+					KeyFilter.of (
+						'tagField', 'category_a',
+						'data', 'high'
+					)
+				)
+				.index('tag-data-index')
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.list()
 
 		and:
 			results.size() == 1
@@ -494,7 +488,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'to be deleted'
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 
@@ -550,7 +544,7 @@ class DynamoDbICSpec extends Specification {
 			items.each { TestItem item ->
 				TestItem retrieved = dynamo.getItem (
 					table,
-					new KeyFilter('id', item.id),
+					KeyFilter.of('id', item.id),
 					TestItem
 				)
 				assert retrieved         != null
@@ -586,7 +580,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			KeyFilter firstKey = new KeyFilter (
+			KeyFilter firstKey = KeyFilter.of (
 				first.impress(new DynamoMapper()).key()
 			)
 
@@ -625,13 +619,11 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version  == 1
 
 		when: "Query using simple index"
-			List<TestItem> results = dynamo.query (
-				table,
-				'tagField-index',
-				new KeyFilter('tagField', 'tag1'),
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag1'))
+				.index('tagField-index')
+				.targetClass(TestItem)
+				.list()
 		then:
 			results.size() == 2
 			results.any {
@@ -648,26 +640,22 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: "Query using composite index with partition key only"
-			List<TestItem> compositeResults = dynamo.query (
-				table,
-				'tagField-data-index',
-				new KeyFilter('tagField', 'tag1'),
-				null,
-				TestItem
-			)
+			List<TestItem> compositeResults = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag1'))
+				.index('tagField-data-index')
+				.targetClass(TestItem)
+				.list()
 		then:
 			compositeResults.size() == 2
 			compositeResults.every { it.tagField == 'tag1' }
 			compositeResults*.data.sort() == ['c1', 'c3']
 
 		when: "Query using composite index with both partition and sort keys"
-			List<TestItem> specificResults = dynamo.query (
-				table,
-				'tagField-data-index',
-				new KeyFilter('tagField', 'tag1', 'data', 'c1'),
-				null,
-				TestItem
-			)
+			List<TestItem> specificResults = dynamo
+				.query(table, KeyFilter.of('tagField', 'tag1', 'data', 'c1'))
+				.index('tagField-data-index')
+				.targetClass(TestItem)
+				.list()
 		then:
 			specificResults.size() == 1
 			specificResults.first().id == 'pk1'
@@ -714,12 +702,10 @@ class DynamoDbICSpec extends Specification {
 			)
 
 		when:
-			List<TestItem> results = dynamo.query (
-				table,
-				new KeyFilter('id', 'pk1'),
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, KeyFilter.of('id', 'pk1'))
+				.targetClass(TestItem)
+				.list()
 		then:
 			results.size() == 2
 			results.any {
@@ -755,7 +741,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'c1'
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -860,35 +846,34 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when:
-			List<TestItem> allResults = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> allResults = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 		then:
 			allResults.size() == 5
 			allResults.collect { it.id } ==~ ['scan1', 'scan2', 'scan3', 'scan4', 'scan5']
 
 		when:
-			List<TestItem> enabledResults = dynamo.scan (
-				table,
-				match('enabled', true),
-				TestItem
-			)
+			List<TestItem> enabledResults = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.list()
 		then:
 			enabledResults.size() == 3
 			enabledResults.every { it.enabled }
 			enabledResults.collect { it.id } ==~ ['scan1', 'scan3', 'scan5']
 
 		when:
-			List<TestItem> complexResults = dynamo.scan (
-				table,
-				every (
+			List<TestItem> complexResults = dynamo
+				.scan(table)
+				.filter(every (
 					match('tagField', 'category_a'),
 					match('enabled', true)
-				),
-				TestItem,
-			)
+				))
+				.targetClass(TestItem)
+				.list()
 		then:
 			complexResults.size() == 1
 			complexResults.first().id == 'scan1'
@@ -921,18 +906,17 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Verifying items were inserted'
-			List<TestItem> allItems = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> allItems = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 		then:
 			allItems.size() == 15
 
 		when: 'Deleting items with partition key only'
 			int deletedCount = dynamo.deleteItems (
 				table,
-				new KeyFilter('id', 'del1')
+				KeyFilter.of('id', 'del1')
 			)
 		then:
 			deletedCount == 1
@@ -940,7 +924,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Checking item was deleted'
 			TestItem shouldBeDeleted = dynamo.getItem (
 				table,
-				new KeyFilter('id', 'del1'),
+				KeyFilter.of('id', 'del1'),
 				TestItem
 			)
 		then:
@@ -955,11 +939,10 @@ class DynamoDbICSpec extends Specification {
 			filterDeleteCount == 4  // 5 items with tagField='cat_1' but one was already deleted
 
 		when: 'Verifying remaining items'
-			List<TestItem> remaining = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> remaining = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 		then:
 			remaining.size() == 10
 			remaining.every { it.tagField != 'cat_2' }
@@ -997,18 +980,17 @@ class DynamoDbICSpec extends Specification {
 			int deleteCount = dynamo.deleteItems (
 				table,
 				'tag_index',
-				new KeyFilter('tagField', 'tag_a'),
+				KeyFilter.of('tagField', 'tag_a'),
 				null
 			)
 		then:
 			deleteCount == 2
 
 		when: 'Verifying remaining items'
-			List<TestItem> remaining = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> remaining = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 		then:
 			remaining.size() == 3
 			remaining.every { it.tagField != 'tag_a' }
@@ -1017,18 +999,17 @@ class DynamoDbICSpec extends Specification {
 			int filteredDeleteCount = dynamo.deleteItems (
 				table,
 				'tag_index',
-				new KeyFilter('tagField', 'tag_b'),
+				KeyFilter.of('tagField', 'tag_b'),
 				match('enabled', true)
 			)
 		then:
 			filteredDeleteCount == 1
 
 		when: 'Verifying final remaining items'
-			List<TestItem> finalRemaining = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> finalRemaining = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 		then:
 			finalRemaining ==~ items.findAll { it.id in [ 'idx4', 'idx5' ] }
 
@@ -1049,28 +1030,20 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Using limit parameter'
-			PagedResult<TestItem> first = dynamo.query (
-				table,
-				new KeyFilter('id', 'user1'),
-				TestItem.class,
-				pageSize
-			)
+			PagedResult<TestItem> first = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(pageSize)
 
 		then:
 			first.count == 5
 			first.more == true
 
 		when: 'Using last parameter'
-			PagedResult<TestItem> second = dynamo.query (
-				table,
-				null,
-				new KeyFilter('id', 'user1'),
-				null,
-				TestItem.class,
-				totalSize, // more than the rest
-				first.last,
-				true
-			)
+			PagedResult<TestItem> second = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(totalSize, first.last, true)
 
 		then:
 			second.count == 15
@@ -1097,13 +1070,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Query with forward order'
-			List<TestItem> ascending = dynamo.query (
-				table,
-				new KeyFilter('id', 'user1'),
-				null,
-				TestItem,
-				true
-			)
+			List<TestItem> ascending = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.forward()
+				.list()
 
 		then:
 			ascending[0].sortKey == '2025-01-01'
@@ -1111,13 +1082,11 @@ class DynamoDbICSpec extends Specification {
 			ascending[2].sortKey == '2025-01-03'
 
 		when: 'Query with backward order'
-			List<TestItem> descending = dynamo.query(
-				table,
-				new KeyFilter('id', 'user1'),
-				null,
-				TestItem,
-				false
-			)
+			List<TestItem> descending = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.backward()
+				.list()
 
 		then:
 			descending[0].sortKey == '2025-01-03'
@@ -1407,7 +1376,7 @@ class DynamoDbICSpec extends Specification {
 		then: 'Can query by primary key'
 			TestItem item = dynamo.getItem(
 				table,
-				new KeyFilter('id', 'user1', 'sortKey', 'record1'),
+				KeyFilter.of('id', 'user1', 'sortKey', 'record1'),
 				TestItem
 			)
 			item != null
@@ -1416,26 +1385,22 @@ class DynamoDbICSpec extends Specification {
 			item.email == 'user1@example.com'
 
 		and: 'Can query using the email index'
-			List<TestItem> userItems = dynamo.query(
-				table,
-				'email-index',
-				new KeyFilter('email', 'user1@example.com'),
-				null,
-				TestItem
-			)
+			List<TestItem> userItems = dynamo
+				.query(table, KeyFilter.of('email', 'user1@example.com'))
+				.index('email-index')
+				.targetClass(TestItem)
+				.list()
 			userItems.size() == 2
 			userItems.every { it.email == 'user1@example.com' }
 			userItems.every { it.id == 'user1' }
 			userItems.collect { it.sortKey }.sort() == ['record1', 'record2']
 
 		and: 'Can query using the status-timestamp index'
-			List<TestItem> activeItems = dynamo.query(
-				table,
-				'status-timestamp-index',
-				new KeyFilter('status', 'active'),
-				null,
-				TestItem
-			)
+			List<TestItem> activeItems = dynamo
+				.query(table, KeyFilter.of('status', 'active'))
+				.index('status-timestamp-index')
+				.targetClass(TestItem)
+				.list()
 			activeItems.size() == 2
 			activeItems.every { it.status == 'active' }
 			activeItems.find { it.timestamp == 1000 && it.id == 'user1' && it.sortKey == 'record1' }
@@ -1470,23 +1435,17 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Performing a parallel scan with 2 segments'
-			List<TestItem> segment0Results = dynamo.scan (
-				table,
-				null,   // No filter
-				TestItem,
-				null,   // No limit
-				0,      // Segment 0
-				2       // Total of 2 segments
-			)
+			List<TestItem> segment0Results = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.segment(0, 2)
+				.list()
 
-			List<TestItem> segment1Results = dynamo.scan (
-				table,
-				null,   // No filter
-				TestItem,
-				null,   // No limit
-				1,      // Segment 1
-				2       // Total of 2 segments
-			)
+			List<TestItem> segment1Results = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.segment(1, 2)
+				.list()
 
 		then: 'The combined results should contain all items'
 			def combinedResults = segment0Results + segment1Results
@@ -1499,23 +1458,19 @@ class DynamoDbICSpec extends Specification {
 		when: 'Performing a filtered parallel scan'
 			DynamoFilter enabledFilter = match('enabled', true)
 
-			List<TestItem> filteredSegment0 = dynamo.scan (
-				table,
-				enabledFilter,
-				TestItem,
-				null,   // No limit
-				0,      // Segment 0
-				2       // Total of 2 segments
-			)
+			List<TestItem> filteredSegment0 = dynamo
+				.scan(table)
+				.filter(enabledFilter)
+				.targetClass(TestItem)
+				.segment(0, 2)
+				.list()
 
-			List<TestItem> filteredSegment1 = dynamo.scan (
-				table,
-				enabledFilter,
-				TestItem,
-				null,   // No limit
-				1,      // Segment 1
-				2       // Total of 2 segments
-			)
+			List<TestItem> filteredSegment1 = dynamo
+				.scan(table)
+				.filter(enabledFilter)
+				.targetClass(TestItem)
+				.segment(1, 2)
+				.list()
 
 		then: 'The combined filtered results should contain only enabled items'
 			def combinedFiltered = filteredSegment0 + filteredSegment1
@@ -1523,12 +1478,11 @@ class DynamoDbICSpec extends Specification {
 			combinedFiltered.size() == items.count { it.enabled }
 
 		when: 'scanning with a limit'
-			List<TestItem> limitedResults = dynamo.scan (
-				table,
-				null,
-				TestItem,
-				2
-			)
+			List<TestItem> limitedResults = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.limit(2)
+				.list()
 
 		then: 'only the specified number of items should be returned'
 			limitedResults.size() <= 2
@@ -1554,7 +1508,7 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1606,7 +1560,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'some data'
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1655,7 +1609,7 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1702,7 +1656,7 @@ class DynamoDbICSpec extends Specification {
 				data: 'test data'
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -1757,12 +1711,10 @@ class DynamoDbICSpec extends Specification {
 				greater('sortKey', '2000')
 			)
 		and:
-			List<TestItem> results = dynamo.query (
-				table,
-				rangeKey,
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, rangeKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 2
@@ -1796,12 +1748,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'game1',
 				between('sortKey', '100', '300')
 			)
-			List<TestItem> results = dynamo.query(
-				table,
-				rangeKey,
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, rangeKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 2
@@ -1834,12 +1784,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'user1',
 				beginsWith('sortKey', 'ORDER')
 			)
-			List<TestItem> results = dynamo.query(
-				table,
-				rangeKey,
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, rangeKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 3
@@ -1877,12 +1825,11 @@ class DynamoDbICSpec extends Specification {
 				match('status', 'ACTIVE'),
 				match('enabled', true)
 			)
-			List<TestItem> results = dynamo.query(
-				table,
-				rangeKey,
-				additionalFilter,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, rangeKey)
+				.filter(additionalFilter)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 1
@@ -1920,11 +1867,11 @@ class DynamoDbICSpec extends Specification {
 					match('sortKey', 'CLOTHING')
 				)
 			)
-			List<TestItem> results = dynamo.scan(
-				table,
-				complexFilter,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.scan(table)
+				.filter(complexFilter)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 2
@@ -1964,13 +1911,11 @@ class DynamoDbICSpec extends Specification {
 				'status', 'ACTIVE',
 				greater('data', '150')
 			)
-			List<TestItem> results = dynamo.query(
-				table,
-				'status-score-index',
-				indexKey,
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, indexKey)
+				.index('status-score-index')
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 2
@@ -2004,12 +1949,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'tasks',
 				less('sortKey', '5')
 			)
-			List<TestItem> lessThanResults = dynamo.query(
-				table,
-				lessThanKey,
-				null,
-				TestItem
-			)
+			List<TestItem> lessThanResults = dynamo
+				.query(table, lessThanKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			lessThanResults.size() == 2
@@ -2020,12 +1963,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'tasks',
 				lessOrEqual('sortKey', '5')
 			)
-			List<TestItem> lessOrEqualResults = dynamo.query(
-				table,
-				lessOrEqualKey,
-				null,
-				TestItem
-			)
+			List<TestItem> lessOrEqualResults = dynamo
+				.query(table, lessOrEqualKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			lessOrEqualResults.size() == 3
@@ -2051,7 +1992,7 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Traditional exact matching still works'
-			KeyFilter exactKey = new KeyFilter('id', 'user1', 'sortKey', '2000')
+			KeyFilter exactKey = KeyFilter.of('id', 'user1', 'sortKey', '2000')
 			TestItem exactResult = dynamo.getItem(
 				table,
 				exactKey,
@@ -2068,12 +2009,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'user1',
 				match('sortKey', '2000')
 			)
-			List<TestItem> rangeExactResults = dynamo.query(
-				table,
-				rangeExactKey,
-				null,
-				TestItem
-			)
+			List<TestItem> rangeExactResults = dynamo
+				.query(table, rangeExactKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			rangeExactResults.size() == 1
@@ -2111,12 +2050,10 @@ class DynamoDbICSpec extends Specification {
 				'id', 'game1',
 				between('sortKey', '80', '95')
 			)
-			List<TestItem> results = dynamo.query(
-				table,
-				numericRangeKey,
-				null,
-				TestItem
-			)
+			List<TestItem> results = dynamo
+				.query(table, numericRangeKey)
+				.targetClass(TestItem)
+				.list()
 
 		then:
 			results.size() == 3
@@ -2147,12 +2084,10 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use query method (which should automatically paginate)'
-			List<TestItem> allResults = dynamo.query(
-				table,
-				new KeyFilter('id', 'user1'),
-				null,
-				TestItem
-			)
+			List<TestItem> allResults = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.list()
 
 		then: 'All items should be retrieved'
 			allResults.size() == 15
@@ -2160,12 +2095,10 @@ class DynamoDbICSpec extends Specification {
 			allResults*.sortKey.sort() == (1..15).collect { String.format('%03d', it) }
 
 		when: 'Use query method for manual pagination control'
-			PagedResult<TestItem> firstPage = dynamo.query(
-				table,
-				new KeyFilter('id', 'user1'),
-				TestItem,
-				5  // limit
-			)
+			PagedResult<TestItem> firstPage = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(5)
 
 		then: 'Only first page should be returned'
 			firstPage.items.size() == 5
@@ -2173,16 +2106,10 @@ class DynamoDbICSpec extends Specification {
 			firstPage.last != null
 
 		when: 'Get second page'
-			PagedResult<TestItem> secondPage = dynamo.query(
-				table,
-				null, // no index
-				new KeyFilter('id', 'user1'),
-				null, // no filter
-				TestItem,
-				5,  // limit
-				firstPage.last,
-				true // forward
-			)
+			PagedResult<TestItem> secondPage = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(5, firstPage.last, true)
 
 		then: 'Second page should have items and continue pagination'
 			secondPage.items.size() == 5
@@ -2190,16 +2117,10 @@ class DynamoDbICSpec extends Specification {
 			secondPage.last != null
 
 		when: 'Get remaining items'
-			PagedResult<TestItem> thirdPage = dynamo.query(
-				table,
-				null, // no index
-				new KeyFilter('id', 'user1'),
-				null, // no filter
-				TestItem,
-				10,  // limit (more than remaining)
-				secondPage.last,
-				true // forward
-			)
+			PagedResult<TestItem> thirdPage = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(10, secondPage.last, true)
 
 		then: 'Last page should have remaining items'
 			thirdPage.items.size() == 5
@@ -2235,26 +2156,22 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use query method with index (should automatically paginate)'
-			List<TestItem> allResults = dynamo.query(
-				table,
-				'status_index',
-				new KeyFilter('status', 'ACTIVE'),
-				null,
-				TestItem
-			)
+			List<TestItem> allResults = dynamo
+				.query(table, KeyFilter.of('status', 'ACTIVE'))
+				.index('status_index')
+				.targetClass(TestItem)
+				.list()
 
 		then: 'All items should be retrieved'
 			allResults.size() == 12
 			allResults.every { it.status == 'ACTIVE' }
 
 		when: 'Use query method with index for manual pagination'
-			PagedResult<TestItem> pagedResult = dynamo.query(
-				table,
-				'status_index',
-				new KeyFilter('status', 'ACTIVE'),
-				TestItem,
-				5  // limit
-			)
+			PagedResult<TestItem> pagedResult = dynamo
+				.query(table, KeyFilter.of('status', 'ACTIVE'))
+				.index('status_index')
+				.targetClass(TestItem)
+				.paged(5)
 
 		then: 'Only limited items should be returned'
 			pagedResult.items.size() == 5
@@ -2284,12 +2201,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use query method with filter (should automatically paginate)'
-			List<TestItem> enabledResults = dynamo.query(
-				table,
-				new KeyFilter('id', 'user1'),
-				match('enabled', true),
-				TestItem
-			)
+			List<TestItem> enabledResults = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.list()
 
 		then: 'Only enabled items should be retrieved'
 			enabledResults.size() == 10  // half the items
@@ -2297,13 +2213,11 @@ class DynamoDbICSpec extends Specification {
 			enabledResults.every { it.id == 'user1' }
 
 		when: 'Use query method with filter for manual pagination'
-			PagedResult<TestItem> pagedFiltered = dynamo.query(
-				table,
-				new KeyFilter('id', 'user1'),
-				match('enabled', true),
-				TestItem,
-				3  // small limit
-			)
+			PagedResult<TestItem> pagedFiltered = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.paged(3)
 
 		then: 'Only limited filtered items should be returned'
 			pagedFiltered.items.size() <= 3
@@ -2327,7 +2241,7 @@ class DynamoDbICSpec extends Specification {
 				enabled: true
 			)
 		and:
-			KeyFilter key = new KeyFilter (
+			KeyFilter key = KeyFilter.of (
 				item.impress(new DynamoMapper()).key()
 			)
 		and:
@@ -2396,13 +2310,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Query with projection for specific fields'
-			List<DynamoMap> projectedItems = dynamo.query (
-				table,
-				new KeyFilter('id', 'user1'),
-				['id', 'sortKey', 'tagField'],
-				null,
-				DynamoMap
-			)
+			List<DynamoMap> projectedItems = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.fields(['id', 'sortKey', 'tagField'])
+				.targetClass(DynamoMap)
+				.list()
 
 		then: 'Only projected fields should be returned'
 			projectedItems.size() == 2
@@ -2416,12 +2328,10 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: 'Query without projection'
-			List<TestItem> fullItems = dynamo.query (
-				table,
-				new KeyFilter('id', 'user1'),
-				null,
-				TestItem
-			)
+			List<TestItem> fullItems = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.list()
 
 		then: 'All fields should be returned'
 			fullItems.size() == 2
@@ -2465,14 +2375,12 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Query index with projection'
-			List<DynamoMap> projectedResults = dynamo.query (
-				table,
-				'tag_index',
-				new KeyFilter('tagField', 'category_a'),
-				['id', 'tagField'],
-				null,
-				DynamoMap
-			)
+			List<DynamoMap> projectedResults = dynamo
+				.query(table, KeyFilter.of('tagField', 'category_a'))
+				.index('tag_index')
+				.fields(['id', 'tagField'])
+				.targetClass(DynamoMap)
+				.list()
 
 		then: 'Only projected fields should be returned'
 			projectedResults.size() == 2
@@ -2519,11 +2427,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Scan with projection for specific fields'
-			List<DynamoMap> projectedItems = dynamo.scan (
-				table,
-				['id', 'tagField'],
-				DynamoMap
-			)
+			List<DynamoMap> projectedItems = dynamo
+				.scan(table)
+				.fields(['id', 'tagField'])
+				.targetClass(DynamoMap)
+				.list()
 
 		then: 'Only projected fields should be returned'
 			projectedItems.size() == 3
@@ -2536,11 +2444,10 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: 'Scan without projection'
-			List<TestItem> fullItems = dynamo.scan (
-				table,
-				null,
-				TestItem
-			)
+			List<TestItem> fullItems = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.list()
 
 		then: 'All fields should be returned'
 			fullItems.size() == 3
@@ -2586,15 +2493,15 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Scan with filter and projection'
-			List<DynamoMap> filteredProjectedItems = dynamo.scan (
-				table,
-				every (
+			List<DynamoMap> filteredProjectedItems = dynamo
+				.scan(table)
+				.filter(every (
 					match('tagField', 'category_a'),
 					match('enabled', true)
-				),
-				['id', 'tagField', 'enabled'],
-				DynamoMap
-			)
+				))
+				.fields(['id', 'tagField', 'enabled'])
+				.targetClass(DynamoMap)
+				.list()
 
 		then: 'Only filtered items with projected fields should be returned'
 			filteredProjectedItems.size() == 1
@@ -2626,7 +2533,9 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItem(table, item)
 
 		when: 'Use simplest scan interface'
-			List<DynamoMap> allItems = dynamo.scan(table)
+			List<DynamoMap> allItems = dynamo
+				.scan(table)
+				.list()
 
 		then: 'All items with all fields should be returned'
 			allItems.size() == 1
@@ -2636,10 +2545,10 @@ class DynamoDbICSpec extends Specification {
 			allItems.first().enabled == true
 
 		when: 'Use scan with only projection'
-			List<DynamoMap> projectedOnly = dynamo.scan (
-				table,
-				['id', 'tagField']
-			)
+			List<DynamoMap> projectedOnly = dynamo
+				.scan(table)
+				.fields(['id', 'tagField'])
+				.list()
 
 		then: 'Only projected fields should be returned'
 			projectedOnly.size() == 1
@@ -2672,13 +2581,13 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use full signature with projection and limit'
-			List<DynamoMap> limitedProjected = dynamo.scan (
-				table,
-				match('enabled', true),    // filter
-				['id', 'enabled'],         // projection
-				DynamoMap,                 // targetClass
-				3                          // limit
-			)
+			List<DynamoMap> limitedProjected = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.fields(['id', 'enabled'])
+				.targetClass(DynamoMap)
+				.limit(3)
+				.list()
 
 		then: 'Projected results with filter should be returned'
 			limitedProjected.every { item ->
@@ -2710,11 +2619,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use old scan signature - scan(table, filter, targetClass)'
-			List<TestItem> oldSigResults = dynamo.scan (
-				table,
-				match('enabled', true),
-				TestItem
-			)
+			List<TestItem> oldSigResults = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.list()
 
 		then: 'Should work as before'
 			oldSigResults.size() == 1
@@ -2724,12 +2633,11 @@ class DynamoDbICSpec extends Specification {
 			oldSigResults.first().version == 1
 
 		when: 'Use old scan signature - scan(table, filter, targetClass, limit)'
-			List<TestItem> limitedResults = dynamo.scan (
-				table,
-				null,               // no filter
-				TestItem,           // targetClass
-				1                   // limit
-			)
+			List<TestItem> limitedResults = dynamo
+				.scan(table)
+				.targetClass(TestItem)
+				.limit(1)
+				.list()
 
 		then: 'Should work as before'
 			limitedResults.every { it.version == 1 }
@@ -2752,14 +2660,10 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Using limit parameter for scan'
-			PagedResult<TestItem> first = dynamo.scan (
-				table,
-				null, // no filter
-				null, // no projection
-				TestItem.class,
-				pageSize,
-				null  // no last key
-			)
+			PagedResult<TestItem> first = dynamo
+				.scan(table)
+				.targetClass(TestItem.class)
+				.paged(pageSize, null)
 
 		then:
 			first.count <= pageSize
@@ -2767,28 +2671,20 @@ class DynamoDbICSpec extends Specification {
 			first.last != null
 
 		when: 'Using last parameter for next page'
-			PagedResult<TestItem> second = dynamo.scan (
-				table,
-				null, // no filter
-				null, // no projection
-				TestItem.class,
-				pageSize,
-				first.last
-			)
+			PagedResult<TestItem> second = dynamo
+				.scan(table)
+				.targetClass(TestItem.class)
+				.paged(pageSize, first.last)
 
 		then:
 			second.count <= pageSize
 			second.last != null
 
 		when: 'Get remaining items'
-			PagedResult<TestItem> third = dynamo.scan (
-				table,
-				null, // no filter
-				null, // no projection
-				TestItem.class,
-				totalSize, // more than remaining
-				second.last
-			)
+			PagedResult<TestItem> third = dynamo
+				.scan(table)
+				.targetClass(TestItem.class)
+				.paged(totalSize, second.last)
 
 		then:
 			third.more == false
@@ -2808,14 +2704,11 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Scan with filter and pagination'
-			PagedResult<TestItem> filtered = dynamo.scan (
-				table,
-				match('enabled', true),
-				null, // no projection
-				TestItem.class,
-				3,
-				null  // no last key
-			)
+			PagedResult<TestItem> filtered = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.targetClass(TestItem.class)
+				.paged(3, null)
 
 		then:
 			filtered.items.every { it.enabled == true }
@@ -2841,14 +2734,12 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Scan with filter, projection and pagination'
-			PagedResult<DynamoMap> result = dynamo.scan (
-				table,
-				match('enabled', true),
-				['id', 'tagField'],
-				DynamoMap.class,
-				2,
-				null  // no last key
-			)
+			PagedResult<DynamoMap> result = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.fields(['id', 'tagField'])
+				.targetClass(DynamoMap.class)
+				.paged(2, null)
 
 		then:
 			result.items.every { item ->
@@ -2879,42 +2770,33 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Simple scan with limit only'
-			PagedResult<TestItem> simple = dynamo.scan (
-				table,
-				null, // no filter
-				null, // no projection
-				TestItem.class,
-				3,
-				null  // no last key
-			)
+			PagedResult<TestItem> simple = dynamo
+				.scan(table)
+				.targetClass(TestItem.class)
+				.paged(3, null)
 
 		then:
 			simple.count <= 3
 			simple.items.every { it instanceof TestItem }
 
 		when: 'Scan with filter and limit'
-			PagedResult<TestItem> filtered = dynamo.scan (
-				table,
-				match('enabled', true),
-				null, // no projection
-				TestItem.class,
-				2,
-				null  // no last key
-			)
+			PagedResult<TestItem> filtered = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.targetClass(TestItem.class)
+				.paged(2, null)
 
 		then:
 			filtered.items.every { it.enabled == true }
 			filtered.count <= 2
 
 		when: 'Scan with projection, filter and limit'
-			PagedResult<DynamoMap> projected = dynamo.scan (
-				table,
-				match('enabled', true),
-				['id', 'tagField'],
-				DynamoMap.class,
-				2,
-				null  // no last key
-			)
+			PagedResult<DynamoMap> projected = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.fields(['id', 'tagField'])
+				.targetClass(DynamoMap.class)
+				.paged(2, null)
 
 		then:
 			projected.items.every { item ->
@@ -3191,6 +3073,70 @@ class DynamoDbICSpec extends Specification {
 			return mapper
 		}
 
+	} // }}}
+
+	def "Should support fluent builder pattern for queries and scans"() { // {{{
+		given:
+			String table = 'test_builder_pattern'
+			dynamo.createTable(table, 'id', 'sortKey')
+		and:
+			List<TestItem> items = [
+				new TestItem(id: 'user1', sortKey: '2025-01-01', data: 'data1', enabled: true),
+				new TestItem(id: 'user1', sortKey: '2025-01-02', data: 'data2', enabled: false),
+				new TestItem(id: 'user1', sortKey: '2025-01-03', data: 'data3', enabled: true),
+				new TestItem(id: 'user2', sortKey: '2025-01-01', data: 'data4', enabled: true)
+			]
+			dynamo.putItems(table, items)
+
+		when: 'Using the fluent query builder'
+			List<TestItem> builderResults = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.backward()
+				.list()
+
+		then: 'Results should be in reverse order'
+			builderResults.size() == 3
+			builderResults[0].sortKey == '2025-01-03'
+			builderResults[1].sortKey == '2025-01-02'
+			builderResults[2].sortKey == '2025-01-01'
+
+		when: 'Using the fluent query builder with filter and projection'
+			List<DynamoMap> filteredResults = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.filter(match('enabled', true))
+				.fields('id', 'sortKey', 'enabled')
+				.targetClass(DynamoMap)
+				.list()
+
+		then: 'Results should be filtered and projected'
+			filteredResults.size() == 2
+			filteredResults.every { it.enabled == true }
+			filteredResults.every { !it.containsKey('data') } // data field should be excluded
+
+		when: 'Using the fluent scan builder'
+			List<TestItem> scanResults = dynamo
+				.scan(table)
+				.filter(match('enabled', true))
+				.targetClass(TestItem)
+				.list()
+
+		then: 'Results should be filtered across all partitions'
+			scanResults.size() == 3
+			scanResults.every { it.enabled == true }
+
+		when: 'Using paginated query with builder'
+			PagedResult<TestItem> pagedResults = dynamo
+				.query(table, KeyFilter.of('id', 'user1'))
+				.targetClass(TestItem)
+				.paged(2)
+
+		then: 'Results should be paginated'
+			pagedResults.items.size() == 2
+			pagedResults.last != null
+
+		cleanup:
+			dynamo.dropTable(table)
 	} // }}}
 }
 // vim: fdm=marker

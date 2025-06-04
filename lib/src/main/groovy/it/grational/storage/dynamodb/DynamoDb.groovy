@@ -300,250 +300,34 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Query a table using just a partition key - returns all results with automatic pagination
+	 * Creates a QueryBuilder for fluent query construction
 	 *
-	 * Just a convenience method using the partition key 
-	 * of the provided composite key
-	 *
-	 * @param table The table name to query
-	 * @param key The KeyFilter representing the composite key condition
-	 * @param targetClass The class to deserialize results into
-	 * @param forward Whether to sort in forward (true) or reverse (false) order
-	 * @return A list of objects of the specified target class
+	 * @return QueryBuilder for building and executing queries
 	 */
-	<T extends Storable<AttributeValue,Object>> List<T> query (
+	QueryBuilder query (
 		String table,
-		KeyFilter key,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
+		KeyFilter key
+	) {
+		return new QueryBuilder (
+			this,
 			table,
-			null, // no index is needed
-			key,
-			null,
-			null, // no projection
-			targetClass,
-			forward
+			key
 		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		KeyFilter key,
-		List<String> fields,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			null, // no index is needed
-			key,
-			null, // no filter
-			fields,
-			targetClass,
-			forward
-		)
-	} // }}}
+	}
 
 	/**
-	 * Query a table using just a partition key - returns all results with automatic pagination
+	 * Creates a ScanBuilder for fluent scan construction
 	 *
-	 * This is a convenience method that uses the partition component of the provided key
-	 *
-	 * @param table The table name to query
-	 * @param key The KeyFilter representing the key condition
-	 * @param filter Optional filter expression to apply to results
-	 * @param targetClass The class to deserialize results into
-	 * @param forward Whether to sort in forward (true) or reverse (false) order
-	 * @return A list of objects of the specified target class
+	 * @return ScanBuilder for building and executing scans
 	 */
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		KeyFilter key,
-		DynamoFilter filter,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			null, // no index is needed
-			key,
-			filter,
-			null, // no projection
-			targetClass,
-			forward
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		KeyFilter key,
-		List<String> fields,
-		DynamoFilter filter,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			null, // no index is needed
-			key,
-			filter,
-			fields,
-			targetClass,
-			forward
-		)
-	} // }}}
-
-	/**
-	 * Query objects using an index (no filters version) - returns all results with automatic pagination
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			index,
-			key,
-			null,
-			null, // no projection
-			targetClass,
-			forward
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		List<String> fields,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			index,
-			key,
-			null, // no filter
-			fields,
-			targetClass,
-			forward
-		)
-	} // }}}
-
-	/**
-	 * Query objects using an index (with filters version) - returns all results with automatic pagination
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		DynamoFilter filter,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			index,
-			key,
-			filter,
-			null, // no projection
-			targetClass,
-			forward
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> List<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		List<String> fields,
-		DynamoFilter filter,
-		Class<T> targetClass = DynamoMap.class,
-		boolean forward = true
-	) { // {{{
-		return queryAll (
-			table,
-			index,
-			key,
-			filter,
-			fields,
-			targetClass,
-			forward
-		)
-	} // }}}
-
-
-	/**
-	 * Convenience methods for query with PagedResult return type
-	 */
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
-		String table,
-		KeyFilter key,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return query (
-			table,
-			null, // no index
-			key,
-			null, // no filter
-			null, // no projection
-			targetClass,
-			limit,
-			null, // no last key
-			true  // forward
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return query (
-			table,
-			index,
-			key,
-			null, // no filter
-			null, // no projection
-			targetClass,
-			limit,
-			null, // no last key
-			true  // forward
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
-		String table,
-		KeyFilter key,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return query (
-			table,
-			null, // no index
-			key,
-			filter,
-			null, // no projection
-			targetClass,
-			limit,
-			null, // no last key
-			true  // forward
-		)
-	} // }}}
+	ScanBuilder scan(String table) {
+		return new ScanBuilder(this, table)
+	}
 
 	/**
 	 * Helper method to retrieve all results by automatically handling pagination
 	 */
-	private <T extends Storable<AttributeValue,Object>> List<T> queryAll (
+	<T extends Storable<AttributeValue,Object>> List<T> queryAll (
 		String table,
 		String index = null,
 		KeyFilter key,
@@ -573,22 +357,6 @@ class DynamoDb {
 		return results
 	} // }}}
 
-	/**
-	 * Complete version of query with all parameters - returns PagedResult for manual pagination control
-	 * Note: limit parameter is required to distinguish from List<T> query methods
-	 */
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
-		String table,
-		String index,
-		KeyFilter key,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		int limit,
-		Map<String, AttributeValue> last,
-		boolean forward
-	) { // {{{
-		return query(table, index, key, filter, null, targetClass, limit, last, forward)
-	} // }}}
 
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
@@ -970,11 +738,14 @@ class DynamoDb {
 			filter
 		)
 
-		List<DynamoMap> itemsToDelete = query (
+		List<DynamoMap> itemsToDelete = queryAll (
 			table,
 			index,
 			key,
-			filter
+			filter,
+			null,
+			DynamoMap.class,
+			true
 		)
 
 		if (itemsToDelete.isEmpty()) {
@@ -1012,7 +783,7 @@ class DynamoDb {
 			filter
 		)
 
-		List<DynamoMap> itemsToDelete = scan (
+		List<DynamoMap> itemsToDelete = scanAll (
 			table,
 			filter,
 			DynamoMap.class
@@ -1166,91 +937,6 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Convenience methods for scan with PagedResult return type
-	 */
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
-		String table,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return scan (
-			table,
-			null, // no filter
-			null, // no projection
-			targetClass,
-			limit,
-			null  // no last key
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
-		String table,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return scan (
-			table,
-			filter,
-			null, // no projection
-			targetClass,
-			limit,
-			null  // no last key
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
-		String table,
-		List<String> fields,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return scan (
-			table,
-			filter,
-			fields,
-			targetClass,
-			limit,
-			null  // no last key
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
-		String table,
-		DynamoFilter filter,
-		Class<T> targetClass,
-		int limit,
-		Map<String, AttributeValue> last
-	) { // {{{
-		return scan (
-			table,
-			filter,
-			null, // no projection
-			targetClass,
-			limit,
-			last
-		)
-	} // }}}
-
-	<T extends Storable<AttributeValue,Object>> PagedResult<T> scan (
-		String table,
-		DynamoFilter filter,
-		List<String> projection,
-		Class<T> targetClass,
-		int limit
-	) { // {{{
-		return scan (
-			table,
-			filter,
-			projection,
-			targetClass,
-			limit,
-			null  // no last key
-		)
-	} // }}}
-
-	/**
 	 * Complete version of scan with all parameters - returns PagedResult for manual pagination control
 	 * Note: limit parameter is required to distinguish from List<T> scan methods
 	 */
@@ -1314,121 +1000,9 @@ class DynamoDb {
 	} // }}}
 
 	/**
-	 * Simplified scan interface with projection
-	 *
-	 * @param table The name of the table to scan
-	 * @param filter Optional DynamoFilter to filter the scan results
-	 * @param projection List of field names to project
-	 * @param targetClass The class of objects to create from the scan results
-	 * @return A list of objects of type T created from the scan results
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> scan (
-		String table,
-		DynamoFilter filter,
-		List<String> projection,
-		Class<T> targetClass = DynamoMap.class
-	) { // {{{
-		return scanAll (
-			table,
-			filter,
-			targetClass,
-			null,
-			null,
-			null,
-			projection
-		)
-	} // }}}
-
-	/**
-	 * Scan interface with projection only (no filter)
-	 *
-	 * @param table The name of the table to scan
-	 * @param projection List of field names to project
-	 * @param targetClass The class of objects to create from the scan results
-	 * @return A list of objects of type T created from the scan results
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> scan (
-		String table,
-		List<String> projection,
-		Class<T> targetClass = DynamoMap.class
-	) { // {{{
-		return scanAll (
-			table,
-			null,
-			targetClass,
-			null,
-			null,
-			null,
-			projection
-		)
-	} // }}}
-
-	/**
-	 * Full-featured scan with filter, projection, limit, and other options
-	 *
-	 * @param table The name of the table to scan
-	 * @param filter Optional DynamoFilter to filter the scan results
-	 * @param projection List of field names to project
-	 * @param targetClass The class of objects to create from the scan results
-	 * @param limit Optional maximum number of items to evaluate
-	 * @param segment Optional segment number (for parallel scans)
-	 * @param totalSegments Optional total number of segments (for parallel scans)
-	 * @return A list of objects of type T created from the scan results
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> scan (
-		String table,
-		DynamoFilter filter,
-		List<String> projection,
-		Class<T> targetClass,
-		Integer limit,
-		Integer segment = null,
-		Integer totalSegments = null
-	) { // {{{
-		return scanAll (
-			table,
-			filter,
-			targetClass,
-			limit,
-			segment,
-			totalSegments,
-			projection
-		)
-	} // }}}
-
-	/**
-	 * Scans the entire table and returns items that match the optional filter expression
-	 *
-	 * @param table The name of the table to scan
-	 * @param filter Optional DynamoFilter to filter the scan results
-	 * @param targetClass The class of objects to create from the scan results
-	 * @param limit Optional maximum number of items to evaluate
-	 * @param segment Optional segment number (for parallel scans)
-	 * @param totalSegments Optional total number of segments (for parallel scans)
-	 * @return A list of objects of type T created from the scan results
-	 */
-	<T extends Storable<AttributeValue,Object>> List<T> scan (
-		String table,
-		DynamoFilter filter = null,
-		Class<T> targetClass = DynamoMap.class,
-		Integer limit = null,
-		Integer segment = null,
-		Integer totalSegments = null
-	) { // {{{
-		return scanAll (
-			table,
-			filter,
-			targetClass,
-			limit,
-			segment,
-			totalSegments,
-			null
-		)
-	} // }}}
-
-	/**
 	 * Helper method to retrieve all results by automatically handling pagination
 	 */
-	private <T extends Storable<AttributeValue,Object>> List<T> scanAll (
+	<T extends Storable<AttributeValue,Object>> List<T> scanAll (
 		String table,
 		DynamoFilter filter = null,
 		Class<T> targetClass = DynamoMap.class,
