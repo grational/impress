@@ -315,6 +315,19 @@ class DynamoDb {
 		)
 	}
 
+	QueryBuilder query (
+		String table,
+		String index,
+		KeyFilter key
+	) {
+		return new QueryBuilder (
+			this,
+			table,
+			index,
+			key
+		)
+	}
+
 	/**
 	 * Creates a ScanBuilder for fluent scan construction
 	 *

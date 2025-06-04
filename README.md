@@ -119,8 +119,11 @@ List<User> users = dynamo.scan('users')
   .list()
 
 // Query with index and pagination
-PagedResult<Order> orders = dynamo.query('orders', keyFilter)
-  .index('status-index')
+PagedResult<Order> orders = dynamo.query (
+    'orders',
+    'status-index',
+    keyFilter
+  )
   .filter(match('status', 'shipped'))
   .paged(50)
 ```
@@ -144,11 +147,17 @@ Two pagination approaches - automatic for simplicity, manual for control:
 
 ```groovy
 // Automatic: Get ALL results (perfect for small-medium datasets)
-List<DynamoMap> allUsers = dynamo.query('users', KeyFilter.of('status', 'active'))
+List<DynamoMap> allUsers = dynamo.query (
+    'users',
+    KeyFilter.of('status', 'active')
+  )
   .list()
 
 // Manual: Fine-grained control (perfect for UI pagination)
-PagedResult<DynamoMap> page = dynamo.query('users', KeyFilter.of('status', 'active'))
+PagedResult<DynamoMap> page = dynamo.query (
+    'users',
+    KeyFilter.of('status', 'active')
+  )
   .paged(10)
 ```
 
@@ -270,7 +279,10 @@ KeyFilter recentOrders = KeyFilter.of(
   'customerId', 'cust1',
   greater('timestamp', yesterday)
 )
-List<DynamoMap> orders = dynamo.query('orders', recentOrders).list()
+List<DynamoMap> orders = dynamo.query (
+    'orders',
+    recentOrders
+  ).list()
 
 // Multiple data types supported
 KeyFilter mixedKey = KeyFilter.of(
@@ -330,9 +342,12 @@ PagedResult<Order> orders = null
 Map<String, AttributeValue> lastKey = null
 
 do {
-  orders = dynamo.query('orders', KeyFilter.of('customerId', customerId))
-    .targetClass(Order)
-    .paged(100, lastKey)  // page size and continuation
+  orders = dynamo.query (
+    'orders',
+    KeyFilter.of('customerId', customerId)
+  )
+  .targetClass(Order)
+  .paged(100, lastKey)  // page size and continuation
 
   processOrders(orders.items)  // Process 100 items at a time
   lastKey = orders.last
@@ -621,10 +636,12 @@ class UserRepository {
   }
 
   PagedResult<User> findActiveUsersPaged(int limit, Map<String, AttributeValue> lastKey = null) {
-    return dynamo.query(tableName, KeyFilter.of('status', 'active'))
-      .index('status-index')
-      .targetClass(User)
-      .paged(limit, lastKey)
+    return dynamo.query(tableName,
+      'status-index',
+      KeyFilter.of('status', 'active')
+    )
+    .targetClass(User)
+    .paged(limit, lastKey)
   }
 
   void save(User user) {
@@ -742,7 +759,7 @@ Impress is open source software released under the MIT License.
 | Class | Purpose | Key Methods |
 |-------|---------|-------------|
 | `DynamoDb` | Main API | `getItem()`, `putItem()`, `query()`, `scan()` (returns builders) |
-| `QueryBuilder` | Fluent query building | `index()`, `filter()`, `fields()`, `targetClass()`, `list()`, `paged()` |
+| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `targetClass()`, `list()`, `paged()` |
 | `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `targetClass()`, `limit()`, `list()`, `paged()` |
 | `KeyFilter` | Key conditions | `of()`, `partition()`, `sort()` |
 | `DynamoFilter` | Query filters | `match()`, `greater()`, `contains()`, `every()`, `any()` |

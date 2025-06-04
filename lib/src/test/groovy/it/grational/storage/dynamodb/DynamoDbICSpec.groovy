@@ -265,11 +265,13 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then:
-			List<TestItem> results = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag_a'))
-				.index('data_index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> results = dynamo.query (
+				table, 
+				'data_index',
+				KeyFilter.of('tagField', 'tag_a')
+			)
+			.targetClass(TestItem)
+			.list()
 		and:
 			results.size()     == 2
 			results.first().id == 'idx1'
@@ -307,22 +309,26 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then: "Can query by partition key only"
-			List<TestItem> results = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag_a'))
-				.index('data_index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> results = dynamo.query (
+				table,
+				'data_index',
+				KeyFilter.of('tagField', 'tag_a')
+			)
+			.targetClass(TestItem)
+			.list()
 		and:
 			results.size() == 3
 			results*.id ==~ ['idx1', 'idx2', 'idx3']
 			results*.sortKey.sort() == ['sort1', 'sort2', 'sort3']
 
 		and: "Can query by partition and sort key"
-			List<TestItem> specificResult = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag_a', 'sortKey', 'sort2'))
-				.index('data_index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> specificResult = dynamo.query (
+				table,
+				'data_index',
+				KeyFilter.of('tagField', 'tag_a', 'sortKey', 'sort2')
+			)
+			.targetClass(TestItem)
+			.list()
 		and:
 			specificResult.size() == 1
 			specificResult.first().id == 'idx2'
@@ -377,12 +383,14 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then:
-			List<ContractItem> objects = dynamo
-				.query(table, KeyFilter.of('offer', sharedOffer))
-				.index('offer-index')
-				.filter(match('enabled', true))
-				.targetClass(ContractItem)
-				.list()
+			List<ContractItem> objects = dynamo.query (
+				table,
+				'offer-index',
+				KeyFilter.of('offer', sharedOffer)
+			)
+			.filter(match('enabled', true))
+			.targetClass(ContractItem)
+			.list()
 		and:
 			objects.size() == 1
 			def first = objects.first()
@@ -451,16 +459,16 @@ class DynamoDbICSpec extends Specification {
 
 		then: "Can query with composite index and filter"
 			List<TestItem> results = dynamo.query (
-					table,
-					KeyFilter.of (
-						'tagField', 'category_a',
-						'data', 'high'
-					)
+				table,
+				'tag-data-index',
+				KeyFilter.of (
+					'tagField', 'category_a',
+					'data', 'high'
 				)
-				.index('tag-data-index')
-				.filter(match('enabled', true))
-				.targetClass(TestItem)
-				.list()
+			)
+			.filter(match('enabled', true))
+			.targetClass(TestItem)
+			.list()
 
 		and:
 			results.size() == 1
@@ -619,11 +627,13 @@ class DynamoDbICSpec extends Specification {
 			retrieved.version  == 1
 
 		when: "Query using simple index"
-			List<TestItem> results = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag1'))
-				.index('tagField-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> results = dynamo.query (
+				table,
+				'tagField-index',
+				KeyFilter.of('tagField', 'tag1')
+			)
+			.targetClass(TestItem)
+			.list()
 		then:
 			results.size() == 2
 			results.any {
@@ -640,22 +650,26 @@ class DynamoDbICSpec extends Specification {
 			}
 
 		when: "Query using composite index with partition key only"
-			List<TestItem> compositeResults = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag1'))
-				.index('tagField-data-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> compositeResults = dynamo.query (
+				table,
+				'tagField-data-index',
+				KeyFilter.of('tagField', 'tag1')
+			)
+			.targetClass(TestItem)
+			.list()
 		then:
 			compositeResults.size() == 2
 			compositeResults.every { it.tagField == 'tag1' }
 			compositeResults*.data.sort() == ['c1', 'c3']
 
 		when: "Query using composite index with both partition and sort keys"
-			List<TestItem> specificResults = dynamo
-				.query(table, KeyFilter.of('tagField', 'tag1', 'data', 'c1'))
-				.index('tagField-data-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> specificResults = dynamo.query (
+				table,
+				'tagField-data-index',
+				KeyFilter.of('tagField', 'tag1', 'data', 'c1')
+			)
+			.targetClass(TestItem)
+			.list()
 		then:
 			specificResults.size() == 1
 			specificResults.first().id == 'pk1'
@@ -1385,22 +1399,27 @@ class DynamoDbICSpec extends Specification {
 			item.email == 'user1@example.com'
 
 		and: 'Can query using the email index'
-			List<TestItem> userItems = dynamo
-				.query(table, KeyFilter.of('email', 'user1@example.com'))
-				.index('email-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> userItems = dynamo.query (
+				table, 
+				'email-index',
+				KeyFilter.of('email', 'user1@example.com')
+			)
+			.targetClass(TestItem)
+			.list()
 			userItems.size() == 2
 			userItems.every { it.email == 'user1@example.com' }
 			userItems.every { it.id == 'user1' }
 			userItems.collect { it.sortKey }.sort() == ['record1', 'record2']
 
 		and: 'Can query using the status-timestamp index'
-			List<TestItem> activeItems = dynamo
-				.query(table, KeyFilter.of('status', 'active'))
-				.index('status-timestamp-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> activeItems = dynamo.query (
+				table,
+				'status-timestamp-index',
+				KeyFilter.of('status', 'active')
+			)
+			.targetClass(TestItem)
+			.list()
+		and:
 			activeItems.size() == 2
 			activeItems.every { it.status == 'active' }
 			activeItems.find { it.timestamp == 1000 && it.id == 'user1' && it.sortKey == 'record1' }
@@ -1911,11 +1930,13 @@ class DynamoDbICSpec extends Specification {
 				'status', 'ACTIVE',
 				greater('data', '150')
 			)
-			List<TestItem> results = dynamo
-				.query(table, indexKey)
-				.index('status-score-index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> results = dynamo.query (
+				table,
+				'status-score-index',
+				indexKey
+			)
+			.targetClass(TestItem)
+			.list()
 
 		then:
 			results.size() == 2
@@ -2156,22 +2177,26 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Use query method with index (should automatically paginate)'
-			List<TestItem> allResults = dynamo
-				.query(table, KeyFilter.of('status', 'ACTIVE'))
-				.index('status_index')
-				.targetClass(TestItem)
-				.list()
+			List<TestItem> allResults = dynamo.query (
+				table,
+				'status_index',
+				KeyFilter.of('status', 'ACTIVE')
+			)
+			.targetClass(TestItem)
+			.list()
 
 		then: 'All items should be retrieved'
 			allResults.size() == 12
 			allResults.every { it.status == 'ACTIVE' }
 
 		when: 'Use query method with index for manual pagination'
-			PagedResult<TestItem> pagedResult = dynamo
-				.query(table, KeyFilter.of('status', 'ACTIVE'))
-				.index('status_index')
-				.targetClass(TestItem)
-				.paged(5)
+			PagedResult<TestItem> pagedResult = dynamo.query (
+				table,
+				'status_index',
+				KeyFilter.of('status', 'ACTIVE')
+			)
+			.targetClass(TestItem)
+			.paged(5)
 
 		then: 'Only limited items should be returned'
 			pagedResult.items.size() == 5
@@ -2375,12 +2400,14 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		when: 'Query index with projection'
-			List<DynamoMap> projectedResults = dynamo
-				.query(table, KeyFilter.of('tagField', 'category_a'))
-				.index('tag_index')
-				.fields(['id', 'tagField'])
-				.targetClass(DynamoMap)
-				.list()
+			List<DynamoMap> projectedResults = dynamo.query (
+				table,
+				'tag_index',
+				KeyFilter.of('tagField', 'category_a')
+			)
+			.fields(['id', 'tagField'])
+			.targetClass(DynamoMap)
+			.list()
 
 		then: 'Only projected fields should be returned'
 			projectedResults.size() == 2

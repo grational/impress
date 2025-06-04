@@ -31,12 +31,21 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 	}
 	// }}}
 
-	// helpers {{{
-	QueryBuilder<T> index(String index) {
+	// constructor {{{
+	QueryBuilder (
+		DynamoDb dynamoDb,
+		String table,
+		String index,
+		KeyFilter key
+	) {
+		this.dynamoDb = dynamoDb
+		this.table = table
 		this.index = index
-		return this
+		this.key = key
 	}
+	// }}}
 
+	// helpers {{{
 	QueryBuilder<T> filter(DynamoFilter filter) {
 		this.filter = filter
 		return this
