@@ -270,7 +270,7 @@ class DynamoDbICSpec extends Specification {
 				'data_index',
 				KeyFilter.of('tagField', 'tag_a')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		and:
 			results.size()     == 2
@@ -314,7 +314,7 @@ class DynamoDbICSpec extends Specification {
 				'data_index',
 				KeyFilter.of('tagField', 'tag_a')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		and:
 			results.size() == 3
@@ -327,7 +327,7 @@ class DynamoDbICSpec extends Specification {
 				'data_index',
 				KeyFilter.of('tagField', 'tag_a', 'sortKey', 'sort2')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		and:
 			specificResult.size() == 1
@@ -389,7 +389,7 @@ class DynamoDbICSpec extends Specification {
 				KeyFilter.of('offer', sharedOffer)
 			)
 			.filter(match('enabled', true))
-			.targetClass(ContractItem)
+			.type(ContractItem)
 			.list()
 		and:
 			objects.size() == 1
@@ -467,7 +467,7 @@ class DynamoDbICSpec extends Specification {
 				)
 			)
 			.filter(match('enabled', true))
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 
 		and:
@@ -632,7 +632,7 @@ class DynamoDbICSpec extends Specification {
 				'tagField-index',
 				KeyFilter.of('tagField', 'tag1')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		then:
 			results.size() == 2
@@ -655,7 +655,7 @@ class DynamoDbICSpec extends Specification {
 				'tagField-data-index',
 				KeyFilter.of('tagField', 'tag1')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		then:
 			compositeResults.size() == 2
@@ -668,7 +668,7 @@ class DynamoDbICSpec extends Specification {
 				'tagField-data-index',
 				KeyFilter.of('tagField', 'tag1', 'data', 'c1')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		then:
 			specificResults.size() == 1
@@ -718,7 +718,7 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> results = dynamo
 				.query(table, KeyFilter.of('id', 'pk1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			results.size() == 2
@@ -862,7 +862,7 @@ class DynamoDbICSpec extends Specification {
 		when:
 			List<TestItem> allResults = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			allResults.size() == 5
@@ -872,7 +872,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> enabledResults = dynamo
 				.scan(table)
 				.filter(match('enabled', true))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			enabledResults.size() == 3
@@ -886,7 +886,7 @@ class DynamoDbICSpec extends Specification {
 					match('tagField', 'category_a'),
 					match('enabled', true)
 				))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			complexResults.size() == 1
@@ -922,7 +922,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Verifying items were inserted'
 			List<TestItem> allItems = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			allItems.size() == 15
@@ -955,7 +955,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Verifying remaining items'
 			List<TestItem> remaining = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			remaining.size() == 10
@@ -1003,7 +1003,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Verifying remaining items'
 			List<TestItem> remaining = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			remaining.size() == 3
@@ -1022,7 +1022,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Verifying final remaining items'
 			List<TestItem> finalRemaining = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 		then:
 			finalRemaining ==~ items.findAll { it.id in [ 'idx4', 'idx5' ] }
@@ -1046,7 +1046,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using limit parameter'
 			PagedResult<TestItem> first = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(pageSize)
 
 		then:
@@ -1056,7 +1056,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using last parameter'
 			PagedResult<TestItem> second = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(totalSize, first.last, true)
 
 		then:
@@ -1086,7 +1086,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with forward order'
 			List<TestItem> ascending = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.forward()
 				.list()
 
@@ -1098,7 +1098,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query with backward order'
 			List<TestItem> descending = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.backward()
 				.list()
 
@@ -1388,7 +1388,7 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItems(table, items)
 
 		then: 'Can query by primary key'
-			TestItem item = dynamo.getItem(
+			TestItem item = dynamo.getItem (
 				table,
 				KeyFilter.of('id', 'user1', 'sortKey', 'record1'),
 				TestItem
@@ -1404,7 +1404,7 @@ class DynamoDbICSpec extends Specification {
 				'email-index',
 				KeyFilter.of('email', 'user1@example.com')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 			userItems.size() == 2
 			userItems.every { it.email == 'user1@example.com' }
@@ -1417,7 +1417,7 @@ class DynamoDbICSpec extends Specification {
 				'status-timestamp-index',
 				KeyFilter.of('status', 'active')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 		and:
 			activeItems.size() == 2
@@ -1456,13 +1456,13 @@ class DynamoDbICSpec extends Specification {
 		when: 'Performing a parallel scan with 2 segments'
 			List<TestItem> segment0Results = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.segment(0, 2)
 				.list()
 
 			List<TestItem> segment1Results = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.segment(1, 2)
 				.list()
 
@@ -1480,14 +1480,14 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> filteredSegment0 = dynamo
 				.scan(table)
 				.filter(enabledFilter)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.segment(0, 2)
 				.list()
 
 			List<TestItem> filteredSegment1 = dynamo
 				.scan(table)
 				.filter(enabledFilter)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.segment(1, 2)
 				.list()
 
@@ -1499,7 +1499,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'scanning with a limit'
 			List<TestItem> limitedResults = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.limit(2)
 				.list()
 
@@ -1732,7 +1732,7 @@ class DynamoDbICSpec extends Specification {
 		and:
 			List<TestItem> results = dynamo
 				.query(table, rangeKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1769,7 +1769,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> results = dynamo
 				.query(table, rangeKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1805,7 +1805,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> results = dynamo
 				.query(table, rangeKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1847,7 +1847,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamo
 				.query(table, rangeKey)
 				.filter(additionalFilter)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1889,7 +1889,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> results = dynamo
 				.scan(table)
 				.filter(complexFilter)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1935,7 +1935,7 @@ class DynamoDbICSpec extends Specification {
 				'status-score-index',
 				indexKey
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 
 		then:
@@ -1972,7 +1972,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> lessThanResults = dynamo
 				.query(table, lessThanKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -1986,7 +1986,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> lessOrEqualResults = dynamo
 				.query(table, lessOrEqualKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -2032,7 +2032,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> rangeExactResults = dynamo
 				.query(table, rangeExactKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -2073,7 +2073,7 @@ class DynamoDbICSpec extends Specification {
 			)
 			List<TestItem> results = dynamo
 				.query(table, numericRangeKey)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then:
@@ -2107,7 +2107,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Use query method (which should automatically paginate)'
 			List<TestItem> allResults = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'All items should be retrieved'
@@ -2118,7 +2118,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Use query method for manual pagination control'
 			PagedResult<TestItem> firstPage = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(5)
 
 		then: 'Only first page should be returned'
@@ -2129,7 +2129,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Get second page'
 			PagedResult<TestItem> secondPage = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(5, firstPage.last, true)
 
 		then: 'Second page should have items and continue pagination'
@@ -2140,7 +2140,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Get remaining items'
 			PagedResult<TestItem> thirdPage = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(10, secondPage.last, true)
 
 		then: 'Last page should have remaining items'
@@ -2182,7 +2182,7 @@ class DynamoDbICSpec extends Specification {
 				'status_index',
 				KeyFilter.of('status', 'ACTIVE')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.list()
 
 		then: 'All items should be retrieved'
@@ -2195,7 +2195,7 @@ class DynamoDbICSpec extends Specification {
 				'status_index',
 				KeyFilter.of('status', 'ACTIVE')
 			)
-			.targetClass(TestItem)
+			.type(TestItem)
 			.paged(5)
 
 		then: 'Only limited items should be returned'
@@ -2229,7 +2229,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> enabledResults = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
 				.filter(match('enabled', true))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'Only enabled items should be retrieved'
@@ -2241,7 +2241,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> pagedFiltered = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
 				.filter(match('enabled', true))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(3)
 
 		then: 'Only limited filtered items should be returned'
@@ -2338,7 +2338,7 @@ class DynamoDbICSpec extends Specification {
 			List<DynamoMap> projectedItems = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
 				.fields(['id', 'sortKey', 'tagField'])
-				.targetClass(DynamoMap)
+				.type(DynamoMap)
 				.list()
 
 		then: 'Only projected fields should be returned'
@@ -2355,7 +2355,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Query without projection'
 			List<TestItem> fullItems = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'All fields should be returned'
@@ -2406,7 +2406,7 @@ class DynamoDbICSpec extends Specification {
 				KeyFilter.of('tagField', 'category_a')
 			)
 			.fields(['id', 'tagField'])
-			.targetClass(DynamoMap)
+			.type(DynamoMap)
 			.list()
 
 		then: 'Only projected fields should be returned'
@@ -2457,7 +2457,7 @@ class DynamoDbICSpec extends Specification {
 			List<DynamoMap> projectedItems = dynamo
 				.scan(table)
 				.fields(['id', 'tagField'])
-				.targetClass(DynamoMap)
+				.type(DynamoMap)
 				.list()
 
 		then: 'Only projected fields should be returned'
@@ -2473,7 +2473,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Scan without projection'
 			List<TestItem> fullItems = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'All fields should be returned'
@@ -2527,7 +2527,7 @@ class DynamoDbICSpec extends Specification {
 					match('enabled', true)
 				))
 				.fields(['id', 'tagField', 'enabled'])
-				.targetClass(DynamoMap)
+				.type(DynamoMap)
 				.list()
 
 		then: 'Only filtered items with projected fields should be returned'
@@ -2612,7 +2612,7 @@ class DynamoDbICSpec extends Specification {
 				.scan(table)
 				.filter(match('enabled', true))
 				.fields(['id', 'enabled'])
-				.targetClass(DynamoMap)
+				.type(DynamoMap)
 				.limit(3)
 				.list()
 
@@ -2645,11 +2645,11 @@ class DynamoDbICSpec extends Specification {
 		and:
 			dynamo.putItems(table, items)
 
-		when: 'Use old scan signature - scan(table, filter, targetClass)'
+		when: 'Use old scan signature - scan(table, filter, type)'
 			List<TestItem> oldSigResults = dynamo
 				.scan(table)
 				.filter(match('enabled', true))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'Should work as before'
@@ -2659,10 +2659,10 @@ class DynamoDbICSpec extends Specification {
 			oldSigResults.first().enabled == true
 			oldSigResults.first().version == 1
 
-		when: 'Use old scan signature - scan(table, filter, targetClass, limit)'
+		when: 'Use old scan signature - scan(table, filter, type, limit)'
 			List<TestItem> limitedResults = dynamo
 				.scan(table)
-				.targetClass(TestItem)
+				.type(TestItem)
 				.limit(1)
 				.list()
 
@@ -2689,7 +2689,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using limit parameter for scan'
 			PagedResult<TestItem> first = dynamo
 				.scan(table)
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(pageSize, null)
 
 		then:
@@ -2700,7 +2700,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using last parameter for next page'
 			PagedResult<TestItem> second = dynamo
 				.scan(table)
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(pageSize, first.last)
 
 		then:
@@ -2710,7 +2710,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Get remaining items'
 			PagedResult<TestItem> third = dynamo
 				.scan(table)
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(totalSize, second.last)
 
 		then:
@@ -2734,7 +2734,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> filtered = dynamo
 				.scan(table)
 				.filter(match('enabled', true))
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(3, null)
 
 		then:
@@ -2765,7 +2765,7 @@ class DynamoDbICSpec extends Specification {
 				.scan(table)
 				.filter(match('enabled', true))
 				.fields(['id', 'tagField'])
-				.targetClass(DynamoMap.class)
+				.type(DynamoMap.class)
 				.paged(2, null)
 
 		then:
@@ -2799,7 +2799,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Simple scan with limit only'
 			PagedResult<TestItem> simple = dynamo
 				.scan(table)
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(3, null)
 
 		then:
@@ -2810,7 +2810,7 @@ class DynamoDbICSpec extends Specification {
 			PagedResult<TestItem> filtered = dynamo
 				.scan(table)
 				.filter(match('enabled', true))
-				.targetClass(TestItem.class)
+				.type(TestItem.class)
 				.paged(2, null)
 
 		then:
@@ -2822,7 +2822,7 @@ class DynamoDbICSpec extends Specification {
 				.scan(table)
 				.filter(match('enabled', true))
 				.fields(['id', 'tagField'])
-				.targetClass(DynamoMap.class)
+				.type(DynamoMap.class)
 				.paged(2, null)
 
 		then:
@@ -3118,7 +3118,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using the fluent query builder'
 			List<TestItem> builderResults = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.backward()
 				.list()
 
@@ -3133,7 +3133,7 @@ class DynamoDbICSpec extends Specification {
 				.query(table, KeyFilter.of('id', 'user1'))
 				.filter(match('enabled', true))
 				.fields('id', 'sortKey', 'enabled')
-				.targetClass(DynamoMap)
+				.type(DynamoMap)
 				.list()
 
 		then: 'Results should be filtered and projected'
@@ -3145,7 +3145,7 @@ class DynamoDbICSpec extends Specification {
 			List<TestItem> scanResults = dynamo
 				.scan(table)
 				.filter(match('enabled', true))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.list()
 
 		then: 'Results should be filtered across all partitions'
@@ -3155,7 +3155,7 @@ class DynamoDbICSpec extends Specification {
 		when: 'Using paginated query with builder'
 			PagedResult<TestItem> pagedResults = dynamo
 				.query(table, KeyFilter.of('id', 'user1'))
-				.targetClass(TestItem)
+				.type(TestItem)
 				.paged(2)
 
 		then: 'Results should be paginated'

@@ -104,7 +104,7 @@ That's it! You're now managing DynamoDB data with elegant Groovy syntax.
 ## 🎯 What's New
 
 ### 🏗️ **Builder Pattern for Query & Scan** (Latest) 
-Revolutionary fluent API using builder pattern for constructing queries and scans. Chain operations naturally with `.filter()`, `.fields()`, `.targetClass()`, and execute with `.list()` or `.paged()`:
+Revolutionary fluent API using builder pattern for constructing queries and scans. Chain operations naturally with `.filter()`, `.fields()`, `.type()`, and execute with `.list()` or `.paged()`:
 
 ```groovy
 // Before: Multiple parameters in specific order
@@ -114,7 +114,7 @@ List<User> users = dynamo.scan('users', filter, fields, User, limit)
 List<User> users = dynamo.scan('users')
   .filter(match('status', 'active'))
   .fields('id', 'name', 'email')
-  .targetClass(User)
+  .type(User)
   .limit(100)
   .list()
 
@@ -346,7 +346,7 @@ do {
     'orders',
     KeyFilter.of('customerId', customerId)
   )
-  .targetClass(Order)
+  .type(Order)
   .paged(100, lastKey)  // page size and continuation
 
   processOrders(orders.items)  // Process 100 items at a time
@@ -510,7 +510,7 @@ def recentOrders = dynamo.query('orders',
     greater('timestamp', lastWeek)
   ))
   .filter(match('status', 'completed'))
-  .targetClass(Order)
+  .type(Order)
   .list()
 ```
 
@@ -631,7 +631,7 @@ class UserRepository {
   List<User> findByDepartment(String department) {
     return dynamo.scan(tableName)
       .filter(match('department', department))
-      .targetClass(User)
+      .type(User)
       .list()
   }
 
@@ -640,7 +640,7 @@ class UserRepository {
       'status-index',
       KeyFilter.of('status', 'active')
     )
-    .targetClass(User)
+    .type(User)
     .paged(limit, lastKey)
   }
 
@@ -759,8 +759,8 @@ Impress is open source software released under the MIT License.
 | Class | Purpose | Key Methods |
 |-------|---------|-------------|
 | `DynamoDb` | Main API | `getItem()`, `putItem()`, `query()`, `scan()` (returns builders) |
-| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `targetClass()`, `list()`, `paged()` |
-| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `targetClass()`, `limit()`, `list()`, `paged()` |
+| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `type()`, `list()`, `paged()` |
+| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `type()`, `limit()`, `list()`, `paged()` |
 | `KeyFilter` | Key conditions | `of()`, `partition()`, `sort()` |
 | `DynamoFilter` | Query filters | `match()`, `greater()`, `contains()`, `every()`, `any()` |
 | `DynamoMap` | Flexible data container | Direct field access via `@Delegate` |

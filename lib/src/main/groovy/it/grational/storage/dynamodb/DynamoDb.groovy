@@ -221,16 +221,16 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
 		KeyFilter key,
-		Class<T> targetClass = DynamoMap.class
+		Class<T> type = DynamoMap.class
 	) { // {{{
-		getItem(table, key, null, targetClass)
+		getItem(table, key, null, type)
 	} // }}}
 
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,
 		KeyFilter key,
 		List<String> fields,
-		Class<T> targetClass = DynamoMap.class
+		Class<T> type = DynamoMap.class
 	) { // {{{
 		log.debug("Getting item with key: {} and projection: {}", key, fields)
 
@@ -252,7 +252,7 @@ class DynamoDb {
 
 		Map<String, AttributeValue> item = response.item()
 		Map<String, Object> builder = new DynamoMapper(item).builder()
-		return targetClass.newInstance(builder)
+		return type.newInstance(builder)
 	} // }}}
 
 	/**
@@ -260,14 +260,14 @@ class DynamoDb {
 	 *
 	 * @param table The table name
 	 * @param sampleItem The sample object containing key values (keys will be auto-extracted)
-	 * @param targetClass The class to deserialize the result into
+	 * @param type The class to deserialize the result into
 	 * @return The item if found, null otherwise
 	 */
 	<T extends Storable<AttributeValue,Object>> T refreshItem (
 		String table,
 		Storable<AttributeValue, Object> item,
 		List<String> fields = null,
-		Class<T> targetClass = DynamoMap.class
+		Class<T> type = DynamoMap.class
 	) { // {{{
 		Map<String, AttributeValue> key = extractKey (
 			table,
@@ -296,7 +296,7 @@ class DynamoDb {
 
 		Map<String, AttributeValue> fresh = response.item()
 		Map<String, Object> builder = new DynamoMapper(fresh).builder()
-		return targetClass.newInstance(builder)
+		return type.newInstance(builder)
 	} // }}}
 
 	/**
@@ -346,7 +346,7 @@ class DynamoDb {
 		KeyFilter key,
 		DynamoFilter filter = null,
 		List<String> fields = [],
-		Class<T> targetClass = DynamoMap.class,
+		Class<T> type = DynamoMap.class,
 		boolean forward = true
 	) { // {{{
 		List<T> results = []
@@ -358,7 +358,7 @@ class DynamoDb {
 				key,
 				filter,
 				fields,
-				targetClass,
+				type,
 				0,
 				lastEvaluatedKey,
 				forward
@@ -377,7 +377,7 @@ class DynamoDb {
 		KeyFilter key,
 		DynamoFilter filter,
 		List<String> fields,
-		Class<T> targetClass,
+		Class<T> type,
 		int limit,
 		Map<String, AttributeValue> last,
 		boolean forward
@@ -443,7 +443,7 @@ class DynamoDb {
 		
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
-			targetClass.newInstance(builder)
+			type.newInstance(builder)
 		}
 
 		return new PagedResult<T> (
@@ -957,7 +957,7 @@ class DynamoDb {
 		String table,
 		DynamoFilter filter,
 		List<String> projection,
-		Class<T> targetClass,
+		Class<T> type,
 		int limit,
 		Map<String, AttributeValue> last
 	) { // {{{
@@ -1003,7 +1003,7 @@ class DynamoDb {
 		
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
-			targetClass.newInstance(builder)
+			type.newInstance(builder)
 		}
 
 		return new PagedResult<T> (
@@ -1018,7 +1018,7 @@ class DynamoDb {
 	<T extends Storable<AttributeValue,Object>> List<T> scanAll (
 		String table,
 		DynamoFilter filter = null,
-		Class<T> targetClass = DynamoMap.class,
+		Class<T> type = DynamoMap.class,
 		Integer limit = null,
 		Integer segment = null,
 		Integer totalSegments = null,
@@ -1069,7 +1069,7 @@ class DynamoDb {
 			log.debug("Found {} items in scan page", response.count())
 			response.items().each { item ->
 				Map<String, Object> builder = new DynamoMapper(item).builder()
-				result << targetClass.newInstance(builder)
+				result << type.newInstance(builder)
 			}
 		}
 

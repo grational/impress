@@ -13,7 +13,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	private String table
 	private DynamoFilter filter
 	private List<String> fields
-	private Class<T> targetClass = DynamoMap.class as Class<T>
+	private Class<T> type = DynamoMap.class as Class<T>
 	private Integer limit
 	private Integer segment
 	private Integer totalSegments
@@ -45,8 +45,8 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 	
-	ScanBuilder<T> targetClass(Class<T> targetClass) {
-		this.targetClass = targetClass
+	ScanBuilder<T> type(Class<? extends T> type) {
+		this.type = (Class<T>) type
 		return this
 	}
 	
@@ -69,7 +69,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		return dynamoDb.scanAll (
 			table,
 			filter,
-			targetClass,
+			type,
 			limit,
 			segment,
 			totalSegments,
@@ -85,7 +85,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 			table,
 			filter,
 			fields,
-			targetClass,
+			type,
 			pageLimit,
 			lastKey
 		)
