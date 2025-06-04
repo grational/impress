@@ -15,7 +15,7 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 	private KeyFilter key
 	private DynamoFilter filter
 	private List<String> fields
-	private Class<T> type = DynamoMap.class as Class<T>
+	private Class<T> type
 	private boolean forward = true
 	// }}}
 
@@ -23,11 +23,13 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 	QueryBuilder (
 		DynamoDb dynamoDb,
 		String table,
-		KeyFilter key
+		KeyFilter key,
+		Class<T> type
 	) {
 		this.dynamoDb = dynamoDb
 		this.table = table
 		this.key = key
+		this.type = type
 	}
 	// }}}
 
@@ -36,12 +38,14 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 		DynamoDb dynamoDb,
 		String table,
 		String index,
-		KeyFilter key
+		KeyFilter key,
+		Class<T> type = DynamoMap.class
 	) {
 		this.dynamoDb = dynamoDb
 		this.table = table
 		this.index = index
 		this.key = key
+		this.type = type
 	}
 	// }}}
 
@@ -58,11 +62,6 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 
 	QueryBuilder<T> fields(String... fields) {
 		this.fields = fields.toList()
-		return this
-	}
-
-	QueryBuilder<T> type(Class<? extends T> type) {
-		this.type = type
 		return this
 	}
 

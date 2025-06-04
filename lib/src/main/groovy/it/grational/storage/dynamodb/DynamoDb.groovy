@@ -304,27 +304,31 @@ class DynamoDb {
 	 *
 	 * @return QueryBuilder for building and executing queries
 	 */
-	QueryBuilder query (
+	<T extends Storable<AttributeValue, Object>> QueryBuilder<T> query (
 		String table,
-		KeyFilter key
+		KeyFilter key,
+		Class<T> type = DynamoMap.class
 	) {
 		return new QueryBuilder (
 			this,
 			table,
-			key
+			key,
+			type
 		)
 	}
 
-	QueryBuilder query (
+	<T extends Storable<AttributeValue, Object>> QueryBuilder<T> query (
 		String table,
 		String index,
-		KeyFilter key
+		KeyFilter key,
+		Class<T> type = DynamoMap.class
 	) {
 		return new QueryBuilder (
 			this,
 			table,
 			index,
-			key
+			key,
+			type
 		)
 	}
 
@@ -333,8 +337,11 @@ class DynamoDb {
 	 *
 	 * @return ScanBuilder for building and executing scans
 	 */
-	ScanBuilder scan(String table) {
-		return new ScanBuilder(this, table)
+	<T extends Storable<AttributeValue, Object>> ScanBuilder<T> scan (
+		String table,
+		Class<T> type = DynamoMap.class
+	) {
+		return new ScanBuilder(this, table, type)
 	}
 
 	/**
