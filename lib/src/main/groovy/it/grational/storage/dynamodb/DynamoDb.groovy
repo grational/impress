@@ -239,8 +239,12 @@ class DynamoDb {
 			.tableName(table)
 			.key(key.toMap())
 
-		if ( fields )
-			getItemRequestBuilder.projectionExpression(fields.join(', '))
+		if ( fields ) {
+			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			getItemRequestBuilder
+				.projectionExpression(projection.V1)
+				.expressionAttributeNames(projection.V2)
+		}
 
 		def getItemRequest = getItemRequestBuilder.build()
 		def response = client.getItem(getItemRequest)
@@ -284,8 +288,12 @@ class DynamoDb {
 			.tableName(table)
 			.key(key)
 
-		if ( fields )
-			getBuilder.projectionExpression(fields.join(', '))
+		if ( fields ) {
+			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			getBuilder
+				.projectionExpression(projection.V1)
+				.expressionAttributeNames(projection.V2)
+		}
 
 		def response = client.getItem(getBuilder.build())
 
@@ -418,12 +426,19 @@ class DynamoDb {
 		if ( index )
 			queryBuilder.indexName(index)
 
+		Map<String, String> allAttributeNames = filter
+			? ( key.conditionNames() + filter.expressionNames )
+			: key.conditionNames()
+
+		if ( fields ) {
+			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			allAttributeNames.putAll(projection.V2)
+			queryBuilder.projectionExpression(projection.V1)
+		}
+
 		queryBuilder
 			.keyConditionExpression(key.condition())
-			.expressionAttributeNames ( filter
-				? ( key.conditionNames() + filter.expressionNames )
-				: key.conditionNames()
-			)
+			.expressionAttributeNames(allAttributeNames)
 			.expressionAttributeValues ( filter
 				? ( key.conditionValues() + filter.expressionValues )
 				: key.conditionValues()
@@ -431,9 +446,6 @@ class DynamoDb {
 
 		if ( filter )
 			queryBuilder.filterExpression(filter.expression)
-
-		if ( fields )
-			queryBuilder.projectionExpression(fields.join(', '))
 
 		if ( limit > 0 )
 			queryBuilder.limit(limit)
@@ -957,6 +969,30 @@ class DynamoDb {
 	} // }}}
 
 	/**
+	 * Converts field names to safe projection expression and attribute names
+	 *
+	 * @param fields The list of field names to project
+	 * @return A tuple containing the projection expression and attribute names map
+	 */
+	private Tuple2<String, Map<String, String>> buildProjectionExpression(List<String> fields) { // {{{
+		if (!fields || fields.isEmpty()) {
+			return new Tuple2(null, [:])
+		}
+
+		Map<String, String> attributeNames = [:]
+		List<String> projectionParts = []
+
+		fields.each { String fieldName ->
+			String safeName = fieldName.replaceAll(/[^a-zA-Z0-9_]/, '')
+			String attributeKey = "#${safeName}"
+			attributeNames[attributeKey] = fieldName
+			projectionParts.add(attributeKey)
+		}
+
+		return new Tuple2(projectionParts.join(', '), attributeNames)
+	} // }}}
+
+	/**
 	 * Complete version of scan with all parameters - returns PagedResult for manual pagination control
 	 * Note: limit parameter is required to distinguish from List<T> scan methods
 	 */
@@ -986,14 +1022,22 @@ class DynamoDb {
 		def scanBuilder = ScanRequest.builder()
 			.tableName(table)
 
-		if ( filter )
+		Map<String, String> allAttributeNames = [:]
+		if ( filter ) {
+			allAttributeNames.putAll(filter.expressionNames)
 			scanBuilder
-			.filterExpression(filter.expression)
-			.expressionAttributeNames(filter.expressionNames)
-			.expressionAttributeValues(filter.expressionValues)
+				.filterExpression(filter.expression)
+				.expressionAttributeValues(filter.expressionValues)
+		}
 
-		if ( projection )
-			scanBuilder.projectionExpression(projection.join(', '))
+		if ( projection ) {
+			Tuple2<String, Map<String, String>> projectionTuple = buildProjectionExpression(projection)
+			allAttributeNames.putAll(projectionTuple.V2)
+			scanBuilder.projectionExpression(projectionTuple.V1)
+		}
+
+		if ( !allAttributeNames.isEmpty() )
+			scanBuilder.expressionAttributeNames(allAttributeNames)
 
 		if ( limit > 0 )
 			scanBuilder.limit(limit)
@@ -1050,14 +1094,22 @@ class DynamoDb {
 		def scanBuilder = ScanRequest.builder()
 			.tableName(table)
 
-		if ( filter )
+		Map<String, String> allAttributeNames = [:]
+		if ( filter ) {
+			allAttributeNames.putAll(filter.expressionNames)
 			scanBuilder
-			.filterExpression(filter.expression)
-			.expressionAttributeNames(filter.expressionNames)
-			.expressionAttributeValues(filter.expressionValues)
+				.filterExpression(filter.expression)
+				.expressionAttributeValues(filter.expressionValues)
+		}
 
-		if ( projection )
-			scanBuilder.projectionExpression(projection.join(', '))
+		if ( projection ) {
+			Tuple2<String, Map<String, String>> projectionTuple = buildProjectionExpression(projection)
+			allAttributeNames.putAll(projectionTuple.V2)
+			scanBuilder.projectionExpression(projectionTuple.V1)
+		}
+
+		if ( !allAttributeNames.isEmpty() )
+			scanBuilder.expressionAttributeNames(allAttributeNames)
 
 		if ( limit )
 			scanBuilder.limit(limit)

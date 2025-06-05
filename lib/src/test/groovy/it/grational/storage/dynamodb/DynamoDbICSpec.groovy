@@ -3144,5 +3144,71 @@ class DynamoDbICSpec extends Specification {
 		cleanup:
 			dynamo.dropTable(table)
 	} // }}}
+
+	def "Should handle reserved keywords in field projection"() { // {{{
+		given:
+			String table = 'test_reserved_keywords'
+			String partKey = 'id'
+		and:
+			dynamo.createTable(table, partKey)
+		and:
+			// Create a test item with field names that are DynamoDB reserved keywords
+			DynamoMap item = new DynamoMap([
+				id: 'test1',
+				size: '10',     // 'size' is a reserved keyword
+				type: 'document',  // 'type' is a reserved keyword
+				name: 'test item',  // 'name' is a reserved keyword
+				status: 'active'   // 'status' is a reserved keyword
+			])
+		and:
+			KeyFilter key = KeyFilter.of('id', 'test1')
+		and:
+			dynamo.putItem(table, item)
+
+		when: 'Retrieve item with projection containing reserved keywords'
+			DynamoMap projectedItem = dynamo.getItem (
+				table,
+				key,
+				['id', 'size', 'type', 'name'],  // All reserved keywords
+				DynamoMap
+			)
+
+		then: 'Reserved keyword fields should be returned correctly'
+			projectedItem != null
+			projectedItem.id == 'test1'
+			projectedItem.size == '10'
+			projectedItem.type == 'document'
+			projectedItem.name == 'test item'
+			projectedItem.status == null  // not projected
+
+		when: 'Query with projection containing reserved keywords'
+			List<DynamoMap> queryResults = dynamo
+				.query(table, key, DynamoMap)
+				.fields('id', 'size', 'type')
+				.list()
+
+		then: 'Query should succeed with reserved keywords'
+			queryResults.size() == 1
+			queryResults[0].id == 'test1'
+			queryResults[0].size == '10'
+			queryResults[0].type == 'document'
+			queryResults[0].name == null  // not projected
+
+		when: 'Scan with projection containing reserved keywords'
+			List<DynamoMap> scanResults = dynamo
+				.scan(table, DynamoMap)
+				.fields('id', 'name', 'status')
+				.list()
+
+		then: 'Scan should succeed with reserved keywords'
+			scanResults.size() == 1
+			scanResults[0].id == 'test1'
+			scanResults[0].name == 'test item'
+			scanResults[0].status == 'active'
+			scanResults[0].size == null  // not projected
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
 }
 // vim: fdm=marker
