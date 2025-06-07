@@ -64,7 +64,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 		and:
 			inserted != null
 			inserted.id == 'item1'
@@ -82,7 +82,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 		and:
 			versionUpdate != null
 			versionUpdate.id == 'item1'
@@ -140,7 +140,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				firstKey,
 				TestItem
-			)
+			).get()
 		and:
 			retrieved != null
 			retrieved.id == 'parent1'
@@ -181,7 +181,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 			retrieved.id      == 'versioned'
 			retrieved.data    == 'initial data'
 			retrieved.version == 1
@@ -199,7 +199,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 			updated.id      == 'versioned'
 			updated.data    == 'updated data'
 			updated.version == 2
@@ -231,7 +231,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 			forced.id      == 'versioned'
 			forced.data    == 'forced data'
 			forced.version == 1
@@ -508,7 +508,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 		and:
 			exists != null
 
@@ -520,7 +520,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 		then:
 			deleted == null
 
@@ -554,7 +554,7 @@ class DynamoDbICSpec extends Specification {
 					table,
 					KeyFilter.of('id', item.id),
 					TestItem
-				)
+				).get()
 				assert retrieved         != null
 				assert retrieved.id      == item.id
 				assert retrieved.data    == item.data
@@ -620,7 +620,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				firstKey,
 				TestItem
-			)
+			).get()
 			retrieved          != null
 			retrieved.tagField == 'tag1'
 			retrieved.data     == 'c1'
@@ -768,7 +768,7 @@ class DynamoDbICSpec extends Specification {
 		expect:
 			TestItem unmodified = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			unmodified          != null
 			unmodified.tagField == 'tag1'
 			unmodified.data     == 'c1'
@@ -788,7 +788,7 @@ class DynamoDbICSpec extends Specification {
 		and:
 			TestItem updated = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			updated          != null
 			updated.tagField == 'tag1'
 			updated.data     == 'updated'
@@ -810,7 +810,7 @@ class DynamoDbICSpec extends Specification {
 		and:
 			TestItem untouched = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			untouched          != null
 			untouched.tagField == 'tag1'
 			untouched.data     == 'updated'
@@ -829,7 +829,7 @@ class DynamoDbICSpec extends Specification {
 		then:
 			TestItem versioned = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			versioned          != null
 			versioned.tagField == 'tag1'
 			versioned.data     == 'these are ok!'
@@ -938,7 +938,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				KeyFilter.of('id', 'del1'),
 				TestItem
-			)
+			).get()
 		then:
 			shouldBeDeleted == null
 
@@ -1394,7 +1394,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				KeyFilter.of('id', 'user1', 'sortKey', 'record1'),
 				TestItem
-			)
+			).get()
 			item != null
 			item.id == 'user1'
 			item.sortKey == 'record1'
@@ -1533,7 +1533,7 @@ class DynamoDbICSpec extends Specification {
 		expect: 'Item has all initial attributes'
 			TestItem initial = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			initial != null
 			initial.data == 'some data'
 			initial.tagField == 'tag_value'
@@ -1549,7 +1549,7 @@ class DynamoDbICSpec extends Specification {
 		then: 'Specified attributes should be removed'
 			TestItem updated = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			updated != null
 			updated.id == 'test_item'
 			updated.data == null
@@ -1595,7 +1595,7 @@ class DynamoDbICSpec extends Specification {
 		and: 'Existing data should remain unchanged'
 			TestItem unchanged = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			unchanged != null
 			unchanged.id == 'test_item'
 			unchanged.data == 'some data'
@@ -1641,7 +1641,7 @@ class DynamoDbICSpec extends Specification {
 		then: 'Specified attributes should be removed'
 			TestItem updated = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			updated != null
 			updated.id == 'parent1'
 			updated.sortKey == 'child1'
@@ -1693,7 +1693,7 @@ class DynamoDbICSpec extends Specification {
 		and: 'Item should remain unchanged'
 			TestItem unchanged = dynamo.getItem (
 				table, key, TestItem
-			)
+			).get()
 			unchanged != null
 			unchanged.id == 'test_id'
 			unchanged.sortKey == 'test_sort'
@@ -2004,11 +2004,11 @@ class DynamoDbICSpec extends Specification {
 
 		when: 'Traditional exact matching still works'
 			KeyFilter exactKey = KeyFilter.of('id', 'user1', 'sortKey', '2000')
-			TestItem exactResult = dynamo.getItem(
+			TestItem exactResult = dynamo.getItem (
 				table,
 				exactKey,
 				TestItem
-			)
+			).get()
 
 		then:
 			exactResult != null
@@ -2264,9 +2264,10 @@ class DynamoDbICSpec extends Specification {
 			DynamoMap projectedItem = dynamo.getItem (
 				table,
 				key,
-				['id', 'tagField'],
 				DynamoMap
 			)
+			.fields('id', 'tagField')
+			.get()
 
 		then: 'Only projected fields should be returned'
 			projectedItem != null
@@ -2281,7 +2282,7 @@ class DynamoDbICSpec extends Specification {
 				table,
 				key,
 				TestItem
-			)
+			).get()
 
 		then: 'All fields should be returned'
 			fullItem != null
@@ -2914,13 +2915,13 @@ class DynamoDbICSpec extends Specification {
 			dynamo.putItem(table, item)
 
 		then: 'verify item exists'
-			dynamo.getItem(table, key) != null
+			dynamo.getItem(table, key).get() != null
 
 		when: 'delete using auto-key-extraction'
 			dynamo.deleteItem(table, item)
 
 		then: 'verify item is deleted'
-			dynamo.getItem(table, key) == null
+			dynamo.getItem(table, key).get() == null
 
 		cleanup:
 			dynamo.dropTable(table)
@@ -3169,9 +3170,10 @@ class DynamoDbICSpec extends Specification {
 			DynamoMap projectedItem = dynamo.getItem (
 				table,
 				key,
-				['id', 'size', 'type', 'name'],  // All reserved keywords
 				DynamoMap
 			)
+			.fields('id', 'size', 'type', 'name')
+			.get()
 
 		then: 'Reserved keyword fields should be returned correctly'
 			projectedItem != null
