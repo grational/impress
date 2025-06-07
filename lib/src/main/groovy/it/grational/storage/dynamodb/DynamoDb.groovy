@@ -218,13 +218,24 @@ class DynamoDb {
 		return client.updateItem(request)
 	} // }}}
 
-	<T extends Storable<AttributeValue,Object>> T getItem (
+
+	/**
+	 * Creates a GetItemBuilder for fluent getItem construction
+	 *
+	 * @return GetItemBuilder for building and executing getItem operations
+	 */
+	<T extends Storable<AttributeValue, Object>> GetItemBuilder<T> getItem (
 		String table,
 		KeyFilter key,
 		Class<T> type = DynamoMap.class
-	) { // {{{
-		getItem(table, key, null, type)
-	} // }}}
+	) {
+		return new GetItemBuilder (
+			this,
+			table,
+			key,
+			type
+		)
+	}
 
 	<T extends Storable<AttributeValue,Object>> T getItem (
 		String table,

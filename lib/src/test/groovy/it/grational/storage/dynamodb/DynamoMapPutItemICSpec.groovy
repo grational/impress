@@ -36,7 +36,7 @@ class DynamoMapPutItemTestSpec extends Specification {
 			DynamoMap retrieved = dynamo.getItem (
 				table,
 				KeyFilter.of('id', 'test1')
-			)
+			).get()
 
 		then: "Item is saved but key retrieval shows the issue"
 			retrieved != null
@@ -75,7 +75,7 @@ class DynamoMapPutItemTestSpec extends Specification {
 			DynamoMap retrieved = dynamo.getItem (
 				table,
 				key
-			)
+			).get()
 
 		then: "Should find the item"
 			retrieved != null
@@ -136,10 +136,14 @@ class DynamoMapPutItemTestSpec extends Specification {
 			notThrown(Exception)
 
 		when: "Retrieve the items"
-			KeyFilter key1 = new KeyFilter (
-				items[0].impress(new DynamoMapper()
-			).key())
-			DynamoMap retrieved1 = dynamo.getItem(table, key1, DynamoMap)
+			KeyFilter k1 = new KeyFilter (
+				items[0].impress (
+					new DynamoMapper()
+				).key()
+			)
+			DynamoMap retrieved1 = dynamo
+			.getItem(table, k1)
+			.get()
 
 		then: "Should find the first item"
 			retrieved1 != null
