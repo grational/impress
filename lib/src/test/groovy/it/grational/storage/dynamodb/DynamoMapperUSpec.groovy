@@ -616,5 +616,20 @@ class DynamoMapperUSpec extends Specification {
 				numberVersion: fromN('5')
 			]
 	} // }}}
-}
+
+	def "Should preserve zero values in number sets"() { // {{{
+		when:
+			def mapper = new DynamoMapper().tap {
+				with('numberSet', 0, 1, 2)
+			}
+		then:
+			mapper.storer() == [
+				numberSet: fromL([
+					fromN('0'),
+					fromN('1'),
+					fromN('2')
+				])
+			]
+		} // }}}
+	}
 // vim: fdm=marker
