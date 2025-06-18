@@ -251,7 +251,7 @@ class DynamoDb {
 			.key(key.toMap())
 
 		if ( fields ) {
-			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			Tuple2<String, Map<String, String>> projection = projectionExpression(fields)
 			getItemRequestBuilder
 				.projectionExpression(projection.V1)
 				.expressionAttributeNames(projection.V2)
@@ -300,7 +300,7 @@ class DynamoDb {
 			.key(key)
 
 		if ( fields ) {
-			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			Tuple2<String, Map<String, String>> projection = projectionExpression(fields)
 			getBuilder
 				.projectionExpression(projection.V1)
 				.expressionAttributeNames(projection.V2)
@@ -442,7 +442,7 @@ class DynamoDb {
 			: key.conditionNames()
 
 		if ( fields ) {
-			Tuple2<String, Map<String, String>> projection = buildProjectionExpression(fields)
+			Tuple2<String, Map<String, String>> projection = projectionExpression(fields)
 			allAttributeNames.putAll(projection.V2)
 			queryBuilder.projectionExpression(projection.V1)
 		}
@@ -985,22 +985,101 @@ class DynamoDb {
 	 * @param fields The list of field names to project
 	 * @return A tuple containing the projection expression and attribute names map
 	 */
-	private Tuple2<String, Map<String, String>> buildProjectionExpression(List<String> fields) { // {{{
-		if (!fields || fields.isEmpty()) {
+	private Tuple2<String, Map<String, String>> projectionExpression ( // {{{
+		List<String> fields
+	) {
+		if ( !fields )
 			return new Tuple2(null, [:])
-		}
 
 		Map<String, String> attributeNames = [:]
 		List<String> projectionParts = []
 
 		fields.each { String fieldName ->
-			String safeName = fieldName.replaceAll(/[^a-zA-Z0-9_]/, '')
-			String attributeKey = "#${safeName}"
-			attributeNames[attributeKey] = fieldName
-			projectionParts.add(attributeKey)
+			String projectionExpression = nestedProjection(fieldName, attributeNames)
+			projectionParts.add(projectionExpression)
 		}
 
 		return new Tuple2(projectionParts.join(', '), attributeNames)
+	} // }}}
+
+	private String nestedProjection (
+		String fieldPath,
+		Map<String, String> attributeNames
+	) { // {{{
+		// Handle nested paths like 'address.street', 'users[0].name', 'metadata.tags[1]'
+		if (!fieldPath.contains('.') && !fieldPath.contains('[')) {
+			// Simple field name - existing behavior
+			String safeName = fieldPath.replaceAll(/[^a-zA-Z0-9_]/, '')
+			String attributeKey = '#' + safeName
+			attributeNames[attributeKey] = fieldPath
+			return attributeKey
+		}
+
+		// Parse nested path into segments
+		List<String> segments = parseNestedPath(fieldPath)
+		List<String> expressionParts = []
+
+		segments.each { String segment ->
+			if (segment.matches(/^\d+$/)) {
+				// Array index - add as [index] without dot
+				if (expressionParts.size() > 0) {
+					// Append to the last field name
+					String lastPart = expressionParts.last()
+					expressionParts[expressionParts.size() - 1] = lastPart + '[' + segment + ']'
+				}
+			} else {
+				// Field name - create attribute name mapping
+				String safeName = segment.replaceAll(/[^a-zA-Z0-9_]/, '')
+				String attributeKey = '#' + safeName
+				attributeNames[attributeKey] = segment
+				expressionParts.add(attributeKey)
+			}
+		}
+
+		return expressionParts.join('.')
+	} // }}}
+
+	private List<String> parseNestedPath(String fieldPath) { // {{{
+		List<String> segments = []
+		StringBuilder currentSegment = new StringBuilder()
+		boolean inBrackets = false
+		
+		fieldPath.each { c ->
+			switch (c) {
+				case '.':
+					if (!inBrackets) {
+						if (currentSegment.length() > 0) {
+							segments.add(currentSegment.toString())
+							currentSegment = new StringBuilder()
+						}
+					} else {
+						currentSegment.append(c)
+					}
+					break
+				case '[':
+					if (currentSegment.length() > 0) {
+						segments.add(currentSegment.toString())
+						currentSegment = new StringBuilder()
+					}
+					inBrackets = true
+					break
+				case ']':
+					if (inBrackets && currentSegment.length() > 0) {
+						segments.add(currentSegment.toString())
+						currentSegment = new StringBuilder()
+					}
+					inBrackets = false
+					break
+				default:
+					currentSegment.append(c)
+			}
+		}
+		
+		if (currentSegment.length() > 0) {
+			segments.add(currentSegment.toString())
+		}
+		
+		return segments
 	} // }}}
 
 	/**
@@ -1042,7 +1121,7 @@ class DynamoDb {
 		}
 
 		if ( projection ) {
-			Tuple2<String, Map<String, String>> projectionTuple = buildProjectionExpression(projection)
+			Tuple2<String, Map<String, String>> projectionTuple = projectionExpression(projection)
 			allAttributeNames.putAll(projectionTuple.V2)
 			scanBuilder.projectionExpression(projectionTuple.V1)
 		}
@@ -1114,7 +1193,7 @@ class DynamoDb {
 		}
 
 		if ( projection ) {
-			Tuple2<String, Map<String, String>> projectionTuple = buildProjectionExpression(projection)
+			Tuple2<String, Map<String, String>> projectionTuple = projectionExpression(projection)
 			allAttributeNames.putAll(projectionTuple.V2)
 			scanBuilder.projectionExpression(projectionTuple.V1)
 		}

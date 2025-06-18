@@ -12,6 +12,8 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 // local
 import it.grational.storage.Storable
 import it.grational.storage.DbMapper
+import it.grational.storage.dynamodb.DynamoMap
+import it.grational.storage.dynamodb.KeyFilter
 // }}}
 
 class GetItemBuilderUSpec extends Specification {
@@ -298,6 +300,170 @@ class GetItemBuilderUSpec extends Specification {
 			mapResult.data == 'typed data'
 			mapResult.enabled == false
 			mapResult.version == 1
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	@Unroll
+	def "Should support nested field projection with field #nestedField"() { // {{{
+		given:
+			String table = 'test-nested-projection'
+			String partKey = 'id'
+			dynamo.createTable(table, partKey)
+			
+			// Sample item with nested structure
+			DynamoMap item = new DynamoMap (
+				id: 'nested-test',
+				address: [
+					street: '123 Main St',
+					city: 'Springfield',
+					coordinates: [lat: 42.1, lng: -71.2]
+				],
+				metadata: [
+					tags: [ 'important', 'customer', 'premium' ],
+					created: '2023-01-01'
+				],
+				users: [
+					[ name: 'John', role: 'admin'  ],
+					[ name: 'Jane', role: 'user'   ],
+					[ name: 'Bob',  role: 'viewer' ]
+				],
+				config: [
+					settings: [
+						timeout: 30,
+						retries: 3
+					]
+				]
+			)
+			
+			dynamo.putItem(table, item)
+
+		when:
+			DynamoMap result = dynamo
+				.getItem(table, KeyFilter.of('id', 'nested-test'))
+				.fields('id', nestedField)
+				.get()
+
+		then:
+			result != null
+			result.id == 'nested-test'
+			
+			// Verify only the projected nested field is present
+			switch (nestedField) {
+				case 'address.street':
+					assert result.address?.street == '123 Main St'
+					assert result.address?.city == null  // Not projected
+					assert result.metadata == null       // Not projected
+					break
+				case 'metadata.tags[0]':
+					assert result.metadata?.tags?[0] == 'important'
+					assert result.metadata?.created == null  // Not projected
+					assert result.address == null            // Not projected
+					break
+				case 'users[1].name':
+					assert result.users?[0]?.name == 'Jane'
+					assert result.users?[0]?.role == null  // Not projected
+					assert result.address == null          // Not projected
+					break
+				case 'config.settings.timeout':
+					assert result.config?.settings?.timeout == 30
+					assert result.config?.settings?.retries == null  // Not projected
+					assert result.address == null                     // Not projected
+					break
+			}
+
+		cleanup:
+			dynamo.dropTable(table)
+
+		where:
+			nestedField << [
+				'address.street',
+				'metadata.tags[0]',
+				'users[1].name',
+				'config.settings.timeout'
+			]
+	} // }}}
+
+	def "Should support multiple nested field projections"() { // {{{
+		given:
+			String table = 'test-multiple-nested'
+			String partKey = 'id'
+			dynamo.createTable(table, partKey)
+			
+			DynamoMap item = new DynamoMap([
+				id: 'multi-nested-test',
+				profile: [
+					name: 'John Doe',
+					contact: [
+						email: 'john@example.com',
+						phone: '555-1234'
+					]
+				],
+				preferences: [
+					theme: 'dark',
+					notifications: [
+						email: true,
+						sms: false
+					]
+				],
+				history: [
+					[action: 'login', timestamp: '2023-01-01'],
+					[action: 'logout', timestamp: '2023-01-02']
+				]
+			])
+			
+			dynamo.putItem(table, item)
+
+		when:
+			DynamoMap result = dynamo
+				.getItem(table, KeyFilter.of('id', 'multi-nested-test'))
+				.fields('id', 'profile.name', 'preferences.notifications.email', 'history[0].action')
+				.get()
+
+		then:
+			result != null
+			result.id == 'multi-nested-test'
+			result.profile?.name == 'John Doe'
+			result.profile?.contact == null  // Not projected
+			result.preferences?.notifications?.email == true
+			result.preferences?.theme == null  // Not projected
+			result.history?[0]?.action == 'login'
+			result.history?[0]?.timestamp == null  // Not projected
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "should handle nested projection with reserved keywords"() { // {{{
+		given:
+			String table = 'test-nested-reserved'
+			String partKey = 'id'
+			dynamo.createTable(table, partKey)
+			
+			DynamoMap item = new DynamoMap([
+				id: 'reserved-nested-test',
+				data: [
+					'size': 'large',     // 'size' is a DynamoDB reserved keyword
+					'count': 5           // 'count' is a DynamoDB reserved keyword
+				],
+				status: 'active'         // 'status' is a DynamoDB reserved keyword
+			])
+			
+			dynamo.putItem(table, item)
+
+		when:
+			DynamoMap result = dynamo
+				.getItem(table, KeyFilter.of('id', 'reserved-nested-test'))
+				.fields('id', 'data.size', 'status')
+				.get()
+
+		then:
+			result != null
+			result.id == 'reserved-nested-test'
+			result.data?.size == 'large'
+			result.data?.count == null  // Not projected
+			result.status == 'active'
 
 		cleanup:
 			dynamo.dropTable(table)
