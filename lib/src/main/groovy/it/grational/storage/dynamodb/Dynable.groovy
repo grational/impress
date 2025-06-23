@@ -54,6 +54,4 @@ abstract class Dynable
 	protected abstract DbMapper<AttributeValue,Object> inpress (
 		DynamoMapper mapper
 	)
-
-	abstract KeyFilter key()
 }

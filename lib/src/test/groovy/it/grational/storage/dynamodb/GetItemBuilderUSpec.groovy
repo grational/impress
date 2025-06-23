@@ -311,7 +311,7 @@ class GetItemBuilderUSpec extends Specification {
 			String table = 'test-nested-projection'
 			String partKey = 'id'
 			dynamo.createTable(table, partKey)
-			
+
 			// Sample item with nested structure
 			DynamoMap item = new DynamoMap (
 				id: 'nested-test',
@@ -336,7 +336,7 @@ class GetItemBuilderUSpec extends Specification {
 					]
 				]
 			)
-			
+
 			dynamo.putItem(table, item)
 
 		when:
@@ -348,7 +348,7 @@ class GetItemBuilderUSpec extends Specification {
 		then:
 			result != null
 			result.id == 'nested-test'
-			
+
 			// Verify only the projected nested field is present
 			switch (nestedField) {
 				case 'address.street':
@@ -390,7 +390,7 @@ class GetItemBuilderUSpec extends Specification {
 			String table = 'test-multiple-nested'
 			String partKey = 'id'
 			dynamo.createTable(table, partKey)
-			
+
 			DynamoMap item = new DynamoMap([
 				id: 'multi-nested-test',
 				profile: [
@@ -412,7 +412,7 @@ class GetItemBuilderUSpec extends Specification {
 					[action: 'logout', timestamp: '2023-01-02']
 				]
 			])
-			
+
 			dynamo.putItem(table, item)
 
 		when:
@@ -440,7 +440,7 @@ class GetItemBuilderUSpec extends Specification {
 			String table = 'test-nested-reserved'
 			String partKey = 'id'
 			dynamo.createTable(table, partKey)
-			
+
 			DynamoMap item = new DynamoMap([
 				id: 'reserved-nested-test',
 				data: [
@@ -449,7 +449,7 @@ class GetItemBuilderUSpec extends Specification {
 				],
 				status: 'active'         // 'status' is a DynamoDB reserved keyword
 			])
-			
+
 			dynamo.putItem(table, item)
 
 		when:

@@ -288,7 +288,7 @@ class DynamoDb {
 			table,
 			item
 		)
-		
+
 		log.debug (
 			"Getting item with auto-extracted keys: {}",
 			key
@@ -392,7 +392,7 @@ class DynamoDb {
 			results.addAll(paged.items)
 			lastEvaluatedKey = paged.last
 		} while(lastEvaluatedKey)
-		
+
 		return results
 	} // }}}
 
@@ -466,11 +466,11 @@ class DynamoDb {
 
 		def request = queryBuilder.build()
 		log.debug("Executing query request: {}", request)
-		
+
 		def response = client.query(request)
 
 		log.debug("Found {} items", response.count())
-		
+
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
 			type.newInstance(builder)
@@ -511,7 +511,7 @@ class DynamoDb {
 			table,
 			item
 		)
-		
+
 		log.debug (
 			"Deleting item with auto-extracted keys: {}",
 			key
@@ -1043,7 +1043,7 @@ class DynamoDb {
 		List<String> segments = []
 		StringBuilder currentSegment = new StringBuilder()
 		boolean inBrackets = false
-		
+
 		fieldPath.each { c ->
 			switch (c) {
 				case '.':
@@ -1074,11 +1074,11 @@ class DynamoDb {
 					currentSegment.append(c)
 			}
 		}
-		
+
 		if (currentSegment.length() > 0) {
 			segments.add(currentSegment.toString())
 		}
-		
+
 		return segments
 	} // }}}
 
@@ -1137,11 +1137,11 @@ class DynamoDb {
 
 		ScanRequest request = scanBuilder.build()
 		log.debug("Executing scan request: {}", request)
-		
+
 		def response = client.scan(request)
 
 		log.debug("Found {} items", response.count())
-		
+
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
 			type.newInstance(builder)
