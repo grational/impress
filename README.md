@@ -79,10 +79,9 @@ dynamo.putItem('users',
   )
 )
 
-// 4. Retrieve with type safety
-DynamoMap user = dynamo.getItem('users',
-  KeyFilter.of('id', 'user123')
-)
+// 4. Retrieve with type safety using builder pattern
+DynamoMap user = dynamo.getItem('users', KeyFilter.of('id', 'user123'))
+  .get()
 println "Welcome ${user.name}!" // Direct field access
 
 // 5. Query with powerful filters using builder pattern
@@ -103,8 +102,36 @@ That's it! You're now managing DynamoDB data with elegant Groovy syntax.
 
 ## 🎯 What's New
 
-### 🏗️ **Builder Pattern for Query & Scan** (Latest) 
-Revolutionary fluent API using builder pattern for constructing queries and scans. Chain operations naturally with `.filter()`, `.fields()`, `.type()`, and execute with `.list()` or `.paged()`:
+### 🎯 **Smart Result Limiting with `take()`** (Latest)
+Intuitive result limiting that's distinct from pagination control. Unlike `limit()` which controls page size, `take()` controls the total number of results returned:
+
+```groovy
+// Limit total results across all pages (new take() method)
+List<User> topUsers = dynamo.scan('users', User)
+  .filter(match('status', 'premium'))
+  .take(10)  // Get exactly 10 results total
+  .list()
+
+// Query with take() - perfect for "top N" scenarios
+List<Order> recentOrders = dynamo.query (
+    'orders',
+    KeyFilter.of('customerId', 'cust1'),
+    Order
+  )
+  .backward()  // newest first
+  .take(5)     // get last 5 orders
+  .list()
+
+// Works with all builder features
+List<Product> featured = dynamo.scan('products')
+  .filter(match('featured', true))
+  .fields('id', 'name', 'price')
+  .take(20)  // Top 20 featured products
+  .list()
+```
+
+### 🏗️ **Builder Pattern for Query & Scan** 
+Revolutionary fluent API using builder pattern for constructing queries and scans. Chain operations naturally with `.filter()`, `.fields()`, `.take()`, and execute with `.list()` or `.paged()`:
 
 ```groovy
 // Before: Multiple parameters in specific order
@@ -114,7 +141,7 @@ List<User> users = dynamo.scan('users', filter, fields, User, limit)
 List<User> users = dynamo.scan('users', User)
   .filter(match('status', 'active'))
   .fields('id', 'name', 'email')
-  .limit(100)
+  .take(50)  // Limit results, not page size
   .list()
 
 // Query with index and pagination
@@ -135,11 +162,10 @@ Enhanced DynamoMap with seamless key specification for putItem operations - maki
 Reduce bandwidth and costs by retrieving only the fields you need:
 
 ```groovy
-// Get only essential fields
-DynamoMap user = dynamo.getItem('users',
-  KeyFilter.of('id', 'user123'),
-  ['id', 'name', 'email']  // 70% less data transfer!
-)
+// Get only essential fields using builder pattern
+DynamoMap user = dynamo.getItem('users', KeyFilter.of('id', 'user123'))
+  .fields('id', 'name', 'email')  // 70% less data transfer!
+  .get()
 ```
 
 ### 📄 **Intelligent Pagination**
@@ -214,8 +240,9 @@ class User extends Dynable {
 def user = new User(id: 'u1', username: 'alice', email: 'alice@example.com')
 dynamo.putItem('users', user)
 
-// Retrieve with full type safety
+// Retrieve with full type safety using builder pattern
 User retrievedUser = dynamo.getItem('users', KeyFilter.of('id', 'u1'), User)
+  .get()
 ```
 
 ## 🔍 Advanced Querying
@@ -228,17 +255,21 @@ import static it.grational.storage.dynamodb.DynamoFilter.*
 // Basic conditions with builder pattern
 def activeUsers = dynamo.scan('users')
   .filter(match('status', 'active'))
+  .take(100)  // Limit results
   .list()
 def seniorUsers = dynamo.scan('users')
   .filter(greater('experience', 5))
+  .take(50)   // Top 50 senior users
   .list()
 
 // String operations
 def developers = dynamo.scan('users')
   .filter(contains('bio', 'developer'))
+  .take(30)   // First 30 developers
   .list()
 def managers = dynamo.scan('users')
   .filter(beginsWith('title', 'Senior'))
+  .take(20)   // Top 20 senior managers
   .list()
 
 // Complex combinations with fluent chaining
@@ -251,6 +282,7 @@ def targetUsers = dynamo.scan('users')
     ),
     isNotBlank('email')
   ))
+  .take(15)   // Top 15 target users
   .list()
 
 // Nested field queries with dot notation
@@ -260,6 +292,7 @@ def premiumUsers = dynamo.scan('users')
     greater('subscription.usage.apiCalls', 1000),
     match('profile.preferences.notifications', true)
   ))
+  .take(10)   // Top 10 premium users
   .list()
 ```
 
@@ -280,7 +313,9 @@ KeyFilter recentOrders = KeyFilter.of(
 List<DynamoMap> orders = dynamo.query (
     'orders',
     recentOrders
-  ).list()
+  )
+  .take(20)  // Latest 20 orders
+  .list()
 
 // Multiple data types supported
 KeyFilter mixedKey = KeyFilter.of(
@@ -299,19 +334,20 @@ Reduce costs and improve performance by retrieving only necessary fields:
 // Get minimal user info for listings with builder pattern
 List<DynamoMap> userList = dynamo.scan('users')
   .fields('id', 'name', 'avatar')  // 90% smaller payload
+  .take(50)  // Limit to first 50 users
   .list()
 
 // Query with projection and filtering using fluent API
 List<DynamoMap> activeEngineers = dynamo.scan('users')
   .filter(match('department', 'Engineering'))
   .fields('id', 'name', 'skills', 'level')
+  .take(25)  // Top 25 engineers
   .list()
 
-// Works with all operations
-DynamoMap profile = dynamo.getItem('users',
-  KeyFilter.of('id', 'user123'),
-  ['name', 'email', 'lastLogin']  // Minimal profile
-)
+// Works with all operations using builder pattern
+DynamoMap profile = dynamo.getItem('users', KeyFilter.of('id', 'user123'))
+  .fields('name', 'email', 'lastLogin')  // Minimal profile
+  .get()
 ```
 
 ### Intelligent Batching
@@ -399,6 +435,7 @@ DynamoMap provides both Map-like operations and direct field access:
 
 ```groovy
 DynamoMap user = dynamo.getItem('users', KeyFilter.of('id', 'user123'))
+  .get()
 
 // Direct field access (via @Delegate)
 String name = user.name
@@ -500,6 +537,7 @@ def featured = dynamo.scan('products')
     contains('tags', 'featured'),
     between('price', 100, 1000)
   ))
+  .take(25)  // Top 25 featured products
   .list()
 
 def recentOrders = dynamo.query (
@@ -511,6 +549,7 @@ def recentOrders = dynamo.query (
   Order
 )
 .filter(match('status', 'completed'))
+.take(10)  // Latest 10 completed orders
 .list()
 ```
 
@@ -542,6 +581,7 @@ def mobileSafariUsers = dynamo.scan('activities')
     match('metadata.device.browser', 'Safari'),
     greater('metadata.duration', 30)
   ))
+  .take(100)  // Top 100 mobile Safari users
   .list()
 ```
 
@@ -626,23 +666,25 @@ class UserRepository {
 
   User findById(String id) {
     return dynamo.getItem(tableName, KeyFilter.of('id', id), User)
+      .get()
   }
 
   List<User> findByDepartment(String department) {
-    return dynamo.scan(tableName)
+    return dynamo.scan(tableName, User)
       .filter(match('department', department))
-      .type(User)
+      .list()
+  }
+
+  List<User> findTopActiveUsers(int count) {
+    return dynamo.scan(tableName, User)
+      .filter(match('status', 'active'))
+      .take(count)  // Limit results using take()
       .list()
   }
 
   PagedResult<User> findActiveUsersPaged(int limit, Map<String, AttributeValue> lastKey = null) {
-    return dynamo.query (
-      tableName,
-      'status-index',
-      KeyFilter.of('status', 'active'),
-      User
-    )
-    .paged(limit, lastKey)
+    return dynamo.query(tableName, 'status-index', KeyFilter.of('status', 'active'), User)
+      .paged(limit, lastKey)
   }
 
   void save(User user) {
@@ -674,7 +716,8 @@ class EventStore {
       KeyFilter.of('streamId', streamId, greater('timestamp', fromTimestamp)) :
       KeyFilter.of('streamId', streamId)
 
-    return dynamo.query('events', keyCondition).list()
+    return dynamo.query('events', keyCondition)
+      .list()
   }
 }
 ```
@@ -704,6 +747,7 @@ try {
 // Use projection for large objects with builder pattern
 def lightweightData = dynamo.scan('heavy_table')
   .fields('id', 'name')  // Only essential fields
+  .take(100)  // Limit results to reduce load
   .list()
 
 // Batch operations for bulk work
@@ -760,11 +804,12 @@ Impress is open source software released under the MIT License.
 | Class | Purpose | Key Methods |
 |-------|---------|-------------|
 | `DynamoDb` | Main API | `getItem()`, `putItem()`, `query()`, `scan()` (returns builders) |
-| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `list()`, `paged()` |
-| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `limit()`, `list()`, `paged()` |
+| `GetItemBuilder` | Fluent getItem building | `fields()`, `as()`, `get()` |
+| `QueryBuilder` | Fluent query building | `filter()`, `fields()`, `take()`, `backward()`, `list()`, `paged()` |
+| `ScanBuilder` | Fluent scan building | `filter()`, `fields()`, `take()`, `limit()`, `segment()`, `list()`, `paged()` |
 | `KeyFilter` | Key conditions | `of()`, `partition()`, `sort()` |
 | `DynamoFilter` | Query filters | `match()`, `greater()`, `contains()`, `every()`, `any()` |
-| `DynamoMap` | Flexible data container | Direct field access via `@Delegate` |
+| `DynamoMap` | Flexible data container | Direct field access via `@Delegate`, `withKeys()` |
 | `Index` | Schema definition | `of()` with auto-naming |
 | `PagedResult` | Pagination wrapper | `.items`, `.more`, `.last`, `.count` |
 
@@ -781,8 +826,50 @@ def results = dynamo.scan('users')
     match('status', 'active'),
     greater('lastLogin', cutoff)
   ))
+  .take(50)  // Top 50 active users
   .list()
 ```
+
+### Builder Pattern Methods Summary
+
+All builder methods return the builder instance for chaining:
+
+**GetItemBuilder:**
+```groovy
+dynamo.getItem(table, keyFilter, [Type])
+  .fields('field1', 'field2')     // Project specific fields
+  .as(MyClass)                    // Specify return type 
+  .get()                          // Execute and return result
+```
+
+**QueryBuilder:**
+```groovy
+dynamo.query(table, keyFilter, [Type])
+  .filter(dynamoFilter)           // Add filter conditions
+  .fields('field1', 'field2')     // Project specific fields
+  .take(100)                      // Limit total results returned
+  .forward()/backward()           // Sort direction
+  .list()                         // Get all results as List<T>
+  .paged(pageSize, lastKey)       // Get paginated results
+```
+
+**ScanBuilder:**
+```groovy
+dynamo.scan(table, [Type])
+  .filter(dynamoFilter)           // Add filter conditions  
+  .fields('field1', 'field2')     // Project specific fields
+  .take(100)                      // Limit total results returned
+  .limit(50)                      // Page size limit
+  .segment(0, 4)                  // Parallel scan segment
+  .list()                         // Get all results as List<T>
+  .paged(pageSize, lastKey)       // Get paginated results
+```
+
+**Key Differences:**
+- `take()` - Controls total number of results across all pages
+- `limit()` - Controls DynamoDB page size (ScanBuilder only)
+- `list()` - Returns all results automatically handling pagination
+- `paged()` - Returns single page with continuation token
 
 ---
 
