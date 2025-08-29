@@ -16,7 +16,7 @@ import static it.grational.storage.dynamodb.FieldType.*
 class DynamoMap implements Storable<AttributeValue,Object> {
 
 	@Delegate
-	Map<String, Object> data
+	Map<String, Object> __data
 	private String pk
 	private String sk
 
@@ -25,7 +25,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		String pk = null,
 		String sk = null
 	) {
-		this.data = data
+		this.__data = data
 		this.pk = pk
 		this.sk = sk
 	}
@@ -55,7 +55,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		boolean versioned = false
 	) {
 		DynamoMapper dm = mapper as DynamoMapper
-		data.each { String k, Object v ->
+		__data.each { String k, Object v ->
 			FieldType ftype = fieldType(k)
 			switch (v) {
 				case String:
