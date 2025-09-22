@@ -103,7 +103,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 			versioned,
 			ls?.findResults { Storable<AttributeValue,Object> st ->
 				st?.impress(new DynamoMapper(), versioned)
-			}.toArray(new DbMapper[0])
+			}?.toArray(new DbMapper[0])
 		)
 	}
 

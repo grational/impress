@@ -186,7 +186,7 @@ class DynamoMapperUSpec extends Specification {
 			incrementedVersion = [ v: fromN('2') ]
 	} // }}}
 
-	def "Should support lists of objects"() { // {{{
+	def "Should support lists of objects, also when interleaving nulls"() { // {{{
 		given:
 			def object1 = Stub(Storable) {
 				impress(_, _) >> { args ->
@@ -202,25 +202,28 @@ class DynamoMapperUSpec extends Specification {
 					.with('value', 200)
 				}
 			}
-		
+			def expectedResult = [
+				objects: fromL (
+					[
+						fromM (
+							name: fromS('Object 1'),
+							value: fromN('100')
+						),
+						fromM (
+							name: fromS('Object 2'),
+							value: fromN('200')
+						)
+					]
+				)
+			]
+
 		when:
 			def mapper = new DynamoMapper().tap {
-				with('objects', true, object1, object2)
+				with('objects', true, object1, null, object2)
 			}
 			
 		then:
-			mapper.storer() == [
-				objects: fromL([
-					fromM([
-						name: fromS('Object 1'),
-						value: fromN('100')
-					]),
-					fromM([
-						name: fromS('Object 2'),
-						value: fromN('200')
-					])
-				])
-			]
+			mapper.storer() == expectedResult
 	} // }}}
 	
 	def "Should handle null or empty lists of objects"() { // {{{
@@ -234,6 +237,20 @@ class DynamoMapperUSpec extends Specification {
 			}
 
 		then:
+			mapper.storer() == [:]
+	} // }}}
+
+	def "Should handle nulls calling with(k, versioned, null) for Storable array without throwing NullPointerException"() { // {{{
+		when:
+			def mapper = new DynamoMapper()
+			mapper.with (
+				'key',
+				true,
+				null as Storable<AttributeValue,Object>[]
+			)
+
+		then:
+			noExceptionThrown()
 			mapper.storer() == [:]
 	} // }}}
 	
