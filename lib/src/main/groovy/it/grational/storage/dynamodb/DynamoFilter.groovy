@@ -489,27 +489,30 @@ class DynamoFilter {
 	) { // {{{
 		Map<String, String> names = [:]
 		Map<String, AttributeValue> values = [:]
+		List<String> expressions = []
+
 		filters.each { DynamoFilter df ->
 			names += df.expressionNames
-			values = mergeValues(values, df)
+			Tuple2<Map<String, AttributeValue>, String> merged = mergeValues(values, df)
+			values = merged.V1
+			String expr = merged.V2
+
+			boolean needsParens =
+				expr.contains(' AND ') ||
+				expr.contains(' OR ')  ||
+				expr.startsWith('NOT ')
+			expressions << (needsParens ? "(${expr})" as String : expr)
 		}
 
-		String expr = filters.collect { DynamoFilter df ->
-			boolean needsParens =
-				df.expression.contains(' AND ') ||
-				df.expression.contains(' OR ')  ||
-				df.expression.startsWith('NOT ')
-			needsParens ? "(${df.expression})" : df.expression
-		}.join(" ${operator} ")
-
-		return new DynamoFilter(expr, names, values)
+		return new DynamoFilter(expressions.join(" ${operator} "), names, values)
 	} // }}}
 
-	private static Map<String, AttributeValue> mergeValues (
+	private static Tuple2<Map<String, AttributeValue>, String> mergeValues (
 		Map<String, AttributeValue> combined,
 		DynamoFilter filter
 	) { // {{{
 		Map<String, AttributeValue> result = combined
+		String expression = filter.expression
 		int counter; String key
 		filter.expressionValues.each { String k, AttributeValue v ->
 			counter = 1
@@ -519,11 +522,11 @@ class DynamoFilter {
 				key = "${k}_${counter++}"
 
 			if ( k != key )
-				filter.expression = filter.expression.replaceAll(k, key)
+				expression = expression.replaceAll(k, key)
 
 			result[key] = v
 		}
-		return result
+		return new Tuple2(result, expression)
 	} // }}}
 
 	String getExpression() { // {{{

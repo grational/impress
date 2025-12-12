@@ -130,6 +130,41 @@ def update = new DynamoMapper()
 dynamo.updateItem('users', update)
 ```
 
+### 🔤 **Escaped Dots for Literal Field Names**
+When your DynamoDB field names contain literal dots (not nested paths), use the backslash escape character `\.` to prevent dot interpretation as a path separator:
+
+```groovy
+// Field literally named "version.2" (not a nested path)
+def update = new DynamoMapper()
+  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .with('field\\.2', 'value')           // Updates field named "field.2"
+  .with('api\\.v2\\.endpoint', 'https://...') // Updates field named "api.v2.endpoint"
+
+dynamo.updateItem('items', update)
+
+// Mix escaped and unescaped dots for complex scenarios
+// Here "config.v2" is a literal field name containing nested "timeout"
+def mixedUpdate = new DynamoMapper()
+  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .with('config\\.v2.timeout', 30)  // config.v2 → timeout (nested)
+
+dynamo.updateItem('items', mixedUpdate)
+
+// Also works with remove operations
+def removeMapper = new DynamoMapper()
+  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .remove('old\\.field\\.name')  // Removes field literally named "old.field.name"
+
+dynamo.updateItem('items', removeMapper)
+```
+
+**Dot Notation Summary:**
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `info.age` | Nested path: field `age` inside `info` | `#info.#age` |
+| `field\.2` | Literal field name: `field.2` | `#field2` |
+| `config\.v2.timeout` | Mixed: field `timeout` inside literal `config.v2` | `#configv2.#timeout` |
+
 ### 🎯 **Smart Result Limiting with `take()`**
 Intuitive result limiting that's distinct from pagination control. Unlike `limit()` which controls page size, `take()` controls the total number of results returned:
 

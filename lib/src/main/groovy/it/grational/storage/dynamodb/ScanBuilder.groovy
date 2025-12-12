@@ -99,7 +99,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	} // }}}
 
 	PagedResult<T> paged ( // {{{
-		int pageLimit,
+		int limit,
 		Map<String, AttributeValue> lastKey = null
 	) {
 		return dynamoDb.scan (
@@ -107,7 +107,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 			filter,
 			fields,
 			type,
-			pageLimit,
+			limit,
 			lastKey
 		)
 	} // }}}

@@ -317,7 +317,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	} // }}}
 
 	private String pathFor(String k) { // {{{
-		k.split(/\./).collect { "#${safe(it)}" }.join('.')
+		splitPath(k).collect { "#${safe(it)}" }.join('.')
 	} // }}}
 
 	Map<String,String> expressionNames ( // {{{
@@ -325,13 +325,13 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	) {
 		Map<String,String> result = [:]
 		result.putAll(others)
-		
+
 		(map.keySet() + removeAttributes).each { String k ->
-			k.split(/\./).each { String part ->
-				result["#${safe(part)}" as String] = part
+			splitPath(k).each { String part ->
+				result["#${safe(part)}" as String] = unescape(part)
 			}
 		}
-		
+
 		return result
 	} // }}}
 
@@ -343,8 +343,20 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		} as Map<String,AttributeValue>
 	} // }}}
 
+	private List<String> splitPath(String path) { // {{{
+		// Split on unescaped dots (dots not preceded by backslash)
+		// Use negative lookbehind to match dots not preceded by backslash
+		path.split(/(?<!\\)\./) as List<String>
+	} // }}}
+
+	private String unescape(String s) { // {{{
+		// Remove backslash before dots
+		s.replaceAll(/\\\./, '.')
+	} // }}}
+
 	private String safe(String name) { // {{{
-		name.replaceAll(/[^a-zA-Z0-9_]/,'')
+		// First unescape, then remove non-alphanumeric characters
+		unescape(name).replaceAll(/[^a-zA-Z0-9_]/,'')
 	} // }}}
 
 	DbMapper<AttributeValue,Object> markAsKey ( // {{{

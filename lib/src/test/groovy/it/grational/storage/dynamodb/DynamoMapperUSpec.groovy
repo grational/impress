@@ -401,18 +401,18 @@ class DynamoMapperUSpec extends Specification {
 	} // }}}
 	
 	def "Should handle special characters in field names"() { // {{{
-		given:
+		given: 'field names with dashes are sanitized, dots are treated as path separators'
 			def mapper = new DynamoMapper().tap {
 				with('field-1', 'value1')
 				with('field.2', 2)
 			}
-			
+
 		when:
 			def names = mapper.expressionNames()
 			def values = mapper.expressionValues()
-			
-		then:
-			names == ['#field1': 'field-1', '#field2': 'field.2']
+
+		then: 'dashes are removed from placeholders, dots split into nested path components'
+			names == ['#field1': 'field-1', '#field': 'field', '#2': '2']
 			values == [':field1': fromS('value1'), ':field2': fromN('2')]
 	} // }}}
 	
@@ -482,21 +482,76 @@ class DynamoMapperUSpec extends Specification {
 	} // }}}
 	
 	def "Should handle special characters in remove attribute names"() { // {{{
-		given:
+		given: 'attribute names with dashes are sanitized, dots are treated as path separators'
 			def mapper = new DynamoMapper().tap {
 				remove('field-with-dashes', 'field.with.dots')
 			}
-			
+
 		when:
 			def updateExpr = mapper.updateExpression()
 			def names = mapper.expressionNames()
-			
-		then:
-			updateExpr == "REMOVE #fieldwithdashes, #fieldwithdots"
+
+		then: 'dashes are removed from placeholders, dots create nested path references'
+			updateExpr == "REMOVE #fieldwithdashes, #field.#with.#dots"
 			names == [
 				'#fieldwithdashes': 'field-with-dashes',
-				'#fieldwithdots': 'field.with.dots'
+				'#field': 'field',
+				'#with': 'with',
+				'#dots': 'dots'
 			]
+	} // }}}
+
+	def "Should support escaped dots as literal characters in field names"() { // {{{
+		given: 'field names with escaped dots using backslash'
+			def mapper = new DynamoMapper().tap {
+				with('field\\.2', 'value1')
+				with('another\\.field\\.name', 42)
+			}
+
+		when:
+			def names = mapper.expressionNames()
+			def values = mapper.expressionValues()
+			def updateExpr = mapper.updateExpression()
+
+		then: 'escaped dots are treated as literal characters in the field name'
+			names == ['#field2': 'field.2', '#anotherfieldname': 'another.field.name']
+			values == [':field2': fromS('value1'), ':anotherfieldname': fromN('42')]
+			updateExpr == "SET #field2 = :field2, #anotherfieldname = :anotherfieldname"
+	} // }}}
+
+	def "Should support escaped dots in remove attribute names"() { // {{{
+		given: 'attribute names with escaped dots'
+			def mapper = new DynamoMapper().tap {
+				remove('field\\.with\\.dots', 'normal-field')
+			}
+
+		when:
+			def updateExpr = mapper.updateExpression()
+			def names = mapper.expressionNames()
+
+		then: 'escaped dots become literal dots in the actual field name'
+			updateExpr == "REMOVE #fieldwithdots, #normalfield"
+			names == [
+				'#fieldwithdots': 'field.with.dots',
+				'#normalfield': 'normal-field'
+			]
+	} // }}}
+
+	def "Should support mixed escaped and unescaped dots for nested paths with literal dots"() { // {{{
+		given: 'a field path mixing literal dots and nested path separators'
+			def mapper = new DynamoMapper().tap {
+				with('info\\.v2.age', 25)
+			}
+
+		when:
+			def names = mapper.expressionNames()
+			def values = mapper.expressionValues()
+			def updateExpr = mapper.updateExpression()
+
+		then: 'escaped dots are literal, unescaped dots are path separators'
+			names == ['#infov2': 'info.v2', '#age': 'age']
+			values == [':infov2age': fromN('25')]
+			updateExpr == "SET #infov2.#age = :infov2age"
 	} // }}}
 
 	def "Should provide markAsPartitionKey method"() { // {{{

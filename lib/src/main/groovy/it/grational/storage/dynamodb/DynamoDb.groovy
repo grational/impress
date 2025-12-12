@@ -410,7 +410,7 @@ class DynamoDb {
 			return []
 
 		List<T> results = []
-		Map<String, AttributeValue> lastEvaluatedKey = null
+		Map<String, AttributeValue> lastEvaluatedKey = [:]
 		do {
 			int limit = size - results.size()
 			PagedResult<T> paged = query (
@@ -1293,7 +1293,7 @@ class DynamoDb {
 		}
 
 		List<T> results = []
-		Map<String, AttributeValue> lastEvaluatedKey = null
+		Map<String, AttributeValue> lastEvaluatedKey = [:]
 		do {
 			int currentLimit = takeResults - results.size()
 			PagedResult<T> paged = scan (
