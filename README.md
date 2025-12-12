@@ -102,7 +102,35 @@ That's it! You're now managing DynamoDB data with elegant Groovy syntax.
 
 ## 🎯 What's New
 
-### 🎯 **Smart Result Limiting with `take()`** (Latest)
+### 🧩 **Nested Field Updates** (Latest)
+Update specific fields within nested objects without overwriting the entire parent structure. Use simple dot notation to target exactly what needs to change:
+
+```groovy
+// Given a user with nested profile data
+def user = new DynamoMap(
+  id: 'u1',
+  profile: [
+    settings: [
+      theme: 'dark',
+      notifications: true
+    ],
+    stats: [
+      visits: 10
+    ]
+  ]
+)
+dynamo.putItem('users', user)
+
+// Update just the notification setting
+// 'profile.settings.theme' and 'profile.stats' remain unchanged!
+def update = new DynamoMapper()
+  .with('id', 'u1', FieldType.PARTITION_KEY)
+  .with('profile.settings.notifications', false)
+
+dynamo.updateItem('users', update)
+```
+
+### 🎯 **Smart Result Limiting with `take()`**
 Intuitive result limiting that's distinct from pagination control. Unlike `limit()` which controls page size, `take()` controls the total number of results returned:
 
 ```groovy

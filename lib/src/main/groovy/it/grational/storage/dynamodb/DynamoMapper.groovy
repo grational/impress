@@ -304,16 +304,20 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return clauses.join(' ')
 	} // }}}
 
-	private List<GString> setList() { // {{{
+	private List<String> setList() { // {{{
 		map.collect { k, v ->
-			"#${safe(k)} = :${safe(k)}"
+			"${pathFor(k)} = :${safe(k)}" as String
 		}
 	} // }}}
 
 	private List<String> removeList() { // {{{
 		removeAttributes.collect { k ->
-			"#${safe(k)}" as String
+			pathFor(k)
 		}
+	} // }}}
+
+	private String pathFor(String k) { // {{{
+		k.split(/\./).collect { "#${safe(it)}" }.join('.')
 	} // }}}
 
 	Map<String,String> expressionNames ( // {{{
@@ -322,12 +326,10 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		Map<String,String> result = [:]
 		result.putAll(others)
 		
-		map.each { String k, AttributeValue v ->
-			result["#${safe(k)}" as String] = k
-		}
-		
-		removeAttributes.each { String k ->
-			result["#${safe(k)}" as String] = k
+		(map.keySet() + removeAttributes).each { String k ->
+			k.split(/\./).each { String part ->
+				result["#${safe(part)}" as String] = part
+			}
 		}
 		
 		return result
