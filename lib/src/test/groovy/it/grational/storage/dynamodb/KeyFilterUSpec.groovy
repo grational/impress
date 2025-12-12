@@ -684,8 +684,7 @@ class KeyFilterUSpec extends Specification {
 			]
 	} // }}}
 
-	def "Should handle isBlank and isNotBlank conditions"() { // {{{
-		given:
+	  def "Should handle undefined and defined conditions"() { // {{{		given:
 			def sortFilter = defined('deletedAt')
 
 		when:

@@ -80,7 +80,7 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 		this.forward = false
 		return this
 	}
-	
+
 	QueryBuilder<T> take(Integer size) {
 		this.size = size
 		return this

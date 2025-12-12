@@ -19,7 +19,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	private Integer segment
 	private Integer totalSegments
 	// }}}
-	
+
 	// constructor {{{
 	ScanBuilder (
 		DynamoDb dynamoDb,
@@ -31,7 +31,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		this.type = type
 	}
 	// }}}
-	
+
 	// helpers {{{
 	ScanBuilder<T> as(Class<T> type) {
 		this.type = type
@@ -42,27 +42,27 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		this.filter = filter
 		return this
 	}
-	
+
 	ScanBuilder<T> fields(List<String> fields) {
 		this.fields = fields
 		return this
 	}
-	
+
 	ScanBuilder<T> fields(String... fields) {
 		this.fields = fields.toList()
 		return this
 	}
-	
+
 	ScanBuilder<T> limit(Integer limit) {
 		this.limit = limit
 		return this
 	}
-	
+
 	ScanBuilder<T> take(Integer takeResults) {
 		this.takeResults = takeResults
 		return this
 	}
-	
+
 	ScanBuilder<T> segment (
 		Integer segment,
 		Integer totalSegments
@@ -72,7 +72,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 	// }}}
-	
+
 	List<T> list() { // {{{
 		if (takeResults != null) {
 			return dynamoDb.scanAllWithTake (
@@ -97,7 +97,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 			)
 		}
 	} // }}}
-	
+
 	PagedResult<T> paged ( // {{{
 		int pageLimit,
 		Map<String, AttributeValue> lastKey = null

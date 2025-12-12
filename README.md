@@ -280,7 +280,7 @@ def targetUsers = dynamo.scan('users')
       greater('experience', 3),
       contains('skills', 'leadership')
     ),
-    isNotBlank('email')
+    defined('email')
   ))
   .take(15)   // Top 15 target users
   .list()
@@ -847,6 +847,7 @@ dynamo.getItem(table, keyFilter, [Type])
 dynamo.query(table, keyFilter, [Type])
   .filter(dynamoFilter)           // Add filter conditions
   .fields('field1', 'field2')     // Project specific fields
+  .as(MyClass)                    // Specify return type
   .take(100)                      // Limit total results returned
   .forward()/backward()           // Sort direction
   .list()                         // Get all results as List<T>
@@ -858,6 +859,7 @@ dynamo.query(table, keyFilter, [Type])
 dynamo.scan(table, [Type])
   .filter(dynamoFilter)           // Add filter conditions  
   .fields('field1', 'field2')     // Project specific fields
+  .as(MyClass)                    // Specify return type
   .take(100)                      // Limit total results returned
   .limit(50)                      // Page size limit
   .segment(0, 4)                  // Parallel scan segment

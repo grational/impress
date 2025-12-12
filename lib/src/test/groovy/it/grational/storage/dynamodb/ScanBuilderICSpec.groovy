@@ -250,12 +250,12 @@ class ScanBuilderICSpec extends Specification {
 			// Add 2 "valid" items at the end
 			items << new TestItem(id: "valid_1", data: "precious", enabled: true)
 			items << new TestItem(id: "valid_2", data: "precious", enabled: true)
-			
+
 			dynamo.putItems(table, items)
 
 		when: 'Use scan with take(2) and a filter that rejects most items'
-			// Logic: take(2) implies Dynamo Limit=2 per request. 
-			// Since the first 20 items don't match, Dynamo will return many empty pages 
+			// Logic: take(2) implies Dynamo Limit=2 per request.
+			// Since the first 20 items don't match, Dynamo will return many empty pages
 			// with a LastEvaluatedKey before finding the valid ones.
 			List<TestItem> result = dynamo
 				.scan(table, TestItem)
