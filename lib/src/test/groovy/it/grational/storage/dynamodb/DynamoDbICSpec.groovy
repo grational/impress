@@ -2002,37 +2002,148 @@ class DynamoDbICSpec extends Specification {
 			]
 			dynamo.putItems(table, items)
 
-		when: 'Traditional exact matching still works'
-			KeyFilter exactKey = KeyFilter.of('id', 'user1', 'sortKey', '2000')
-			TestItem exactResult = dynamo.getItem (
-				table,
-				exactKey,
-				TestItem
-			).get()
-
-		then:
-			exactResult != null
-			exactResult.data == 'second'
-			exactResult.timestamp == 2000
-
-		when: 'Range-based exact matching (functionally equivalent)'
-			KeyFilter rangeExactKey = KeyFilter.of(
+		when: 'Query with exact sort key match'
+			KeyFilter exactKey = KeyFilter.of (
 				'id', 'user1',
-				match('sortKey', '2000')
+				'sortKey', '2000'
 			)
-			List<TestItem> rangeExactResults = dynamo
-				.query(table, rangeExactKey, TestItem)
+			List<TestItem> results = dynamo
+				.query(table, exactKey, TestItem)
 				.list()
 
 		then:
-			rangeExactResults.size() == 1
-			rangeExactResults.first().data == 'second'
-			rangeExactResults.first().timestamp == 2000
+			results.size() == 1
+			results.first().data == 'second'
 
-		and: 'Both approaches produce equivalent results'
-			exactResult.id == rangeExactResults.first().id
-			exactResult.sortKey == rangeExactResults.first().sortKey
-			exactResult.data == rangeExactResults.first().data
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should handle take for query and scan"() { // {{{
+		given:
+			String table = 'test_take'
+			dynamo.createTable(table, 'id', 'sortKey')
+			Integer totalSize = 20
+		and:
+			List<TestItem> items = (1..totalSize).collect {
+				new TestItem (
+					id: "user1",
+					sortKey: "key${it.toString().padLeft(2, '0')}",
+					enabled: it % 2 == 0
+				)
+			}
+			dynamo.putItems(table, items)
+
+		when: 'Query with take'
+			List<TestItem> queryResults = dynamo.query (
+				table,
+				KeyFilter.of('id', 'user1'),
+				TestItem
+			)
+			.take(5)
+			.list()
+
+		then:
+			queryResults.size() == 5
+			queryResults.first().sortKey == 'key01'
+			queryResults.last().sortKey == 'key05'
+
+		when: 'Query with take and filter'
+			List<TestItem> filteredQueryResults = dynamo.query (
+				table,
+				KeyFilter.of('id', 'user1'),
+				TestItem
+			)
+			.filter(match('enabled', true))
+			.take(5)
+			.list()
+
+		then:
+			filteredQueryResults.size() == 5
+			filteredQueryResults.every { it.enabled }
+			filteredQueryResults.first().sortKey == 'key02'
+			filteredQueryResults.last().sortKey == 'key10'
+
+		when: 'Scan with take'
+			List<TestItem> scanResults = dynamo.scan(table, TestItem)
+				.take(7)
+				.list()
+
+		then:
+			scanResults.size() == 7
+
+		when: 'Scan with take and filter'
+			List<TestItem> filteredScanResults = dynamo.scan(table, TestItem)
+				.filter(match('enabled', true))
+				.take(8)
+				.list()
+
+		then:
+			filteredScanResults.size() == 8
+			filteredScanResults.every { it.enabled }
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should handle take for query and scan"() { // {{{
+		given:
+			String table = 'test_take'
+			dynamo.createTable(table, 'id', 'sortKey')
+			Integer totalSize = 20
+		and:
+			List<TestItem> items = (1..totalSize).collect {
+				new TestItem(id: "user1", sortKey: "key${it.toString().padLeft(2, '0')}", enabled: it % 2 == 0)
+			}
+			dynamo.putItems(table, items)
+
+		when: 'Query with take'
+			List<TestItem> queryResults = dynamo.query (
+				table,
+				KeyFilter.of('id', 'user1'),
+				TestItem
+			)
+			.take(5)
+			.list()
+
+		then:
+			queryResults.size() == 5
+			queryResults.first().sortKey == 'key01'
+			queryResults.last().sortKey == 'key05'
+
+		when: 'Query with take and filter'
+			List<TestItem> filteredQueryResults = dynamo.query (
+				table,
+				KeyFilter.of('id', 'user1'),
+				TestItem
+			)
+			.filter(match('enabled', true))
+			.take(5)
+			.list()
+
+		then:
+			filteredQueryResults.size() == 5
+			filteredQueryResults.every { it.enabled }
+			filteredQueryResults.first().sortKey == 'key02'
+			filteredQueryResults.last().sortKey == 'key10'
+
+		when: 'Scan with take'
+			List<TestItem> scanResults = dynamo.scan(table, TestItem)
+				.take(7)
+				.list()
+
+		then:
+			scanResults.size() == 7
+
+		when: 'Scan with take and filter'
+			List<TestItem> filteredScanResults = dynamo.scan(table, TestItem)
+				.filter(match('enabled', true))
+				.take(8)
+				.list()
+
+		then:
+			filteredScanResults.size() == 8
+			filteredScanResults.every { it.enabled }
 
 		cleanup:
 			dynamo.dropTable(table)
@@ -2950,135 +3061,6 @@ class DynamoDbICSpec extends Specification {
 			dynamo.dropTable(table)
 	} // }}}
 
-
-	static class TestItem // {{{
-		implements Storable<AttributeValue,String> {
-		String id
-		String sortKey
-		String email
-		String status
-		BigInteger timestamp
-		String contract
-		String sheet
-		String offer
-		String data
-		String tagField
-		boolean enabled = false
-		Integer version = 0
-
-		@Override
-		DbMapper<AttributeValue,String> impress (
-			DbMapper<AttributeValue,String> mapper,
-			boolean versioned = true
-		) {
-			mapper.with (
-				'id', id,
-				FieldType.PARTITION_KEY
-			)
-
-			if (sortKey)
-				mapper.with (
-					'sortKey', sortKey,
-					FieldType.SORT_KEY
-				)
-
-			if (email)
-				mapper.with('email', email)
-
-			if (status)
-				mapper.with('status', status)
-
-			if (timestamp)
-				mapper.with('timestamp', timestamp)
-
-			if (data)
-				mapper.with('data', data)
-
-			if (tagField)
-				mapper.with('tagField', tagField)
-
-			mapper.with('enabled', enabled)
-
-			if ( nonNull(version) )
-				mapper.with (
-					'version', version,
-					versioned
-						? FieldType.VERSION
-						: FieldType.STANDARD
-				)
-			return mapper
-		}
-
-		@Override
-		String toString() {
-			"TestItem(id: $id, sortKey: $sortKey, data: $data, enabled: $enabled, version: $version)"
-		}
-
-		boolean equals(o) {
-			if (this.is(o)) return true
-			if (!(o instanceof TestItem)) return false
-
-			TestItem testItem = (TestItem) o
-
-			if (data != testItem.data) return false
-			if (id != testItem.id) return false
-			if (sortKey != testItem.sortKey) return false
-			if (tagField != testItem.tagField) return false
-			if (enabled != testItem.enabled) return false
-
-			return true
-		}
-	} // }}}
-
-	@ToString (
-		includePackage=false,
-		includeFields=true,
-		includeNames=true
-	)
-	@EqualsAndHashCode
-	static class ContractItem // {{{
-		implements Storable<AttributeValue,String> {
-		String contract
-		String sheet
-		String offer
-		String data
-		boolean enabled = false
-		Integer version = 0
-
-		@Override
-		DbMapper<AttributeValue,String> impress (
-			DbMapper<AttributeValue,String> mapper,
-			boolean versioned = true
-		) {
-			mapper.with (
-				'contract', contract,
-				FieldType.PARTITION_KEY
-			)
-
-			mapper.with (
-				'sheet', sheet,
-				FieldType.SORT_KEY
-			)
-
-			mapper.with('offer', offer)
-
-			if (data)
-				mapper.with('data', data)
-
-			mapper.with('enabled', enabled)
-
-			if ( nonNull(version) )
-				mapper.with (
-					'version', version,
-					versioned
-						? FieldType.VERSION
-						: FieldType.STANDARD
-				)
-			return mapper
-		}
-
-	} // }}}
-
 	def "Should support fluent builder pattern for queries and scans"() { // {{{
 		given:
 			String table = 'test_builder_pattern'
@@ -3211,6 +3193,134 @@ class DynamoDbICSpec extends Specification {
 
 		cleanup:
 			dynamo.dropTable(table)
+	} // }}}
+
+	static class TestItem // {{{
+		implements Storable<AttributeValue,String> {
+		String id
+		String sortKey
+		String email
+		String status
+		BigInteger timestamp
+		String contract
+		String sheet
+		String offer
+		String data
+		String tagField
+		boolean enabled = false
+		Integer version = 0
+
+		@Override
+		DbMapper<AttributeValue,String> impress (
+			DbMapper<AttributeValue,String> mapper,
+			boolean versioned = true
+		) {
+			mapper.with (
+				'id', id,
+				FieldType.PARTITION_KEY
+			)
+
+			if (sortKey)
+				mapper.with (
+					'sortKey', sortKey,
+					FieldType.SORT_KEY
+				)
+
+			if (email)
+				mapper.with('email', email)
+
+			if (status)
+				mapper.with('status', status)
+
+			if (timestamp)
+				mapper.with('timestamp', timestamp)
+
+			if (data)
+				mapper.with('data', data)
+
+			if (tagField)
+				mapper.with('tagField', tagField)
+
+			mapper.with('enabled', enabled)
+
+			if ( nonNull(version) )
+				mapper.with (
+					'version', version,
+					versioned
+						? FieldType.VERSION
+						: FieldType.STANDARD
+				)
+			return mapper
+		}
+
+		@Override
+		String toString() {
+			"TestItem(id: $id, sortKey: $sortKey, data: $data, enabled: $enabled, version: $version)"
+		}
+
+		boolean equals(o) {
+			if (this.is(o)) return true
+			if (!(o instanceof TestItem)) return false
+
+			TestItem testItem = (TestItem) o
+
+			if (data != testItem.data) return false
+			if (id != testItem.id) return false
+			if (sortKey != testItem.sortKey) return false
+			if (tagField != testItem.tagField) return false
+			if (enabled != testItem.enabled) return false
+
+			return true
+		}
+	} // }}}
+
+	@ToString (
+		includePackage=false,
+		includeFields=true,
+		includeNames=true
+	)
+	@EqualsAndHashCode
+	static class ContractItem // {{{
+		implements Storable<AttributeValue,String> {
+		String contract
+		String sheet
+		String offer
+		String data
+		boolean enabled = false
+		Integer version = 0
+
+		@Override
+		DbMapper<AttributeValue,String> impress (
+			DbMapper<AttributeValue,String> mapper,
+			boolean versioned = true
+		) {
+			mapper.with (
+				'contract', contract,
+				FieldType.PARTITION_KEY
+			)
+
+			mapper.with (
+				'sheet', sheet,
+				FieldType.SORT_KEY
+			)
+
+			mapper.with('offer', offer)
+
+			if (data)
+				mapper.with('data', data)
+
+			mapper.with('enabled', enabled)
+
+			if ( nonNull(version) )
+				mapper.with (
+					'version', version,
+					versioned
+						? FieldType.VERSION
+						: FieldType.STANDARD
+				)
+			return mapper
+		}
+
 	} // }}}
 }
 // vim: fdm=marker

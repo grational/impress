@@ -385,7 +385,7 @@ class DynamoDb {
 				filter,
 				fields,
 				type,
-				0,
+				0, // disable limit
 				lastEvaluatedKey,
 				forward
 			)
@@ -396,6 +396,40 @@ class DynamoDb {
 		return results
 	} // }}}
 
+	<T extends Storable<AttributeValue,Object>> List<T> queryWithTake (
+		String table,
+		String index = null,
+		KeyFilter key,
+		DynamoFilter filter = null,
+		List<String> fields = [],
+		Class<T> type = DynamoMap.class,
+		boolean forward = true,
+		Integer size
+	) { // {{{
+		if (size == null || size == 0)
+			return []
+
+		List<T> results = []
+		Map<String, AttributeValue> lastEvaluatedKey = null
+		do {
+			int limit = size - results.size()
+			PagedResult<T> paged = query (
+				table,
+				index,
+				key,
+				filter,
+				fields,
+				type,
+				limit,
+				lastEvaluatedKey,
+				forward
+			)
+			results.addAll(paged.items)
+			lastEvaluatedKey = paged.last
+		} while (lastEvaluatedKey && results.size() < size)
+
+		return results.take(size)
+	} // }}}
 
 	<T extends Storable<AttributeValue,Object>> PagedResult<T> query (
 		String table,
@@ -1224,6 +1258,57 @@ class DynamoDb {
 
 		log.debug("Total items found in scan: {}", result.size())
 		return result
+	} // }}}
+
+	<T extends Storable<AttributeValue,Object>> List<T> scanAllWithTake (
+		String table,
+		DynamoFilter filter = null,
+		Class<T> type = DynamoMap.class,
+		Integer limit = null,
+		Integer segment = null,
+		Integer totalSegments = null,
+		List<String> projection = null,
+		Integer takeResults
+	) { // {{{
+		log.debug (
+			String.join(', ',
+				'Scanning table {} with take results',
+				'with filter: {}',
+				'projection: {}',
+				'limit: {}',
+				'segment: {}/{}',
+				'takeResults: {}'
+			),
+			table,
+			filter,
+			projection,
+			limit,
+			segment,
+			totalSegments,
+			takeResults
+		)
+
+		if (takeResults == null || takeResults == 0) {
+			return []
+		}
+
+		List<T> results = []
+		Map<String, AttributeValue> lastEvaluatedKey = null
+		do {
+			int currentLimit = takeResults - results.size()
+			PagedResult<T> paged = scan (
+				table,
+				filter,
+				projection,
+				type,
+				currentLimit,
+				lastEvaluatedKey
+			)
+			results.addAll(paged.items)
+			lastEvaluatedKey = paged.last
+		} while (lastEvaluatedKey && results.size() < takeResults)
+
+		return results.take(takeResults)
 	} // }}}
 
 }

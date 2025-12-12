@@ -154,7 +154,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create a filter for checking if an attribute is blank"() { // {{{
 		when:
-			def filter = isBlank('status')
+			def filter = undefined('status')
 
 		then:
 			filter.expression == 'attribute_not_exists(#attr_status) OR #attr_status = :val_status'
@@ -165,7 +165,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should create a filter for checking if an attribute is not blank"() { // {{{
 		when:
-			def filter = isNotBlank('status')
+			def filter = defined('status')
 
 		then:
 			filter.expression == 'attribute_exists(#attr_status) AND NOT #attr_status = :val_status'
@@ -174,9 +174,9 @@ class DynamoFilterUSpec extends Specification {
 			filter.expressionValues[':val_status'].nul()
 	} // }}}
 
-	def "Should be able to combine isBlank with other filters"() { // {{{
+	def "Should be able to combine undefined with other filters"() { // {{{
 		given:
-			def blankFilter = isBlank('status')
+			def blankFilter = undefined('status')
 			def matchFilter = match('category', 'active')
 
 		when:
@@ -191,7 +191,7 @@ class DynamoFilterUSpec extends Specification {
 
 	def "Should be able to negate blank check filters"() { // {{{
 		when:
-			def filter = isBlank('status').not()
+			def filter = undefined('status').not()
 
 		then:
 			filter.expression == 'NOT (attribute_not_exists(#attr_status) OR #attr_status = :val_status)'
@@ -298,7 +298,7 @@ class DynamoFilterUSpec extends Specification {
 		when:
 			def dateFilter = greaterOrEqual('created_at', 20250101)
 				.and(less('created_at', 20250201))
-				.and(isBlank('deleted_at'))
+				.and(undefined('deleted_at'))
 
 		then:
 			dateFilter.expression.contains('>= :val_created_at')
@@ -568,7 +568,7 @@ class DynamoFilterUSpec extends Specification {
 		when:
 			def filter = greaterOrEqual('date', '2025-01-01').and (
 				match('modifiedBy', 'someone'),
-				isBlank('aField'),
+				undefined('aField'),
 				match('type', 'aType').not(),
 				contains('anotherField', 'aValue').not(),
 				between('created', '2025-02', '2025-04'),
@@ -592,7 +592,7 @@ class DynamoFilterUSpec extends Specification {
 			def filter = every (
 				greaterOrEqual('date', '2025-01-01'),
 				match('modifiedBy', "someone"),
-				isBlank('aField'),
+				undefined('aField'),
 				match('type', 'aType').not(),
 				contains("anotherField", "aValue").not(),
 				between('created', "2025-02", '2025-04'),
@@ -624,7 +624,7 @@ class DynamoFilterUSpec extends Specification {
 			def filter = any (
 				greaterOrEqual('date', '2025-01-01'),
 				match('modifiedBy', "someone"),
-				isBlank('aField'),
+				undefined('aField'),
 				match('type', 'aType').not(),
 				contains("anotherField", "aValue").not(),
 				between('created', "2025-02", '2025-04'),

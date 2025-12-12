@@ -17,6 +17,7 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 	private List<String> fields
 	private Class<T> type
 	private boolean forward = true
+	private Integer size
 	// }}}
 
 	// constructor {{{
@@ -24,7 +25,7 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 		DynamoDb dynamoDb,
 		String table,
 		KeyFilter key,
-		Class<T> type
+		Class<T> type = DynamoMap.class
 	) {
 		this.dynamoDb = dynamoDb
 		this.table = table
@@ -50,6 +51,11 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 	// }}}
 
 	// helpers {{{
+	QueryBuilder<T> as(Class<T> type) {
+		this.type = type
+		return this
+	}
+
 	QueryBuilder<T> filter(DynamoFilter filter) {
 		this.filter = filter
 		return this
@@ -74,18 +80,36 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 		this.forward = false
 		return this
 	}
+	
+	QueryBuilder<T> take(Integer size) {
+		this.size = size
+		return this
+	}
 	// }}}
 
 	List<T> list() { // {{{
-		return dynamoDb.queryAll (
-			table,
-			index,
-			key,
-			filter,
-			fields,
-			type,
-			forward
-		)
+		if (size != null) {
+			return dynamoDb.queryWithTake (
+				table,
+				index,
+				key,
+				filter,
+				fields,
+				type,
+				forward,
+				size
+			)
+		} else {
+			return dynamoDb.queryAll (
+				table,
+				index,
+				key,
+				filter,
+				fields,
+				type,
+				forward
+			)
+		}
 	} // }}}
 
 	PagedResult<T> paged ( // {{{

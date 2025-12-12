@@ -15,6 +15,7 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	private List<String> fields
 	private Class<T> type
 	private Integer limit
+	private Integer takeResults
 	private Integer segment
 	private Integer totalSegments
 	// }}}
@@ -32,6 +33,11 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	// }}}
 	
 	// helpers {{{
+	ScanBuilder<T> as(Class<T> type) {
+		this.type = type
+		return this
+	}
+
 	ScanBuilder<T> filter(DynamoFilter filter) {
 		this.filter = filter
 		return this
@@ -52,6 +58,11 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 	
+	ScanBuilder<T> take(Integer takeResults) {
+		this.takeResults = takeResults
+		return this
+	}
+	
 	ScanBuilder<T> segment (
 		Integer segment,
 		Integer totalSegments
@@ -63,15 +74,28 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 	// }}}
 	
 	List<T> list() { // {{{
-		return dynamoDb.scanAll (
-			table,
-			filter,
-			type,
-			limit,
-			segment,
-			totalSegments,
-			fields
-		)
+		if (takeResults != null) {
+			return dynamoDb.scanAllWithTake (
+				table,
+				filter,
+				type,
+				limit,
+				segment,
+				totalSegments,
+				fields,
+				takeResults
+			)
+		} else {
+			return dynamoDb.scanAll (
+				table,
+				filter,
+				type,
+				limit,
+				segment,
+				totalSegments,
+				fields
+			)
+		}
 	} // }}}
 	
 	PagedResult<T> paged ( // {{{

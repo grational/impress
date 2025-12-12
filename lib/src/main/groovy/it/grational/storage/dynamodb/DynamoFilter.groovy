@@ -39,9 +39,9 @@ class DynamoFilter {
 	// Static factory methods - for use with static imports
 
 	/**
-	 * Creates a filter checking if an attribute is blank (null or doesn't exist)
+	 * Creates a filter checking if an attribute is undefined (null or doesn't exist)
 	 */
-	static DynamoFilter isBlank(String name) { // {{{
+	static DynamoFilter undefined(String name) { // {{{
 		PathResult processed = processForFilter(name)
 		String nameRef = processed.nameRef
 		Map<String, String> nameMap = processed.nameMap
@@ -57,9 +57,9 @@ class DynamoFilter {
 	} // }}}
 
 	/**
-	 * Creates a filter checking if an attribute is not blank
+	 * Creates a filter checking if an attribute is defined (exists and is not null)
 	 */
-	static DynamoFilter isNotBlank(String name) { // {{{
+	static DynamoFilter defined(String name) { // {{{
 		PathResult processed = processForFilter(name)
 		String nameRef = processed.nameRef
 		Map<String, String> nameMap = processed.nameMap

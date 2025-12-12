@@ -686,7 +686,7 @@ class KeyFilterUSpec extends Specification {
 
 	def "Should handle isBlank and isNotBlank conditions"() { // {{{
 		given:
-			def sortFilter = isNotBlank('deletedAt')
+			def sortFilter = defined('deletedAt')
 
 		when:
 			KeyFilter km = KeyFilter.of('userId', 'user123', sortFilter)

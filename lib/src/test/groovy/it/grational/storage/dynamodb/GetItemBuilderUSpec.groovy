@@ -469,5 +469,101 @@ class GetItemBuilderUSpec extends Specification {
 			dynamo.dropTable(table)
 	} // }}}
 
+	def "Should use DynamoMap as default class when none specified"() { // {{{
+		given:
+			String table = 'test_getitem_default_class'
+			String partKey = 'id'
+		and:
+			dynamo.createTable(table, partKey)
+		and:
+			TestItem item = new TestItem (
+				id: 'default_test',
+				data: 'default_data',
+				tagField: 'default_tag',
+				enabled: true
+			)
+			dynamo.putItem(table, item)
+
+		when: 'Get item without specifying class'
+			DynamoMap defaultResult = dynamo
+				.getItem(table, KeyFilter.of('id', 'default_test'))
+				.get()
+
+		then: 'Should return DynamoMap instance'
+			defaultResult instanceof DynamoMap
+			defaultResult.id == 'default_test'
+			defaultResult.data == 'default_data'
+			defaultResult.tagField == 'default_tag'
+			defaultResult.enabled == true
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should allow specifying class using as() method"() { // {{{
+		given:
+			String table = 'test_getitem_as_method'
+			String partKey = 'id'
+		and:
+			dynamo.createTable(table, partKey)
+		and:
+			TestItem item = new TestItem (
+				id: 'as_test',
+				data: 'as_data',
+				tagField: 'as_tag',
+				enabled: false
+			)
+			dynamo.putItem(table, item)
+
+		when: 'Get item and specify class with as() method'
+			TestItem typedResult = dynamo
+				.getItem(table, KeyFilter.of('id', 'as_test'))
+				.as(TestItem)
+				.get()
+
+		then: 'Should return TestItem instance'
+			typedResult instanceof TestItem
+			typedResult.id == 'as_test'
+			typedResult.data == 'as_data'
+			typedResult.tagField == 'as_tag'
+			typedResult.enabled == false
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
+	def "Should allow chaining as() method with fields() projection"() { // {{{
+		given:
+			String table = 'test_getitem_as_fields'
+			String partKey = 'id'
+		and:
+			dynamo.createTable(table, partKey)
+		and:
+			TestItem item = new TestItem (
+				id: 'chain_test',
+				data: 'secret_data',
+				tagField: 'chain_tag',
+				enabled: true
+			)
+			dynamo.putItem(table, item)
+
+		when: 'Get item with as() and fields() chained'
+			TestItem projectedResult = dynamo
+				.getItem(table, KeyFilter.of('id', 'chain_test'))
+				.as(TestItem)
+				.fields('id', 'tagField', 'enabled')
+				.get()
+
+		then: 'Should return TestItem instance with only projected fields'
+			projectedResult instanceof TestItem
+			projectedResult.id == 'chain_test'
+			projectedResult.tagField == 'chain_tag'
+			projectedResult.enabled == true
+			projectedResult.data == null  // Not projected
+
+		cleanup:
+			dynamo.dropTable(table)
+	} // }}}
+
 }
 // vim: fdm=marker
