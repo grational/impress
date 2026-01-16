@@ -268,4 +268,37 @@ class DynamoMapUSpec extends Specification {
 		then:
 			noExceptionThrown()
 	}
+
+	def "Should handle GString values in map"() {
+		setup:
+			def value = "world"
+			Map<String, Object> data = [
+				greeting: "Hello ${value}"
+			]
+
+		when:
+			def impressed = new DynamoMap(data).impress()
+
+		then:
+			def storedMap = impressed.storer(false)
+			storedMap.get('greeting').s() == "Hello world"
+	}
+
+	def "Should handle List of GString values"() {
+		setup:
+			def val1 = "one"
+			def val2 = "two"
+			Map<String, Object> data = [
+				list: ["Value ${val1}", "Value ${val2}"]
+			]
+
+		when:
+			def impressed = new DynamoMap(data).impress()
+
+		then:
+			def storedMap = impressed.storer(false)
+			def list = storedMap.get('list').l()
+			list[0].s() == "Value one"
+			list[1].s() == "Value two"
+	}
 }

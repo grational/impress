@@ -58,6 +58,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 		__data.each { String k, Object v ->
 			FieldType ftype = fieldType(k)
 			switch (v) {
+				case GString:
 				case String:
 					dm.with(k, v as String, ftype)
 					break
@@ -102,6 +103,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 						break
 					}
 					switch (lv[0]) {
+						case GString:
 						case String:
 							dm.with(k, lv as String[])
 							break
