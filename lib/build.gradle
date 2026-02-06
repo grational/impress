@@ -20,24 +20,27 @@ plugins {
 
 // [general] configuration
 project.ext {
-	groovyVersion = '4.0.26'
+	groovyVersion = '5.0.4'
 }
 
 project.with {
-	group 'it.grational'
-	version scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
-	description 'Impress - A Groovy library to store your objects into any storage, with an implementation for AWS DynamoDB'
+	group = 'it.grational'
+	version = scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
+	description = 'Impress - A Groovy library to store your objects into any storage, with an implementation for AWS DynamoDB'
 }
 
-allprojects {
-	sourceCompatibility = JavaVersion.toVersion('21')
-	targetCompatibility = sourceCompatibility
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+	sourceCompatibility = JavaVersion.toVersion(25)
+	targetCompatibility = JavaVersion.toVersion(25)
 }
 
 repositories {
 	mavenCentral()
 
-	maven { url "https://jitpack.io" }
+	maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
@@ -49,8 +52,10 @@ dependencies {
 
 	// We use the awesome Spock testing and specification framework
 	testImplementation (
-		'org.spockframework:spock-core:2.3-groovy-4.0'
+		'org.spockframework:spock-core:2.4-groovy-5.0'
 	)
+	// Gradle 9 no longer pulls JUnit Platform launcher implicitly
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 // test configuration {{{

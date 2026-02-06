@@ -4,7 +4,10 @@ services:
     container_name: impress-dynamodb-local
     ports:
       - "8888:8000"
+    # command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    # {
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
     volumes:
       - ./dynamodb_data:/home/dynamodblocal/data
+    # }
     working_dir: /home/dynamodblocal
