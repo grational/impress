@@ -60,7 +60,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 			switch (v) {
 				case GString:
 				case String:
-					dm.with(k, v as String, ftype)
+					dm.with(k, v.toString(), ftype)
 					break
 				case Number:
 					dm.with(k, v as Number, ftype)
@@ -105,7 +105,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					switch (lv[0]) {
 						case GString:
 						case String:
-							dm.with(k, lv as String[])
+							dm.with(k, lv*.toString() as String[])
 							break
 						case Number:
 							dm.with(k, lv as Number[])
@@ -133,6 +133,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 								lv as Storable[]
 							)
 					}
+					break
 			}
 		}
 		return dm
