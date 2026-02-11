@@ -24,8 +24,8 @@ project.ext {
 	// update to the latest stable Java version whenever possible
 	toolchainVersion = 25
 	// To switch flavors, change these values:
-	jvmVersion       = toolchainVersion
-	groovy           = [ major: 5, minor: 0, patch: 4 ]
+	jvmVersion       = 21
+	groovy           = [ major: 4, minor: 0, patch: 30 ]
 	groovyGroup      = groovy.major >= 4 ? 'apache' : 'codehaus'
 	groovyVersion    = groovy.values().join('.')
 	flavor           = "java-${jvmVersion}-groovy-${groovy.major}"
