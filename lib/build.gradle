@@ -4,7 +4,7 @@
  * @date 17-04-2025 07:32
  */
 
-// [plugins] this block must be the first
+// [plugins] this block must be the first {{{
 plugins {
 	// support for groovy
 	id 'groovy'
@@ -13,116 +13,123 @@ plugins {
 	// required by jitpack
 	id 'maven-publish'
 	// awesome git tag / gradle version integration
-	id 'pl.allegro.tech.build.axion-release' version '1.18.18'
+	id 'pl.allegro.tech.build.axion-release' version '1.21.1'
 	// docker-compose support
-	id 'com.avast.gradle.docker-compose' version '0.17.12'
+	id 'com.avast.gradle.docker-compose' version '0.17.21'
 }
+// }}}
 
-// [general] configuration
+// [flavor] compatibility matrix {{{
 project.ext {
-	groovyVersion = '5.0.4'
+	// update to the latest stable Java version whenever possible
+	toolchainVersion = 25
+	// To switch flavors, change these values:
+	jvmVersion       = toolchainVersion
+	groovy           = [ major: 5, minor: 0, patch: 4 ]
+	groovyGroup      = groovy.major >= 4 ? 'apache' : 'codehaus'
+	groovyVersion    = groovy.values().join('.')
+	flavor           = "java-${jvmVersion}-groovy-${groovy.major}"
+	spockVersion     = "2.4-groovy-${groovy.major}.${groovy.minor}"
 }
+// }}}
 
-project.with {
+project.with { // {{{
 	group = 'it.grational'
-	version = scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
+	version = scmVersion.version
 	description = 'Impress - A Groovy library to store your objects into any storage, with an implementation for AWS DynamoDB'
-}
+} // }}}
 
-java {
+java { // {{{
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		languageVersion = JavaLanguageVersion.of(project.toolchainVersion)
 	}
-	sourceCompatibility = JavaVersion.toVersion(25)
-	targetCompatibility = JavaVersion.toVersion(25)
-}
+	targetCompatibility = JavaVersion.toVersion(project.jvmVersion)
+} // }}}
 
+// [dependencies] {{{
 repositories {
 	mavenCentral()
-
-	maven { url = uri("https://jitpack.io") }
+	maven { url = "https://jitpack.io" }
 }
 
 dependencies {
 	api (
-		"org.apache.groovy:groovy:$groovyVersion",
-		"software.amazon.awssdk:dynamodb:2.31.31"
+		"org.${groovyGroup}.groovy:groovy:${groovyVersion}",
+		"software.amazon.awssdk:dynamodb:2.41.25"
 	)
-	
 
-	// We use the awesome Spock testing and specification framework
-	testImplementation (
-		'org.spockframework:spock-core:2.4-groovy-5.0'
-	)
+	testImplementation "org.spockframework:spock-core:$spockVersion"
+
 	// Gradle 9 no longer pulls JUnit Platform launcher implicitly
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+// }}}
 
 // test configuration {{{
 tasks.withType(Test) {
 	useJUnitPlatform()
-	maxParallelForks = Runtime.runtime.availableProcessors() / 2
-	jvmArgs('--add-opens=java.base/java.util=ALL-UNNAMED')
-}
-jar {
-	dependsOn 'check'
+	
+	// Smart parallelism: Unit tests can run in parallel, 
+	// but we cap it to avoid memory pressure or DB contention.
+	maxParallelForks = Math.max (
+		1,
+		Math.min(4, (int)(Runtime.runtime.availableProcessors() / 2))
+	)
+	
+	if (project.toolchainVersion >= 9) {
+		jvmArgs('--add-opens=java.base/java.util=ALL-UNNAMED')
+	}
 }
 
-check {
-	dependsOn 'clean'
-}
+// Ensure clean builds
+jar.dependsOn 'check'
+check.dependsOn 'clean'
 
-// [tasks] definition
+// Specialized test tasks
 task uniTest(type: Test) {
-	description = 'unit tests task'
-	exclude '**/*ISpec*'
-	exclude '**/*FSpec*'
+	description = 'Runs unit tests.'
+	exclude '**/*ISpec*', '**/*FSpec*'
 }
+
 task intTest(type: Test) {
-	description = 'integration tests task'
-	exclude '**/*USpec*'
-	exclude '**/*FSpec*'
+	description = 'Runs integration tests.'
+	exclude '**/*USpec*', '**/*FSpec*'
 }
+
 task funTest(type: Test) {
-	description = 'functional tests task'
-	exclude '**/*USpec*'
-	exclude '**/*ISpec*'
+	description = 'Runs functional tests.'
+	exclude '**/*USpec*', '**/*ISpec*'
 }
-gradle.startParameter.excludedTaskNames += "uniTest"
-gradle.startParameter.excludedTaskNames += "intTest"
-gradle.startParameter.excludedTaskNames += "funTest"
+
+// Hide custom tasks from default 'test' run if needed
+gradle.startParameter.excludedTaskNames += ["uniTest", "intTest", "funTest"]
 // }}}
 
-// jipack publishing {{{
+// [publishing] JitPack & Maven Central layout {{{
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
 			groupId = 'com.github.grational'
 			artifactId = 'impress'
-			version = scmVersion.version // '0.5.0' (remove -SNAPSHOT for releases)
+			version = scmVersion.version
 			from components.java
 		}
 	}
 }
 // }}}
 
-// docker-compose configuration {{{
+// [infrastructure] docker-compose for DynamoDB {{{
 tasks.composeUp {
-	onlyIf {
-		containersNeeded()
-	}
+	onlyIf { containersNeeded() }
 }
 
-test {
-	dependsOn tasks.composeUp
-}
+test.dependsOn tasks.composeUp
 
 dockerCompose {
-	useComposeFiles = [ 'docker-compose.yml' ]
+	useComposeFiles = ['docker-compose.yml']
 	waitForTcpPorts = true
 	useDockerComposeV2 = false
-
-	// avoid containers running
+	// clean the environment after tests to avoid leftovers
 	stopContainers = true
 	removeContainers = true
 	removeVolumes = true
