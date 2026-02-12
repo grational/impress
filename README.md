@@ -26,7 +26,7 @@ Get up and running in under 2 minutes:
 **Gradle:**
 ```groovy
 repositories {
-  maven { url 'https://jitpack.io' }
+  maven { url = 'https://jitpack.io' }
 }
 
 dependencies {
@@ -67,8 +67,9 @@ dynamo.createTable('users', // table name
 )
 
 // 3. Save data - works with any Map or custom object
+// Automatic Key Detection: No need to specify keys anymore!
 dynamo.putItem('users',
-  new DynamoMap ( // object with native impression support
+  new DynamoMap ( // passepartout object nativaly dynable
     id: 'user123',
     name: 'Alice Johnson',
     email: 'alice@example.com',
@@ -102,6 +103,25 @@ That's it! You're now managing DynamoDB data with elegant Groovy syntax.
 
 ## 🎯 What's New
 
+### 🔑 **Automatic Key Detection**
+No more manual tagging of partition and sort keys! Impress now automatically retrieves the table schema and identifies key attributes for you. This simplifies `updateItem`, `deleteItem`, and `refreshItem` operations:
+
+```groovy
+// Simple DynamoMap without any key metadata
+def user = new DynamoMap (
+  id: 'u1',
+  name: 'Alice Johnson',
+  email: 'alice@example.com'
+)
+
+// Impress automatically detects 'id' as the partition key from the 'users' table schema
+dynamo.updateItem('users', user.tap { name = 'Alice J.' })
+
+// Also works for deletion and refreshing
+dynamo.deleteItem('users', user)
+dynamo.refreshItem('users', user)
+```
+
 ### 🧩 **Nested Field Updates** (Latest)
 Update specific fields within nested objects without overwriting the entire parent structure. Use simple dot notation to target exactly what needs to change:
 
@@ -124,7 +144,7 @@ dynamo.putItem('users', user)
 // Update just the notification setting
 // 'profile.settings.theme' and 'profile.stats' remain unchanged!
 def update = new DynamoMapper()
-  .with('id', 'u1', FieldType.PARTITION_KEY)
+  .with('id', 'u1')
   .with('profile.settings.notifications', false)
 
 dynamo.updateItem('users', update)
@@ -136,7 +156,7 @@ When your DynamoDB field names contain literal dots (not nested paths), use the 
 ```groovy
 // Field literally named "version.2" (not a nested path)
 def update = new DynamoMapper()
-  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .with('id', 'item1')
   .with('field\\.2', 'value')           // Updates field named "field.2"
   .with('api\\.v2\\.endpoint', 'https://...') // Updates field named "api.v2.endpoint"
 
@@ -145,14 +165,14 @@ dynamo.updateItem('items', update)
 // Mix escaped and unescaped dots for complex scenarios
 // Here "config.v2" is a literal field name containing nested "timeout"
 def mixedUpdate = new DynamoMapper()
-  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .with('id', 'item1')
   .with('config\\.v2.timeout', 30)  // config.v2 → timeout (nested)
 
 dynamo.updateItem('items', mixedUpdate)
 
 // Also works with remove operations
 def removeMapper = new DynamoMapper()
-  .with('id', 'item1', FieldType.PARTITION_KEY)
+  .with('id', 'item1')
   .remove('old\\.field\\.name')  // Removes field literally named "old.field.name"
 
 dynamo.updateItem('items', removeMapper)
@@ -287,7 +307,7 @@ class User extends Dynable {
   @Override
   protected DbMapper<AttributeValue, Object> inpress(DynamoMapper mapper) {
     return mapper
-      .with('id', id, PARTITION_KEY)
+      .with('id', id)
       .with('username', username)
       .with('email', email)
       .with('loginCount', loginCount)
