@@ -56,6 +56,10 @@ class QueryBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 
+	QueryBuilder<T> returning(Class<T> type) {
+		return this.as(type)
+	}
+
 	QueryBuilder<T> filter(DynamoFilter filter) {
 		this.filter = filter
 		return this

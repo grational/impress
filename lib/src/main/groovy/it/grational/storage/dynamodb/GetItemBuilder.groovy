@@ -36,6 +36,10 @@ class GetItemBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 
+	GetItemBuilder<T> returning(Class<T> type) {
+		return this.as(type)
+	}
+
 	GetItemBuilder<T> fields(List<String> fields) {
 		this.fields = fields
 		return this

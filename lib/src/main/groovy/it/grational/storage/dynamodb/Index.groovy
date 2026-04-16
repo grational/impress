@@ -1,5 +1,7 @@
 package it.grational.storage.dynamodb
 
+import groovy.transform.CompileStatic
+
 /**
  * Represents a DynamoDB secondary index definition.
  *
@@ -19,6 +21,7 @@ package it.grational.storage.dynamodb
  * Index combinedIndex = new Index(keys, "email-username-index")
  * </pre>
  */
+@CompileStatic
 class Index {
 	/**
 	 * The key schema for this index, defining partition and sort keys.
