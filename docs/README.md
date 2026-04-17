@@ -48,3 +48,7 @@ For Java domain objects, implement `DynamoStorable`.
 
 Examples use `VERSION` as a placeholder. Replace it with a Git tag, release
 version, or JitPack-compatible branch/SNAPSHOT version from this repository.
+
+This branch targets Java 8 bytecode and Groovy 3. Use the `-j8g3` suffix for
+releases from this branch. The default release line targets Java 17 / Groovy 5,
+and the `-g4` suffix targets Java 17 / Groovy 4.
