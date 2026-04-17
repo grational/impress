@@ -33,6 +33,8 @@ so Java callers can chain naturally.
 
 ```java
 import it.grational.storage.dynamodb.*;
+import it.grational.storage.DbMapper;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public final class User implements DynamoStorable {
 	private String id;
@@ -82,10 +84,12 @@ public final class User implements DynamoStorable {
 
 	@Override
 	public DynamoDbMapper impress(
-		DynamoDbMapper mapper,
+		DbMapper<AttributeValue, Object> mapper,
 		boolean versioned
 	) {
-		return mapper
+		DynamoDbMapper dynamoMapper = (DynamoDbMapper) mapper;
+
+		return dynamoMapper
 			.with("id", id)
 			.with("email", email)
 			.with("name", name)
@@ -122,6 +126,8 @@ write record components into the mapper.
 
 ```java
 import it.grational.storage.dynamodb.*;
+import it.grational.storage.DbMapper;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public record AuditEvent(
 	String streamId,
@@ -130,10 +136,12 @@ public record AuditEvent(
 ) implements DynamoStorable {
 	@Override
 	public DynamoDbMapper impress(
-		DynamoDbMapper mapper,
+		DbMapper<AttributeValue, Object> mapper,
 		boolean versioned
 	) {
-		return mapper
+		DynamoDbMapper dynamoMapper = (DynamoDbMapper) mapper;
+
+		return dynamoMapper
 			.with("streamId", streamId)
 			.with("timestamp", timestamp)
 			.with("eventType", eventType);

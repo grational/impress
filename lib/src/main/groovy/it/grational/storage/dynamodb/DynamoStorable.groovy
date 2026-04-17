@@ -8,15 +8,8 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 @CompileStatic
 interface DynamoStorable extends Storable<AttributeValue, Object> {
 	@Override
-	default DynamoDbMapper impress (
-		DbMapper<AttributeValue, Object> mapper,
-		boolean versioned
-	) {
-		return impress(mapper as DynamoDbMapper, versioned)
-	}
-
 	DynamoDbMapper impress (
-		DynamoDbMapper mapper,
+		DbMapper<AttributeValue, Object> mapper,
 		boolean versioned
 	)
 }

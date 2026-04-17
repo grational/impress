@@ -15,7 +15,8 @@ class PojoSupportSpec extends Specification {
 		JavaBean() {} 
 		
 		@Override
-		DynamoDbMapper impress(DynamoDbMapper ddm, boolean versioned) {
+		DynamoDbMapper impress(DbMapper<AttributeValue, Object> mapper, boolean versioned) {
+			DynamoDbMapper ddm = mapper as DynamoDbMapper
 			ddm.with('id', id, FieldType.PARTITION_KEY)
 			ddm.with('name', name)
 			return ddm
@@ -25,7 +26,8 @@ class PojoSupportSpec extends Specification {
 	// A class that mimics a Java Record (Immutable, constructor with all fields)
 	static record JavaRecord(String id, String name) implements DynamoStorable {
 		@Override
-		DynamoDbMapper impress(DynamoDbMapper ddm, boolean versioned) {
+		DynamoDbMapper impress(DbMapper<AttributeValue, Object> mapper, boolean versioned) {
+			DynamoDbMapper ddm = mapper as DynamoDbMapper
 			ddm.with('id', id() as String, FieldType.PARTITION_KEY)
 			ddm.with('name', name() as String)
 			return ddm
