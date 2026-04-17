@@ -61,7 +61,7 @@ class DynamoMapper implements DynamoDbMapper {
 	DynamoDbMapper with (
 		String k,
 		DbMapper<AttributeValue,Object> dm,
-		boolean version = true
+		boolean version
 	) {
 		if (dm == null) return this
 		map[k] = fromM(dm.storer(version))
@@ -193,12 +193,12 @@ class DynamoMapper implements DynamoDbMapper {
 	}
 
 	@Override
-	Map<String, AttributeValue> storer(boolean version = true) {
+	Map<String, AttributeValue> storer(boolean version) {
 		return aggregate(version)
 	}
 
 	@Override
-	Map<String, Object> builder(boolean version = true) {
+	Map<String, Object> builder(boolean version) {
 		aggregate(version)
 		.collectEntries { String k, AttributeValue v ->
 			[ (k): fromAttribute(v) ]
@@ -307,7 +307,7 @@ class DynamoMapper implements DynamoDbMapper {
 		if (st == null) return this
 
 		dm = (st instanceof DynamoStorable)
-			? (st as DynamoStorable).impress(dm as DynamoDbMapper, versioned)
+			? (st as DynamoStorable).impress(dm, versioned)
 			: st.impress(dm, versioned)
 		with(k, dm, versioned)
 	} // }}}

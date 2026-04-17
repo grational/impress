@@ -51,16 +51,8 @@ class DynamoMap implements DynamoStorable, Map<String, Object> {
 
 	@Override
 	DynamoDbMapper impress (
-		DynamoDbMapper mapper = new DynamoMapper(),
+		DbMapper<AttributeValue, Object> mapper = new DynamoMapper(),
 		boolean versioned = false
-	) {
-		impress(mapper as DbMapper<AttributeValue, Object>, versioned)
-	}
-
-	@Override
-	DynamoDbMapper impress (
-		DbMapper<AttributeValue, Object> mapper,
-		boolean versioned
 	) {
 		DynamoDbMapper dm = mapper as DynamoDbMapper
 		__data.each { String k, Object v ->

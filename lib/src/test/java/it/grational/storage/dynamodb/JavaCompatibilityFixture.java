@@ -47,10 +47,11 @@ public final class JavaCompatibilityFixture {
 
 		@Override
 		public DynamoDbMapper impress(
-			DynamoDbMapper mapper,
+			DbMapper<AttributeValue, Object> mapper,
 			boolean versioned
 		) {
-			return mapper
+			DynamoDbMapper dynamoMapper = (DynamoDbMapper) mapper;
+			return dynamoMapper
 				.with("id", id, FieldType.PARTITION_KEY)
 				.with("name", name)
 				.with("score", score);
@@ -64,10 +65,11 @@ public final class JavaCompatibilityFixture {
 	) implements DynamoStorable {
 		@Override
 		public DynamoDbMapper impress(
-			DynamoDbMapper mapper,
+			DbMapper<AttributeValue, Object> mapper,
 			boolean versioned
 		) {
-			return mapper
+			DynamoDbMapper dynamoMapper = (DynamoDbMapper) mapper;
+			return dynamoMapper
 				.with("id", id, FieldType.PARTITION_KEY)
 				.with("name", name)
 				.with("score", score);
