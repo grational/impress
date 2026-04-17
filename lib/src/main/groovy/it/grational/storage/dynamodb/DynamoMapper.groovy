@@ -427,7 +427,7 @@ class DynamoMapper implements DynamoDbMapper {
 		unescape(name).replaceAll(/[^a-zA-Z0-9_]/,'')
 	} // }}}
 
-	DynamoDbMapper markAsKey ( // {{{
+	DbMapper<AttributeValue,Object> markAsKey ( // {{{
 		KeySchemaElement kse
 	) {
 		switch(kse.keyType()) {
@@ -442,7 +442,7 @@ class DynamoMapper implements DynamoDbMapper {
 		}
 	} // }}}
 
-	DynamoDbMapper markAsPartitionKey ( // {{{
+	DbMapper<AttributeValue,Object> markAsPartitionKey ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {
@@ -452,7 +452,7 @@ class DynamoMapper implements DynamoDbMapper {
 		return this
 	} // }}}
 
-	DynamoDbMapper markAsSortKey ( // {{{
+	DbMapper<AttributeValue,Object> markAsSortKey ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {
@@ -462,7 +462,7 @@ class DynamoMapper implements DynamoDbMapper {
 		return this
 	} // }}}
 
-	DynamoDbMapper markAsVersionField ( // {{{
+	DbMapper<AttributeValue,Object> markAsVersionField ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {
