@@ -146,10 +146,15 @@ Local to be running.
 
 ## Compatibility
 
-The current main branch is configured for the Java and Groovy versions in
-[lib/build.gradle](lib/build.gradle). A legacy Java 8 / Groovy 3 compatible
-branch is documented as `java-8-groovy-3` and released with the project’s
-legacy version suffix.
+The default release line targets Java 17 bytecode and Groovy 5. Compatibility
+releases are organized around Groovy major versions because Groovy is also a
+runtime dependency:
+
+| Version | Branch | Java | Groovy | Use It When |
+| --- | --- | --- | --- | --- |
+| `1.1.0` | `main` | 17+ | 5.x | You are on the current Groovy line. |
+| `1.1.0-g4` | `groovy-4` | 17+ | 4.x | Your application depends on Groovy 4. |
+| `1.1.0-j8g3` | `java-8-groovy-3` | 8+ | 3.x | You are maintaining a Java 8 / Groovy 3 application. |
 
 ## License
 

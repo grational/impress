@@ -48,3 +48,6 @@ For Java domain objects, implement `DynamoStorable`.
 
 Examples use `VERSION` as a placeholder. Replace it with a Git tag, release
 version, or JitPack-compatible branch/SNAPSHOT version from this repository.
+
+The default release line targets Java 17 bytecode and Groovy 5. Use the `-g4`
+suffix for Groovy 4 projects, and `-j8g3` for Java 8 / Groovy 3 projects.

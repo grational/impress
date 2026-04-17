@@ -21,10 +21,10 @@ plugins {
 
 // [flavor] compatibility matrix {{{
 project.ext {
-	// update to the latest stable Java version whenever possible
+	// build with the latest stable JDK while publishing Java 17-compatible bytecode
 	toolchainVersion = 25
 	// To switch flavors, change these values:
-	jvmVersion       = toolchainVersion
+	jvmVersion       = 17
 	groovy           = [ major: 5, minor: 0, patch: 4 ]
 	groovyGroup      = groovy.major >= 4 ? 'apache' : 'codehaus'
 	groovyVersion    = groovy.values().join('.')
@@ -43,6 +43,7 @@ java { // {{{
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(project.toolchainVersion)
 	}
+	sourceCompatibility = JavaVersion.toVersion(project.jvmVersion)
 	targetCompatibility = JavaVersion.toVersion(project.jvmVersion)
 } // }}}
 
