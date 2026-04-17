@@ -54,7 +54,15 @@ class DynamoMap implements DynamoStorable, Map<String, Object> {
 		DynamoDbMapper mapper = new DynamoMapper(),
 		boolean versioned = false
 	) {
-		DynamoDbMapper dm = mapper
+		impress(mapper as DbMapper<AttributeValue, Object>, versioned)
+	}
+
+	@Override
+	DynamoDbMapper impress (
+		DbMapper<AttributeValue, Object> mapper,
+		boolean versioned
+	) {
+		DynamoDbMapper dm = mapper as DynamoDbMapper
 		__data.each { String k, Object v ->
 			FieldType ftype = fieldType(k)
 			switch (v) {
