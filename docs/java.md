@@ -239,6 +239,9 @@ DynamoDbMapper update = new DynamoMapper()
 dynamo.updateItem("users", update);
 ```
 
+In the second example, Impress can inspect the `users` table schema and mark the
+key fields internally.
+
 ## Get, Query, And Scan
 
 Java callers can use `returning(Class<T>)` instead of Groovy’s `as(...)` method.
