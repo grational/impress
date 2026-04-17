@@ -45,8 +45,100 @@ import static it.grational.storage.dynamodb.DynamoFilter.*
 @EqualsAndHashCode
 @CompileStatic
 class KeyFilter {
-	private final Map<String, AttributeValue> map = [:]
+	private Map<String, AttributeValue> map = [:]
 	private Optional<DynamoFilter> sortFilter = Optional.empty()
+
+	/**
+	 * Private constructor for Builder
+	 */
+	private KeyFilter() {}
+
+	/**
+	 * Fluent builder for KeyFilter
+	 */
+	static class Builder {
+		private KeyFilter instance = new KeyFilter()
+
+		Builder partition(String k, String v) {
+			instance.map[k] = fromS(v)
+			return this
+		}
+
+		Builder partition(String k, Number v) {
+			instance.map[k] = fromN(v.toString())
+			return this
+		}
+
+		Builder partition(String k, byte[] v) {
+			instance.map[k] = fromB(fromByteArray(v))
+			return this
+		}
+
+		Builder partition(String k, SdkBytes v) {
+			instance.map[k] = fromB(v)
+			return this
+		}
+
+		Builder sort(String k, String v) {
+			instance.sortFilter = Optional.of(match(k, v))
+			return this
+		}
+
+		Builder sort(String k, Number v) {
+			instance.sortFilter = Optional.of(match(k, v))
+			return this
+		}
+
+		Builder sort(String k, byte[] v) {
+			instance.sortFilter = Optional.of (
+				compare(k, '=', fromB(fromByteArray(v)))
+			)
+			return this
+		}
+
+		Builder sort(String k, SdkBytes v) {
+			instance.sortFilter = Optional.of (
+				compare(k, '=', fromB(v))
+			)
+			return this
+		}
+
+		Builder sort(DynamoFilter filter) {
+			instance.sortFilter = Optional.of(filter)
+			return this
+		}
+
+		KeyFilter build() {
+			if (instance.sortFilter.isPresent())
+				return new KeyFilter (
+					new LinkedHashMap<String, AttributeValue>(instance.map),
+					instance.sortFilter.get()
+				)
+
+			return new KeyFilter (
+				new LinkedHashMap<String, AttributeValue>(instance.map)
+			)
+		}
+	}
+
+	/**
+	 * Starts building a KeyFilter with a partition key
+	 */
+	static Builder partition(String k, String v) {
+		return new Builder().partition(k, v)
+	}
+
+	static Builder partition(String k, Number v) {
+		return new Builder().partition(k, v)
+	}
+
+	static Builder partition(String k, byte[] v) {
+		return new Builder().partition(k, v)
+	}
+
+	static Builder partition(String k, SdkBytes v) {
+		return new Builder().partition(k, v)
+	}
 
 	/**
 	 * Constructor that accepts a map of attribute names to AttributeValue objects
@@ -63,7 +155,7 @@ class KeyFilter {
 			throw new IllegalArgumentException (
 				"Unsupported key types: ${key}"
 			)
-		map = key
+		map = new LinkedHashMap<String, AttributeValue>(key)
 	}
 	
 	/**
@@ -84,7 +176,7 @@ class KeyFilter {
 			throw new IllegalArgumentException (
 				"Unsupported key types: ${key}"
 			)
-		map = key
+		map = new LinkedHashMap<String, AttributeValue>(key)
 		this.sortFilter = Optional.of(sortFilter)
 	}
 
@@ -341,7 +433,7 @@ class KeyFilter {
 				return result
 			}
 		}
-		return map
+		return new LinkedHashMap<String, AttributeValue>(map)
 	}
 	
 	/**

@@ -38,6 +38,10 @@ class ScanBuilder<T extends Storable<AttributeValue, Object>> {
 		return this
 	}
 
+	ScanBuilder<T> returning(Class<T> type) {
+		return this.as(type)
+	}
+
 	ScanBuilder<T> filter(DynamoFilter filter) {
 		this.filter = filter
 		return this

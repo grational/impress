@@ -1,5 +1,7 @@
 package it.grational.storage.dynamodb
 
+import groovy.transform.CompileStatic
+
 /**
  * Represents a DynamoDB key schema definition.
  *
@@ -18,6 +20,7 @@ package it.grational.storage.dynamodb
  * )
  * </pre>
  */
+@CompileStatic
 class Keys {
 	/** The partition key (required) */
 	Scalar partition

@@ -267,8 +267,143 @@ class DynamoDb {
 
 		Map<String, AttributeValue> item = response.item()
 		Map<String, Object> builder = new DynamoMapper(item).builder()
-		return type.newInstance(builder)
+		return instantiate(type, builder)
 	} // }}}
+
+	private <T> T instantiate(Class<T> type, Map<String, Object> data) {
+		try {
+			// Try Groovy-style Map constructor first
+			return type.newInstance(data)
+		} catch (Exception ignored) {
+			// Fallback to No-arg constructor + Properties/Setters
+			return instantiateFallback(type, data)
+		}
+	}
+
+	@TypeChecked(TypeCheckingMode.SKIP)
+	private <T> T instantiateFallback(Class<T> type, Map<String, Object> data) {
+		T instance = type.getDeclaredConstructor().newInstance()
+		def setters = java.beans.Introspector
+			.getBeanInfo(type)
+			.propertyDescriptors
+			.findAll { it.writeMethod }
+			.collectEntries { [ (it.name): it ] }
+
+		data.each { String name, Object value ->
+			def descriptor = setters[name]
+			if ( descriptor ) {
+				descriptor.writeMethod.invoke (
+					instance,
+					convertValue(value, descriptor.propertyType)
+				)
+			} else if ( instance.hasProperty(name) ) {
+				instance.setProperty(name, value)
+			}
+		}
+		return instance
+	}
+
+	@TypeChecked(TypeCheckingMode.SKIP)
+	private Object convertValue (
+		Object value,
+		Class target
+	) {
+		if (value == null)
+			return target.isPrimitive() ? primitiveDefault(target) : null
+
+		Class wrapped = wrapPrimitive(target)
+		if (wrapped.isInstance(value))
+			return value
+
+		if (Number.isAssignableFrom(wrapped) && value instanceof Number)
+			return convertNumber(value as Number, wrapped)
+
+		if (wrapped == String)
+			return value.toString()
+
+		if (wrapped == Boolean && value instanceof Boolean)
+			return value
+
+		if (wrapped.isEnum() && value instanceof String)
+			return Enum.valueOf(wrapped, value as String)
+
+		return value
+	}
+
+	private Object convertNumber (
+		Number value,
+		Class target
+	) {
+		switch (target) {
+			case Byte:
+				return value.byteValue()
+			case Short:
+				return value.shortValue()
+			case Integer:
+				return value.intValue()
+			case Long:
+				return value.longValue()
+			case Float:
+				return value.floatValue()
+			case Double:
+				return value.doubleValue()
+			case BigInteger:
+				return value.toBigInteger()
+			case BigDecimal:
+				return value as BigDecimal
+			default:
+				return value
+		}
+	}
+
+	private Class wrapPrimitive(Class type) {
+		if (!type.isPrimitive())
+			return type
+
+		switch (type) {
+			case Boolean.TYPE:
+				return Boolean
+			case Byte.TYPE:
+				return Byte
+			case Short.TYPE:
+				return Short
+			case Integer.TYPE:
+				return Integer
+			case Long.TYPE:
+				return Long
+			case Float.TYPE:
+				return Float
+			case Double.TYPE:
+				return Double
+			case Character.TYPE:
+				return Character
+			default:
+				return type
+		}
+	}
+
+	private Object primitiveDefault(Class type) {
+		switch (type) {
+			case Boolean.TYPE:
+				return false
+			case Byte.TYPE:
+				return (byte) 0
+			case Short.TYPE:
+				return (short) 0
+			case Integer.TYPE:
+				return 0
+			case Long.TYPE:
+				return 0L
+			case Float.TYPE:
+				return 0F
+			case Double.TYPE:
+				return 0D
+			case Character.TYPE:
+				return (char) 0
+			default:
+				return null
+		}
+	}
 
 	/**
 	 * Gets an item by extracting key attributes from a sample object
@@ -315,7 +450,7 @@ class DynamoDb {
 
 		Map<String, AttributeValue> fresh = response.item()
 		Map<String, Object> builder = new DynamoMapper(fresh).builder()
-		return type.newInstance(builder)
+		return instantiate(type, builder)
 	} // }}}
 
 	/**
@@ -507,7 +642,7 @@ class DynamoDb {
 
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
-			type.newInstance(builder)
+			instantiate(type, builder)
 		}
 
 		return new PagedResult<T> (
@@ -568,7 +703,22 @@ class DynamoDb {
 			table,
 			partition,
 			null, // no sort string key
-			indexes
+			indexes,
+			BillingOptions.onDemand()
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		BillingOptions billing
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			null, // no sort string key
+			[:] as Map<String, String>,
+			billing
 		)
 	} // }}}
 
@@ -582,9 +732,56 @@ class DynamoDb {
 			table,
 			partition,
 			sort,
+			indexes,
+			BillingOptions.onDemand()
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		String sort,
+		BillingOptions billing
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			sort,
+			[:] as Map<String, String>,
+			billing
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		Map<String, String> indexes,
+		BillingOptions billing
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			null, // no sort string key
+			indexes,
+			billing
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		String sort,
+		Map<String, String> indexes,
+		BillingOptions billing
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			sort,
 			indexes.collect { String idxName, String idxPart ->
 				Index.of(Scalar.of(idxPart), null, idxName)
-			} as Index[]
+			} as Index[],
+			billing
 		)
 	} // }}}
 
@@ -597,7 +794,23 @@ class DynamoDb {
 			table,
 			partition,
 			null, // no sort string key
-			indexes
+			indexes,
+			BillingOptions.onDemand()
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		Index[] indexes,
+		BillingOptions billing
+	) { // {{{
+		createTable (
+			table,
+			partition,
+			null, // no sort string key
+			indexes,
+			billing
 		)
 	} // }}}
 
@@ -607,6 +820,22 @@ class DynamoDb {
 		String sort,
 		Index[] indexes
 	) { // {{{
+		createTable (
+			table,
+			partition,
+			sort,
+			indexes,
+			BillingOptions.onDemand()
+		)
+	} // }}}
+
+	void createTable (
+		String table,
+		String partition,
+		String sort,
+		Index[] indexes,
+		BillingOptions billing
+	) { // {{{
 		Optional<Scalar> sortKey = sort
 			? Optional.of(Scalar.of(sort))
 			: Optional.empty()
@@ -615,7 +844,8 @@ class DynamoDb {
 			table,
 			Scalar.of(partition),
 			sortKey,
-			indexes
+			indexes,
+			billing
 		)
 	} // }}}
 
@@ -649,7 +879,8 @@ class DynamoDb {
 		String table,
 		Scalar partition,
 		Optional<Scalar> sort = Optional.empty(),
-		Index[] indexes
+		Index[] indexes,
+		BillingOptions billing = BillingOptions.onDemand()
 	) { // {{{
 		try {
 			client.describeTable (
@@ -712,7 +943,7 @@ class DynamoDb {
 					.build()
 			}
 
-			GlobalSecondaryIndex.builder()
+			def indexBuilder = GlobalSecondaryIndex.builder()
 				.indexName(idx.name)
 				.keySchema(schema)
 				.projection(
@@ -720,7 +951,11 @@ class DynamoDb {
 					.projectionType(
 						ProjectionType.ALL
 					).build()
-				).build()
+				)
+
+			billing.applyTo(indexBuilder)
+
+			indexBuilder.build()
 		}
 
 		def builder = CreateTableRequest
@@ -730,9 +965,8 @@ class DynamoDb {
 			.attributeDefinitions (
 				attributeDefinitions
 			)
-			.billingMode (
-				BillingMode.PAY_PER_REQUEST
-			)
+
+		billing.applyTo(builder)
 
 		if (gsiList)
 			builder.globalSecondaryIndexes(gsiList)
@@ -1178,7 +1412,7 @@ class DynamoDb {
 
 		List<T> items = response.items().collect { item ->
 			Map<String,Object> builder = new DynamoMapper(item).builder()
-			type.newInstance(builder)
+			instantiate(type, builder)
 		}
 
 		return new PagedResult<T> (
@@ -1252,7 +1486,7 @@ class DynamoDb {
 			log.debug("Found {} items in scan page", response.count())
 			response.items().each { item ->
 				Map<String, Object> builder = new DynamoMapper(item).builder()
-				result << type.newInstance(builder)
+				result << instantiate(type, builder)
 			}
 		}
 

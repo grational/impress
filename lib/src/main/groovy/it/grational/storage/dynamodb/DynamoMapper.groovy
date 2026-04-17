@@ -18,7 +18,7 @@ import static it.grational.storage.dynamodb.FieldType.*
 	includeNames = true
 )
 @CompileStatic
-class DynamoMapper implements DbMapper<AttributeValue,Object> {
+class DynamoMapper implements DynamoDbMapper {
 	private Map<String, AttributeValue> map = [:]
 	private Set<String> removeAttributes = []
 	private Tuple2<String, AttributeValue> pk
@@ -31,7 +31,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 
 	// DbMapper implementation {{{
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		String s
 	) {
@@ -40,7 +40,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		Number n
 	) {
@@ -49,7 +49,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		boolean b
 	) {
@@ -58,10 +58,10 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		DbMapper<AttributeValue,Object> dm,
-		boolean version = true
+		boolean version
 	) {
 		if (dm == null) return this
 		map[k] = fromM(dm.storer(version))
@@ -69,7 +69,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		String... ls
 	) {
@@ -81,7 +81,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		Number... ln
 	) {
@@ -93,7 +93,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		boolean versioned,
 		Storable<AttributeValue,Object>... ls
@@ -102,19 +102,69 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 			k,
 			versioned,
 			ls?.findResults { Storable<AttributeValue,Object> st ->
-				st?.impress(new DynamoMapper(), versioned)
+				impress(st, versioned)
 			}?.toArray(new DbMapper[0])
 		)
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> with (
+	DynamoDbMapper with (
 		String k,
 		boolean versioned,
 		DbMapper<AttributeValue,Object>... ldm
 	) {
-		List<DbMapper<AttributeValue,Object>> nnldm =
-			ldm?.findAll { it != null }
+		return commonWithCollection(k, versioned, ldm?.toList())
+	}
+
+	@Override
+	DynamoDbMapper withItems (
+		String k,
+		boolean versioned,
+		Iterable<? extends Storable<AttributeValue, Object>> ast
+	) {
+		if (ast == null) return this
+		List<DbMapper<AttributeValue, Object>> mappers = ast.collect {
+			Storable<AttributeValue, Object> it ->
+				impress(it, versioned)
+		}
+		return commonWithCollection(k, versioned, mappers)
+	}
+
+	@Override
+	DynamoDbMapper withItem (
+		String k,
+		Storable<AttributeValue, Object> item
+	) {
+		return withItem(k, item, true)
+	}
+
+	@Override
+	DynamoDbMapper withItem (
+		String k,
+		Storable<AttributeValue, Object> item,
+		boolean versioned
+	) {
+		if (item == null) return this
+		return with(k, impress(item, versioned), versioned)
+	}
+
+	@Override
+	DynamoDbMapper withMappers (
+		String k,
+		boolean versioned,
+		Collection<? extends DbMapper<AttributeValue, Object>> adm
+	) {
+		return commonWithCollection(k, versioned, adm)
+	}
+
+	private DynamoDbMapper commonWithCollection (
+		String k,
+		boolean versioned,
+		Collection<? extends DbMapper<AttributeValue, Object>> coll
+	) {
+		if (coll == null) return this
+		List<DbMapper<AttributeValue, Object>> nnldm =
+			coll.findAll { it != null } as List<DbMapper<AttributeValue, Object>>
 		if (!nnldm) return this
 
 		map[k] = fromL (
@@ -126,13 +176,29 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	}
 
+	private DbMapper<AttributeValue, Object> impress (
+		Storable<AttributeValue, Object> item,
+		boolean versioned
+	) {
+		if (item == null)
+			return null
+
+		if (item instanceof DynamoStorable)
+			return (item as DynamoStorable).impress (
+				new DynamoMapper(),
+				versioned
+			)
+
+		return item.impress(new DynamoMapper(), versioned)
+	}
+
 	@Override
-	Map<String, AttributeValue> storer(boolean version = true) {
+	Map<String, AttributeValue> storer(boolean version) {
 		return aggregate(version)
 	}
 
 	@Override
-	Map<String, Object> builder(boolean version = true) {
+	Map<String, Object> builder(boolean version) {
 		aggregate(version)
 		.collectEntries { String k, AttributeValue v ->
 			[ (k): fromAttribute(v) ]
@@ -189,7 +255,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		av.n().toInteger() ?: 0
 	} // }}}
 
-	DbMapper<AttributeValue,Object> with ( // {{{
+	DynamoDbMapper with ( // {{{
 		String k,
 		String s,
 		FieldType t
@@ -209,7 +275,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	} // }}}
 
-	DbMapper<AttributeValue,Object> with ( // {{{
+	DynamoDbMapper with ( // {{{
 		String k,
 		Number n,
 		FieldType t
@@ -232,7 +298,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	} // }}}
 
-	DbMapper<AttributeValue,Object> with ( // {{{
+	DynamoDbMapper with ( // {{{
 		String k,
 		Storable<AttributeValue,Object> st,
 		DbMapper<AttributeValue,Object> dm = new DynamoMapper(),
@@ -240,16 +306,18 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 	) {
 		if (st == null) return this
 
-		dm = st.impress(dm, versioned)
+		dm = (st instanceof DynamoStorable)
+			? (st as DynamoStorable).impress(dm as DynamoDbMapper, versioned)
+			: st.impress(dm, versioned)
 		with(k, dm, versioned)
 	} // }}}
 
-	DbMapper<AttributeValue,Object> withNull(String k) { // {{{
+	DynamoDbMapper withNull(String k) { // {{{
 		map[k] = AttributeValue.builder().nul(true).build()
 		return this
 	} // }}}
 
-	DbMapper<AttributeValue,Object> remove ( // {{{
+	DynamoDbMapper remove ( // {{{
 		String... attributeNames
 	) {
 		attributeNames.each { String name ->
@@ -359,7 +427,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		unescape(name).replaceAll(/[^a-zA-Z0-9_]/,'')
 	} // }}}
 
-	DbMapper<AttributeValue,Object> markAsKey ( // {{{
+	DynamoDbMapper markAsKey ( // {{{
 		KeySchemaElement kse
 	) {
 		switch(kse.keyType()) {
@@ -374,7 +442,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		}
 	} // }}}
 
-	DbMapper<AttributeValue,Object> markAsPartitionKey ( // {{{
+	DynamoDbMapper markAsPartitionKey ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {
@@ -384,7 +452,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	} // }}}
 
-	DbMapper<AttributeValue,Object> markAsSortKey ( // {{{
+	DynamoDbMapper markAsSortKey ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {
@@ -394,7 +462,7 @@ class DynamoMapper implements DbMapper<AttributeValue,Object> {
 		return this
 	} // }}}
 
-	DbMapper<AttributeValue,Object> markAsVersionField ( // {{{
+	DynamoDbMapper markAsVersionField ( // {{{
 		String fieldName
 	) {
 		if (fieldName && map.containsKey(fieldName)) {

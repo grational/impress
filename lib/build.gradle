@@ -43,6 +43,7 @@ java { // {{{
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(project.toolchainVersion)
 	}
+	sourceCompatibility = JavaVersion.toVersion(project.jvmVersion)
 	targetCompatibility = JavaVersion.toVersion(project.jvmVersion)
 } // }}}
 

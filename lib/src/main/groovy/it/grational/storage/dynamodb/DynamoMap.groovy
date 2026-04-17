@@ -13,7 +13,7 @@ import static it.grational.storage.dynamodb.FieldType.*
 	includeNames = true
 )
 @CompileStatic
-class DynamoMap implements Storable<AttributeValue,Object> {
+class DynamoMap implements DynamoStorable, Map<String, Object> {
 
 	@Delegate
 	Map<String, Object> __data
@@ -50,11 +50,11 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 	}
 
 	@Override
-	DbMapper<AttributeValue,Object> impress (
+	DynamoDbMapper impress (
 		DbMapper<AttributeValue,Object> mapper = new DynamoMapper(),
 		boolean versioned = false
 	) {
-		DynamoMapper dm = mapper as DynamoMapper
+		DynamoDbMapper dm = mapper as DynamoDbMapper
 		__data.each { String k, Object v ->
 			FieldType ftype = fieldType(k)
 			switch (v) {
@@ -87,12 +87,18 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 					)
 					break
 				case Storable:
-					dm.with (
-						k,
-						(v as Storable<AttributeValue,Object>).impress (
+					DbMapper<AttributeValue,Object> nested = (v instanceof DynamoStorable)
+						? (v as DynamoStorable).impress (
 							new DynamoMapper(),
 							versioned
-						),
+						)
+						: (v as Storable<AttributeValue,Object>).impress (
+							new DynamoMapper(),
+							versioned
+						)
+					dm.with (
+						k,
+						nested,
 						versioned
 					)
 					break
@@ -111,7 +117,7 @@ class DynamoMap implements Storable<AttributeValue,Object> {
 							dm.with(k, lv as Number[])
 							break
 						case Map:
-							List<DbMapper<AttributeValue,Object>> mappers = lv.collect { Object item ->
+							List<DynamoDbMapper> mappers = lv.collect { Object item ->
 								new DynamoMap(item as Map<String,Object>).impress (
 									new DynamoMapper(),
 									versioned
