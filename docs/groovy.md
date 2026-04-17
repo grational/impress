@@ -51,8 +51,9 @@ assert loaded.name == 'Ada Lovelace'
 assert loaded['email'] == 'ada@example.com'
 ```
 
-If you want to insert a `DynamoMap` into a table before Impress can inspect the
-table schema, specify the key fields:
+Normal `putItem` calls do not require key metadata on the `DynamoMap`; the item
+is written as-is. If you need a standalone mapper to expose `mapper.key()`
+without a table name, specify the key fields:
 
 ```groovy
 def item = new DynamoMap(
@@ -74,7 +75,6 @@ the `v` version field when versioning is enabled.
 import it.grational.storage.DbMapper
 import it.grational.storage.dynamodb.*
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
-import static it.grational.storage.dynamodb.FieldType.*
 
 class User extends Dynable {
   String id
@@ -95,7 +95,7 @@ class User extends Dynable {
   @Override
   protected DbMapper<AttributeValue, Object> inpress(DynamoMapper mapper) {
     mapper
-      .with('id', id, PARTITION_KEY)
+      .with('id', id)
       .with('email', email)
       .with('name', name)
       .with('loginCount', loginCount)
@@ -108,6 +108,10 @@ dynamo.putItem('users', user)
 User loaded = dynamo.getItem('users', KeyFilter.of('id', 'user-1'), User)
   .get()
 ```
+
+The table schema owns key identity. In normal domain objects, map key fields as
+plain fields. Impress can inspect the table schema when it needs keys for
+update, delete, and refresh operations.
 
 ## Query And Scan Builders
 
@@ -152,7 +156,7 @@ Dot notation targets nested attributes:
 
 ```groovy
 def update = new DynamoMapper()
-  .with('id', 'user-1', PARTITION_KEY)
+  .with('id', 'user-1')
   .with('profile.settings.notifications', false)
   .with('profile.stats.visits', 11)
 
@@ -163,7 +167,7 @@ Escape literal dots in attribute names:
 
 ```groovy
 def update = new DynamoMapper()
-  .with('id', 'user-1', PARTITION_KEY)
+  .with('id', 'user-1')
   .with('api\\.v2.endpoint', 'https://example.test')
 
 dynamo.updateItem('users', update)

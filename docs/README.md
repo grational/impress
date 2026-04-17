@@ -23,7 +23,6 @@ Groovy:
 ```groovy
 import it.grational.storage.dynamodb.*
 import static it.grational.storage.dynamodb.DynamoFilter.*
-import static it.grational.storage.dynamodb.FieldType.*
 ```
 
 Java:
@@ -31,7 +30,6 @@ Java:
 ```java
 import it.grational.storage.dynamodb.*;
 import static it.grational.storage.dynamodb.DynamoFilter.*;
-import static it.grational.storage.dynamodb.FieldType.*;
 ```
 
 ## Mental Model

@@ -261,7 +261,7 @@ Update selected fields:
 
 ```groovy
 def update = new DynamoMapper()
-  .with('id', 'user-1', FieldType.PARTITION_KEY)
+  .with('id', 'user-1')
   .with('name', 'Ada')
   .with('profile.settings.notifications', false)
 
@@ -272,7 +272,7 @@ Remove fields:
 
 ```groovy
 def update = new DynamoMapper()
-  .with('id', 'user-1', FieldType.PARTITION_KEY)
+  .with('id', 'user-1')
   .remove('obsoleteField', 'profile.oldSetting')
 
 dynamo.updateItem('users', update)
@@ -290,6 +290,20 @@ dynamo.updateItem('users', user.tap { name = 'Ada Lovelace' })
 dynamo.refreshItem('users', user)
 dynamo.deleteItem('users', user)
 ```
+
+The same applies to a `DynamoMapper` passed to `updateItem`:
+
+```groovy
+def update = new DynamoMapper()
+  .with('id', 'user-1')
+  .with('name', 'Ada Lovelace')
+
+dynamo.updateItem('users', update)
+```
+
+Use explicit `FieldType.PARTITION_KEY` and `FieldType.SORT_KEY` only when you
+need a standalone mapper to expose `mapper.key()` before a `DynamoDb` operation
+has a table name available.
 
 ## Optimistic Locking
 

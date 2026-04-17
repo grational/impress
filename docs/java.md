@@ -33,7 +33,6 @@ so Java callers can chain naturally.
 
 ```java
 import it.grational.storage.dynamodb.*;
-import static it.grational.storage.dynamodb.FieldType.*;
 
 public final class User implements DynamoStorable {
 	private String id;
@@ -87,7 +86,7 @@ public final class User implements DynamoStorable {
 		boolean versioned
 	) {
 		return mapper
-			.with("id", id, PARTITION_KEY)
+			.with("id", id)
 			.with("email", email)
 			.with("name", name)
 			.with("loginCount", loginCount);
@@ -112,6 +111,10 @@ When loading into a JavaBean, Impress uses the no-arg constructor and JavaBean
 setters. DynamoDB numbers are converted to compatible primitive and boxed
 numeric setter types.
 
+The table schema owns key identity. For normal `DynamoStorable` objects, do not
+mark keys in `impress(...)`; Impress can inspect the DynamoDB table schema when
+it needs to extract keys for update, delete, and refresh operations.
+
 ## Java Record
 
 Records are supported for immutable read models. Implement `DynamoStorable` and
@@ -119,7 +122,6 @@ write record components into the mapper.
 
 ```java
 import it.grational.storage.dynamodb.*;
-import static it.grational.storage.dynamodb.FieldType.*;
 
 public record AuditEvent(
 	String streamId,
@@ -132,8 +134,8 @@ public record AuditEvent(
 		boolean versioned
 	) {
 		return mapper
-			.with("streamId", streamId, PARTITION_KEY)
-			.with("timestamp", timestamp, SORT_KEY)
+			.with("streamId", streamId)
+			.with("timestamp", timestamp)
 			.with("eventType", eventType);
 	}
 }
@@ -197,7 +199,7 @@ chains do not collapse back to the generic `DbMapper` type.
 
 ```java
 DynamoDbMapper mapper = new DynamoMapper()
-	.with("id", "user-1", FieldType.PARTITION_KEY)
+	.with("id", "user-1")
 	.with("name", "Ada")
 	.with("score", 42)
 	.with("active", true)
@@ -215,7 +217,7 @@ List<User> users = List.of(
 );
 
 DynamoDbMapper mapper = new DynamoMapper()
-	.with("id", "team-1", FieldType.PARTITION_KEY)
+	.with("id", "team-1")
 	.withItems("members", users);
 ```
 
@@ -228,9 +230,44 @@ List<DynamoMapper> entries = List.of(
 );
 
 DynamoDbMapper mapper = new DynamoMapper()
-	.with("id", "container-1", FieldType.PARTITION_KEY)
+	.with("id", "container-1")
 	.withMappers("entries", entries);
 ```
+
+## Advanced: Explicit Key Markers
+
+Most application code should not use `FieldType.PARTITION_KEY` or
+`FieldType.SORT_KEY`. Prefer plain field mapping and let the table schema define
+which fields are keys.
+
+Explicit markers are still useful when you need a standalone `DynamoMapper` to
+know its key before it is passed to `DynamoDb`. For example, this works without
+consulting DynamoDB:
+
+```java
+import static it.grational.storage.dynamodb.FieldType.*;
+
+DynamoDbMapper mapper = new DynamoMapper()
+	.with("id", "user-1", PARTITION_KEY)
+	.with("createdAt", 1700000000L, SORT_KEY)
+	.with("name", "Ada");
+
+Map<String, AttributeValue> key = mapper.key();
+```
+
+If the mapper is passed to a `DynamoDb` operation with a table name, explicit
+markers are usually unnecessary:
+
+```java
+DynamoDbMapper update = new DynamoMapper()
+	.with("id", "user-1")
+	.with("name", "Ada Lovelace");
+
+dynamo.updateItem("users", update);
+```
+
+In the second example, Impress can inspect the `users` table schema and mark the
+key fields internally.
 
 ## Get, Query, And Scan
 
