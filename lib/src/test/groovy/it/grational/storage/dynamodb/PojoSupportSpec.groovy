@@ -32,6 +32,23 @@ class PojoSupportSpec extends Specification {
 		}
 	}
 
+	static class DynableWithoutSuper extends Dynable {
+		String id
+
+		DynableWithoutSuper(Map<String, Object> data) {
+			id = data.id
+		}
+
+		Integer version() {
+			v
+		}
+
+		@Override
+		protected DbMapper<AttributeValue, Object> inpress(DynamoMapper mapper) {
+			mapper.with('id', id)
+		}
+	}
+
 	def "Should be able to instantiate JavaBean using smart instantiation"() {
 		given:
 			Map<String, Object> data = [id: '123', name: 'John']
@@ -59,5 +76,21 @@ class PojoSupportSpec extends Specification {
 			instance instanceof JavaRecord
 			instance.id() == '123'
 			instance.name() == 'John'
+	}
+
+	def "Should hydrate a Dynable version when its Map constructor omits super"() {
+		given:
+			Map<String, Object> data = [id: '123', v: 1G]
+			DynamoDb db = new DynamoDb()
+
+		when:
+			DynableWithoutSuper instance = db.instantiate (
+				DynableWithoutSuper,
+				data
+			)
+
+		then:
+			instance.id == '123'
+			instance.version() == 1
 	}
 }

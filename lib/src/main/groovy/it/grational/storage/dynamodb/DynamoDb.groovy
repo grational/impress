@@ -271,13 +271,19 @@ class DynamoDb {
 	} // }}}
 
 	private <T> T instantiate(Class<T> type, Map<String, Object> data) {
+		T instance
 		try {
 			// Try Groovy-style Map constructor first
-			return type.newInstance(data)
+			instance = type.newInstance(data)
 		} catch (Exception ignored) {
 			// Fallback to No-arg constructor + Properties/Setters or Record
-			return instantiateFallback(type, data)
+			instance = instantiateFallback(type, data)
 		}
+
+		if (instance instanceof Dynable)
+			(instance as Dynable).loadVersion(data)
+
+		return instance
 	}
 
 	@TypeChecked(TypeCheckingMode.SKIP)
