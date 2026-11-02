@@ -13,6 +13,7 @@ class GetItemBuilder<T extends Storable<AttributeValue, Object>> {
 	private String table
 	private KeyFilter key
 	private List<String> fields
+	private boolean strongRead = false
 	private Class<T> type
 	// }}}
 	
@@ -51,12 +52,18 @@ class GetItemBuilder<T extends Storable<AttributeValue, Object>> {
 	}
 	// }}}
 	
+	GetItemBuilder<T> consistent(boolean enabled = true) {
+		this.strongRead = enabled
+		return this
+	}
+
 	T get() { // {{{
 		return dynamo.getItem (
 			table,
 			key,
 			fields,
-			type
+			type,
+			strongRead
 		)
 	} // }}}
 
