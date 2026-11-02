@@ -30,6 +30,10 @@ class DynamoDb {
 		this.client = DynamoDbClient.builder().build()
 	} // }}}
 
+	Transaction transaction(String token = UUID.randomUUID().toString()) {
+		new Transaction(client, token)
+	}
+
 	void putItem (
 		String table,
 		Storable<AttributeValue,Object> storable,
@@ -241,7 +245,8 @@ class DynamoDb {
 		String table,
 		KeyFilter key,
 		List<String> fields,
-		Class<T> type = DynamoMap.class
+		Class<T> type = DynamoMap.class,
+		boolean consistent = false
 	) { // {{{
 		log.debug("Getting item with key: {} and projection: {}", key, fields)
 
@@ -249,6 +254,7 @@ class DynamoDb {
 			.builder()
 			.tableName(table)
 			.key(key.toMap())
+			.consistentRead(consistent)
 
 		if ( fields ) {
 			Tuple2<String, Map<String, String>> projection = projectionExpression(fields)
