@@ -159,3 +159,33 @@ because Groovy is also a runtime dependency:
 ## License
 
 Impress is open source software released under the MIT License.
+
+### Atomic writes across tables
+
+`transaction(token)` composes one indivisible DynamoDB transaction:
+
+```groovy
+dynamo.transaction(operationId)
+	.put('budgets', budgets)
+	.put('journal', entries)
+	.put('products', products)
+	.commit()
+```
+
+Content, version conditions and token are frozen at the first submission. Calling
+`commit()` again reuses the exact request. Composition after submission is rejected,
+including after a failed submission. Replay stops before DynamoDB's ten-minute token
+expiry. The caller must distinguish confirmed cancellation from an unknown outcome;
+never recalculate an uncertain write with a new token.
+
+Transactions accept at most 100 actions and are never split. DynamoDB atomically
+validates its 4 MB aggregate limit. Existing `putItems` batching remains unchanged.
+`delete(table, key, condition)` and `update(table, key, changes, condition)` compose
+conditional deletions and attribute changes. `put(table, item, condition)` preserves
+the supplied content and uses the explicit condition, useful for restoring an absent
+record. Versioned puts reuse the mapper's version increment; existing positive
+versions must still exist and match, preventing stale resurrection.
+
+Primary-key reads opt in to strong consistency with
+`dynamo.getItem(table, key, type).consistent().get()`; default reads are unchanged.
+Published compatibility variants continue to support Groovy 4 and Java 8/Groovy 3.
